@@ -89,10 +89,20 @@ export default function Home() {
 
         {/* ---- Footer ---- */}
         <footer
-          className="reveal border-t border-white/5 py-6 text-center text-xs text-muted"
+          className="reveal border-t border-white/5 py-6 text-xs text-muted"
           style={{ "--d": "0.82s" } as React.CSSProperties}
         >
-          © 2026 Kamee Fitness. All rights reserved.
+          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <span>© 2026 Kamee Fitness. All rights reserved.</span>
+            <nav className="flex gap-5">
+              <a href="/terms" className="hover:text-white">
+                Terms
+              </a>
+              <a href="/privacy" className="hover:text-white">
+                Privacy
+              </a>
+            </nav>
+          </div>
         </footer>
       </div>
     </div>
