@@ -6,9 +6,8 @@ const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
 };
 
-const withMDX = createMDX({
-  // No remark/rehype plugins for v1; add remark-gfm later if we want tables/strikethrough.
-  options: {},
-});
+// No remark/rehype plugins — Turbopack (Next 16) doesn't run them. Heading
+// IDs are derived at render time in mdx-components.tsx via slugifyHeading.
+const withMDX = createMDX({ options: {} });
 
 export default withMDX(nextConfig);

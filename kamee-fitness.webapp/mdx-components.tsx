@@ -1,5 +1,17 @@
 import type { MDXComponents } from "mdx/types";
 
+// Turbopack (Next 16) doesn't run remark/rehype plugins, so we derive heading
+// IDs from the heading text at render time. Children must be a plain string —
+// any markdown formatting inside a heading (bold, em, links) would break this.
+function slugifyHeading(children: React.ReactNode): string | undefined {
+  if (typeof children !== "string") return undefined;
+  return children
+    .toLowerCase()
+    .replace(/^[\d.]+\s*/, "") // strip leading "1. ", "12. ", etc.
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 // Map MDX elements to Tailwind-styled React components. Tokens (ink/leaf/ember)
 // are defined in app/globals.css.
 export function useMDXComponents(components: MDXComponents): MDXComponents {
@@ -7,16 +19,21 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     h1: ({ children }) => (
       <h1 className="text-3xl font-bold text-leaf-300 mt-8 mb-4">{children}</h1>
     ),
-    h2: ({ children, id }) => (
+    h2: ({ children }) => (
       <h2
-        id={id}
+        id={slugifyHeading(children)}
         className="text-2xl font-semibold text-leaf-400 mt-10 mb-3 scroll-mt-24"
       >
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="text-lg font-semibold text-ink-100 mt-6 mb-2">{children}</h3>
+      <h3
+        id={slugifyHeading(children)}
+        className="text-lg font-semibold text-ink-100 mt-6 mb-2"
+      >
+        {children}
+      </h3>
     ),
     p: ({ children }) => (
       <p className="text-ink-200 leading-relaxed my-3">{children}</p>
