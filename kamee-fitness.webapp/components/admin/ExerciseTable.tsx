@@ -63,7 +63,7 @@ export function ExerciseTable({
                   src={imageUrl(ex.demo_image_path)}
                   alt={ex.name}
                   loading="lazy"
-                  className="h-10 w-10 rounded border border-zinc-800 object-cover"
+                  className="h-16 w-16 rounded border border-zinc-800 object-cover"
                 />
               ) : (
                 <span className="text-zinc-600">—</span>
