@@ -19,6 +19,14 @@ export function ExerciseTable({
     <table className="w-full border-collapse text-sm">
       <thead>
         <tr className="border-b border-zinc-800 text-left text-zinc-400">
+          <th className="w-8 py-2 pr-2">
+            {/* Decorative only — selection isn't wired up. */}
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              className="h-4 w-4 cursor-pointer accent-emerald-500"
+            />
+          </th>
           <th className="py-2 pr-4 font-medium">Name</th>
           <th className="py-2 pr-4 font-medium">Primary muscle</th>
           <th className="py-2 pr-4 font-medium">Equipment</th>
@@ -30,6 +38,13 @@ export function ExerciseTable({
       <tbody>
         {rows.map((ex) => (
           <tr key={ex.id} className="border-b border-zinc-900">
+            <td className="py-2 pr-2">
+              <input
+                type="checkbox"
+                aria-label={`Select ${ex.name}`}
+                className="h-4 w-4 cursor-pointer accent-emerald-500"
+              />
+            </td>
             <td className="py-2 pr-4">{ex.name}</td>
             <td className="py-2 pr-4 text-zinc-400">{ex.primary_muscle}</td>
             <td className="py-2 pr-4 text-zinc-400">
