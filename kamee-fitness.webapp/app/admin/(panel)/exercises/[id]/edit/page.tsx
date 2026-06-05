@@ -22,7 +22,11 @@ export default async function EditExercisePage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Edit: {exercise.name}</h1>
-        <DeleteExerciseForm id={exercise.id} action={deleteExercise} />
+        <DeleteExerciseForm
+          id={exercise.id}
+          name={exercise.name}
+          action={deleteExercise}
+        />
       </div>
       <ExerciseForm
         action={updateExercise}
