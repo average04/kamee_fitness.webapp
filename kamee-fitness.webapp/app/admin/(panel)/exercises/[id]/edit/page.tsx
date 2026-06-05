@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { ExerciseForm } from "@/components/admin/ExerciseForm";
+import { DeleteExerciseForm } from "@/components/admin/DeleteExerciseForm";
 import { deleteExercise, updateExercise } from "../../actions";
 import { getDistinctMuscles, getExercise } from "../../queries";
 
@@ -21,12 +22,7 @@ export default async function EditExercisePage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Edit: {exercise.name}</h1>
-        <form action={deleteExercise}>
-          <input type="hidden" name="id" value={exercise.id} />
-          <button className="rounded-lg border border-red-900 px-3 py-1.5 text-sm text-red-400 hover:bg-red-950/40">
-            Delete
-          </button>
-        </form>
+        <DeleteExerciseForm id={exercise.id} action={deleteExercise} />
       </div>
       <ExerciseForm
         action={updateExercise}
