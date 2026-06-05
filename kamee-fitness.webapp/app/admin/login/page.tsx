@@ -39,6 +39,8 @@ function LoginForm() {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
   const widgetEl = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
 
@@ -81,7 +83,7 @@ function LoginForm() {
     return () => script?.removeEventListener("load", render);
   }, []);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSend(e: React.FormEvent) {
     e.preventDefault();
     if (!captchaToken) {
       setMessage("Still verifying you're human — give it a moment and retry.");
@@ -114,12 +116,34 @@ function LoginForm() {
     }
   }
 
+  // Verify the 6-digit code from the email. No captcha needed for verification.
+  async function onVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setVerifying(true);
+    setMessage(null);
+
+    const supabase = createBrowserSupabase();
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: "email",
+    });
+
+    if (error) {
+      setVerifying(false);
+      setMessage(error.message);
+      return;
+    }
+    // Session cookies are set — full navigation so the proxy/server picks them up.
+    window.location.href = "/admin/exercises";
+  }
+
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#07090a] px-4 text-zinc-100">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950/60 p-8">
         <h1 className="text-xl font-semibold">Kamee Admin</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Sign in with a magic link sent to your email.
+          Sign in with a magic link or code sent to your email.
         </p>
 
         {banner && (
@@ -128,31 +152,58 @@ function LoginForm() {
           </p>
         )}
 
-        {status === "sent" ? (
-          <p className="mt-6 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
-            Check your inbox for a sign-in link.
+        <form onSubmit={onSend} className="mt-6 space-y-3">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-emerald-600"
+          />
+          <div ref={widgetEl} />
+          <button
+            type="submit"
+            disabled={status === "sending"}
+            className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {status === "sending" ? "Sending…" : "Send magic link / code"}
+          </button>
+        </form>
+
+        {status === "sent" && (
+          <p className="mt-3 rounded-lg bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+            Check your inbox — click the link, or enter the 6-digit code below.
           </p>
-        ) : (
-          <form onSubmit={onSubmit} className="mt-6 space-y-3">
+        )}
+
+        <form onSubmit={onVerify} className="mt-4 space-y-2">
+          <label className="block text-xs text-zinc-500">
+            Have a code from your email?
+          </label>
+          <div className="flex gap-2">
             <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-emerald-600"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={code}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="123456"
+              className="w-32 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm tracking-widest outline-none focus:border-emerald-600"
             />
-            <div ref={widgetEl} />
             <button
               type="submit"
-              disabled={status === "sending"}
-              className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              disabled={verifying || code.length < 6}
+              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm disabled:opacity-50"
             >
-              {status === "sending" ? "Sending…" : "Send magic link"}
+              {verifying ? "Verifying…" : "Verify code"}
             </button>
-            {message && <p className="text-sm text-red-400">{message}</p>}
-          </form>
-        )}
+          </div>
+        </form>
+
+        {message && <p className="mt-3 text-sm text-red-400">{message}</p>}
       </div>
     </main>
   );
