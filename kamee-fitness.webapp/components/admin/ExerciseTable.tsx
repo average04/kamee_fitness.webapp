@@ -2,6 +2,12 @@ import Link from "next/link";
 import type { Exercise } from "@/lib/admin/exercises";
 import { VideoUrlCell } from "./VideoUrlCell";
 
+// Demo images live in the public `exercise-demos` bucket; demo_image_path is
+// stored bucket-prefixed (e.g. "exercise-demos/bench-press.png").
+function imageUrl(path: string): string {
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${path}`;
+}
+
 export function ExerciseTable({
   rows,
   onSaveVideo,
@@ -50,8 +56,18 @@ export function ExerciseTable({
             <td className="py-2 pr-4 text-zinc-400">
               {ex.is_bodyweight ? "Bodyweight" : ex.equipment.join(", ")}
             </td>
-            <td className="py-2 pr-4 text-zinc-400">
-              {ex.demo_image_path ? "✓" : "—"}
+            <td className="py-2 pr-4">
+              {ex.demo_image_path ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageUrl(ex.demo_image_path)}
+                  alt={ex.name}
+                  loading="lazy"
+                  className="h-10 w-10 rounded border border-zinc-800 object-cover"
+                />
+              ) : (
+                <span className="text-zinc-600">—</span>
+              )}
             </td>
             <td className="py-2 pr-4">
               <VideoUrlCell
