@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/auth";
 import { ExerciseTable } from "@/components/admin/ExerciseTable";
 import { listExercises } from "./queries";
+import { setDemoVideo } from "./actions";
 
 export default async function ExercisesPage({
   searchParams,
@@ -39,7 +40,7 @@ export default async function ExercisesPage({
         </button>
       </form>
 
-      <ExerciseTable rows={rows} />
+      <ExerciseTable rows={rows} onSaveVideo={setDemoVideo} />
 
       {pageCount > 1 && (
         <div className="flex items-center gap-3 text-sm text-zinc-400">

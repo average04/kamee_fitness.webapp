@@ -1,7 +1,17 @@
 import Link from "next/link";
 import type { Exercise } from "@/lib/admin/exercises";
+import { VideoUrlCell } from "./VideoUrlCell";
 
-export function ExerciseTable({ rows }: { rows: Exercise[] }) {
+export function ExerciseTable({
+  rows,
+  onSaveVideo,
+}: {
+  rows: Exercise[];
+  onSaveVideo: (
+    id: string,
+    url: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+}) {
   if (rows.length === 0) {
     return <p className="text-sm text-zinc-500">No exercises found.</p>;
   }
@@ -13,6 +23,7 @@ export function ExerciseTable({ rows }: { rows: Exercise[] }) {
           <th className="py-2 pr-4 font-medium">Primary muscle</th>
           <th className="py-2 pr-4 font-medium">Equipment</th>
           <th className="py-2 pr-4 font-medium">Image</th>
+          <th className="py-2 pr-4 font-medium">YouTube</th>
           <th className="py-2 font-medium"></th>
         </tr>
       </thead>
@@ -26,6 +37,13 @@ export function ExerciseTable({ rows }: { rows: Exercise[] }) {
             </td>
             <td className="py-2 pr-4 text-zinc-400">
               {ex.demo_image_path ? "✓" : "—"}
+            </td>
+            <td className="py-2 pr-4">
+              <VideoUrlCell
+                id={ex.id}
+                initialUrl={ex.demo_video_path}
+                onSave={onSaveVideo}
+              />
             </td>
             <td className="py-2 text-right">
               <Link

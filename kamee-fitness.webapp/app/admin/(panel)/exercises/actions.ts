@@ -148,3 +148,22 @@ export async function deleteExercise(formData: FormData): Promise<void> {
   revalidatePath("/admin/exercises");
   redirect("/admin/exercises");
 }
+
+/**
+ * Lightweight inline update of just the demo video (YouTube) URL from the list
+ * table. Returns a result instead of redirecting so the cell can stay put.
+ */
+export async function setDemoVideo(
+  id: string,
+  url: string,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const admin = createAdminSupabase();
+  const value = url.trim() || null;
+  const { error } = await admin
+    .from("exercises")
+    .update({ demo_video_path: value })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
