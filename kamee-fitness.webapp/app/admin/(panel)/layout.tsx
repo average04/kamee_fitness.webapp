@@ -23,6 +23,12 @@ export default async function PanelLayout({
             Dashboard
           </Link>
           <Link
+            href="/admin/plans"
+            className="text-sm text-zinc-400 hover:text-zinc-100"
+          >
+            Plans
+          </Link>
+          <Link
             href="/admin/exercises"
             className="text-sm text-zinc-400 hover:text-zinc-100"
           >

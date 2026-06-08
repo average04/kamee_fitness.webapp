@@ -9,8 +9,10 @@ import { useState } from "react";
  */
 export function ImageUploadField({
   currentPath,
+  label = "Demo image",
 }: {
   currentPath: string | null;
+  label?: string;
 }) {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // Stored path is `exercise-demos/<file>`; the bucket is also `exercise-demos`,
@@ -23,7 +25,7 @@ export function ImageUploadField({
 
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm text-zinc-300">Demo image</label>
+      <label className="block text-sm text-zinc-300">{label}</label>
       {preview && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
