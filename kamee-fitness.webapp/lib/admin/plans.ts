@@ -94,6 +94,9 @@ export type PlanWeekNode = {
   days: PlanDayNode[];
 };
 
+/** id + name pair for the builder's exercise picker. */
+export type ExerciseOption = { id: string; name: string };
+
 /** Form state returned by the create/update Server Actions to `useActionState`. */
 export type PlanFormState = {
   errors?: Record<string, string>;

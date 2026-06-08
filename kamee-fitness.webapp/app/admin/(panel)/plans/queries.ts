@@ -4,6 +4,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import type {
   BlockKind,
   DayKind,
+  ExerciseOption,
   Plan,
   PlanKind,
   PlanWeekNode,
@@ -56,6 +57,17 @@ export async function listPlans(
     page,
     pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
   };
+}
+
+/** All exercises (id + name) for the builder's exercise picker. */
+export async function listExerciseOptions(): Promise<ExerciseOption[]> {
+  const admin = createAdminSupabase();
+  const { data, error } = await admin
+    .from("exercises")
+    .select("id, name")
+    .order("name", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ExerciseOption[];
 }
 
 export async function getPlan(id: string): Promise<Plan | null> {

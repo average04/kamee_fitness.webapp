@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { PlanLifecycle } from "@/components/admin/plans/PlanLifecycle";
-import { PlanTreeView } from "@/components/admin/plans/PlanTreeView";
-import { getPlan, getPlanTree } from "../queries";
+import { PlanBuilder } from "@/components/admin/plans/builder/PlanBuilder";
+import { getPlan, getPlanTree, listExerciseOptions } from "../queries";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,10 @@ export default async function PlanDetailPage({
   const { id } = await params;
   const plan = await getPlan(id);
   if (!plan) notFound();
-  const weeks = await getPlanTree(id);
+  const [weeks, exerciseOptions] = await Promise.all([
+    getPlanTree(id),
+    listExerciseOptions(),
+  ]);
 
   const cover = coverUrl(plan.cover_image_path);
 
@@ -107,7 +110,7 @@ export default async function PlanDetailPage({
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-zinc-300">Structure</h2>
-        <PlanTreeView weeks={weeks} />
+        <PlanBuilder planId={plan.id} weeks={weeks} options={exerciseOptions} />
       </div>
     </div>
   );
