@@ -13,8 +13,14 @@ export default async function PanelLayout({
     <div className="min-h-dvh bg-[#07090a] text-zinc-100">
       <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
         <nav className="flex items-center gap-4">
-          <Link href="/admin/exercises" className="font-semibold">
+          <Link href="/admin" className="font-semibold">
             Kamee Admin
+          </Link>
+          <Link
+            href="/admin"
+            className="text-sm text-zinc-400 hover:text-zinc-100"
+          >
+            Dashboard
           </Link>
           <Link
             href="/admin/exercises"
