@@ -2,7 +2,7 @@ import Image from "next/image";
 import WaitlistForm from "@/components/WaitlistForm";
 
 const APP_STORE_URL =
-  "https://apps.apple.com/ph/app/kamee-fitness-658c0e/id6772307537";
+  "https://apps.apple.com/app/kamee-fitness-658c0e/id6772307537";
 
 export default function Home() {
   return (
