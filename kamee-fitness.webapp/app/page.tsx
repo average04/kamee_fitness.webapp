@@ -1,6 +1,9 @@
 import Image from "next/image";
 import WaitlistForm from "@/components/WaitlistForm";
 
+const APP_STORE_URL =
+  "https://apps.apple.com/ph/app/kamee-fitness-658c0e/id6772307537";
+
 export default function Home() {
   return (
     <div className="relative min-h-dvh overflow-hidden">
@@ -33,8 +36,8 @@ export default function Home() {
             className="reveal inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.22em] text-leaf-300"
             style={{ "--d": "0.1s" } as React.CSSProperties}
           >
-            <span className="blink size-1.5 rounded-full bg-ember-500" />
-            Coming soon
+            <span className="blink size-1.5 rounded-full bg-leaf-400" />
+            Now on iOS
           </span>
 
           {/* Logo with breathing glow */}
@@ -82,7 +85,7 @@ export default function Home() {
             className="reveal mt-10 flex flex-wrap items-center justify-center gap-3"
             style={{ "--d": "0.7s" } as React.CSSProperties}
           >
-            <StoreBadge platform="ios" />
+            <StoreBadge platform="ios" href={APP_STORE_URL} />
             <StoreBadge platform="android" />
           </div>
         </main>
@@ -134,10 +137,25 @@ function Atmosphere() {
   );
 }
 
-function StoreBadge({ platform }: { platform: "ios" | "android" }) {
+function StoreBadge({
+  platform,
+  href,
+}: {
+  platform: "ios" | "android";
+  href?: string;
+}) {
   const isIos = platform === "ios";
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:border-leaf-500/30">
+  const live = Boolean(href);
+  const storeName = isIos ? "App Store" : "Google Play";
+
+  const className =
+    "flex items-center gap-3 rounded-2xl border px-4 py-2.5 text-left transition-colors " +
+    (live
+      ? "border-leaf-500/40 bg-leaf-500/[0.07] hover:border-leaf-400/60 hover:bg-leaf-500/[0.12]"
+      : "border-white/10 bg-white/[0.03] hover:border-leaf-500/30");
+
+  const inner = (
+    <>
       <span className="text-leaf-400/90">
         {isIos ? (
           <svg viewBox="0 0 24 24" fill="currentColor" className="size-6" aria-hidden>
@@ -151,12 +169,28 @@ function StoreBadge({ platform }: { platform: "ios" | "android" }) {
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-[0.62rem] font-medium uppercase tracking-[0.16em] text-leaf-400/80">
-          Coming soon
+          {live ? "Download on the" : "Coming soon"}
         </span>
         <span className="font-display text-sm font-semibold text-mist">
-          {isIos ? "App Store" : "Google Play"}
+          {storeName}
         </span>
       </span>
-    </div>
+    </>
   );
+
+  if (live) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Download Kamee Fitness on the ${storeName}`}
+        className={className}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  return <div className={className}>{inner}</div>;
 }
