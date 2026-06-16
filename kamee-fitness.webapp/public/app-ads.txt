@@ -1,0 +1,4 @@
+# app-ads.txt for Kamee Fitness — https://kamee.fitness
+# Authorizes Google AdMob as a direct seller of ad inventory for the Kamee Fitness apps.
+# Publisher ID derived from the iOS AdMob app (ca-app-pub-5667402771484120~...).
+google.com, pub-5667402771484120, DIRECT, f08c47fec0942fa0
