@@ -1,12 +1,53 @@
 import Image from "next/image";
 import WaitlistForm from "@/components/WaitlistForm";
 
+const SITE_URL = "https://kamee.fitness";
+
 const APP_STORE_URL =
   "https://apps.apple.com/app/kamee-fitness-658c0e/id6772307537";
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Kamee Fitness",
+      url: SITE_URL,
+      logo: `${SITE_URL}/adaptive-icon.png`,
+      sameAs: [APP_STORE_URL],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: "Kamee Fitness",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+    {
+      "@type": "MobileApplication",
+      name: "Kamee Fitness",
+      operatingSystem: "iOS",
+      applicationCategory: "HealthApplication",
+      url: SITE_URL,
+      downloadUrl: APP_STORE_URL,
+      installUrl: APP_STORE_URL,
+      image: `${SITE_URL}/adaptive-icon.png`,
+      description:
+        "Personal workout and training app built on steady, sustainable progress.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
+};
 
 export default function Home() {
   return (
     <div className="relative min-h-dvh overflow-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Atmosphere />
 
       <div className="relative z-10 mx-auto flex min-h-dvh max-w-3xl flex-col px-6">

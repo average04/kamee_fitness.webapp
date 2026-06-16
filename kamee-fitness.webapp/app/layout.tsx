@@ -15,31 +15,80 @@ const hanken = Hanken_Grotesk({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://kamee.fitness"),
-  title: "Kamee Fitness — Coming Soon",
+  title: {
+    default: "Kamee Fitness — Personal Workout & Training App",
+    template: "%s · Kamee Fitness",
+  },
   description:
-    "Slow and steady wins the race. Kamee Fitness is almost here — join the waitlist for early access on iOS and Android.",
+    "Kamee Fitness is a personal workout and training app built on steady, sustainable progress. Download free on iOS for guided workouts, training plans, and progress tracking. Android coming soon.",
+  applicationName: "Kamee Fitness",
+  authors: [{ name: "Kamee Fitness" }],
+  creator: "Kamee Fitness",
+  publisher: "Kamee Fitness",
+  category: "health",
   keywords: [
     "Kamee Fitness",
+    "Kamee",
     "fitness app",
-    "workout",
+    "workout app",
+    "personal training app",
     "personal trainer",
-    "coming soon",
-    "waitlist",
+    "workout tracker",
+    "exercise tracker",
+    "training plans",
+    "strength training",
+    "home workout",
+    "gym workout",
+    "fitness coaching",
+    "iOS fitness app",
+    "progress tracking",
   ],
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
-    title: "Kamee Fitness — Coming Soon",
-    description:
-      "Slow and steady wins the race. Kamee Fitness is almost here — join the waitlist.",
-    siteName: "Kamee Fitness",
     type: "website",
-    images: [{ url: "/adaptive-icon.png", width: 1024, height: 1024, alt: "Kamee Fitness" }],
+    url: "https://kamee.fitness",
+    siteName: "Kamee Fitness",
+    title: "Kamee Fitness — Personal Workout & Training App",
+    description:
+      "Build a stronger you, one steady step at a time. Download Kamee Fitness free on iOS — guided workouts, training plans, and progress tracking. Android coming soon.",
+    locale: "en_US",
+    images: [
+      {
+        url: "/adaptive-icon.png",
+        width: 1024,
+        height: 1024,
+        alt: "Kamee Fitness",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kamee Fitness — Coming Soon",
+    title: "Kamee Fitness — Personal Workout & Training App",
     description:
-      "Slow and steady wins the race. Kamee Fitness is almost here — join the waitlist.",
+      "Build a stronger you, one steady step at a time. Download Kamee Fitness free on iOS. Android coming soon.",
     images: ["/adaptive-icon.png"],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Kamee Fitness",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 

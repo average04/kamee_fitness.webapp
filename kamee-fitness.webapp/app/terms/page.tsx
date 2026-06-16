@@ -3,8 +3,9 @@ import Terms from "@/content/legal/terms.mdx";
 import { LegalDocLayout } from "@/components/LegalDocLayout";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — Kamee Fitness",
-  description: "The terms that govern your use of Kamee Fitness.",
+  title: "Terms of Service",
+  description:
+    "The terms that govern your use of the Kamee Fitness app and website.",
 };
 
 // IDs must match slugifyHeading() in mdx-components.tsx — strip the leading

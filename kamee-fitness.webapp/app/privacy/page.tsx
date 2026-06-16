@@ -3,8 +3,9 @@ import Privacy from "@/content/legal/privacy.mdx";
 import { LegalDocLayout } from "@/components/LegalDocLayout";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Kamee Fitness",
-  description: "How Kamee Fitness handles your personal data.",
+  title: "Privacy Policy",
+  description:
+    "How Kamee Fitness collects, uses, and protects your personal data.",
 };
 
 // IDs must match slugifyHeading() in mdx-components.tsx — strip the leading
