@@ -9,8 +9,10 @@ export async function submitDeletionRequest(
   _prev: DeletionRequestResult | null,
   formData: FormData,
 ): Promise<DeletionRequestResult> {
-  const email = String(formData.get("email") ?? "").trim();
-  const note = String(formData.get("note") ?? "").trim() || null;
+  // Bound inputs server-side — this is an anonymous, unauthenticated endpoint.
+  const email = String(formData.get("email") ?? "").trim().slice(0, 320);
+  const rawNote = String(formData.get("note") ?? "").trim();
+  const note = rawNote ? rawNote.slice(0, 1000) : null;
   const token = String(formData.get("cf-turnstile-response") ?? "") || null;
 
   if (!email || !email.includes("@")) {
