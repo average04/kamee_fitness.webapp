@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/auth";
 import { ExerciseTable } from "@/components/admin/ExerciseTable";
 import { listExercises } from "./queries";
-import { setDemoVideo } from "./actions";
+import { setDemoVideo, setVerified } from "./actions";
 
 export default async function ExercisesPage({
   searchParams,
@@ -40,7 +40,11 @@ export default async function ExercisesPage({
         </button>
       </form>
 
-      <ExerciseTable rows={rows} onSaveVideo={setDemoVideo} />
+      <ExerciseTable
+        rows={rows}
+        onSaveVideo={setDemoVideo}
+        onToggleVerified={setVerified}
+      />
 
       {pageCount > 1 && (
         <div className="flex items-center gap-3 text-sm text-zinc-400">

@@ -18,6 +18,7 @@ export type ExerciseInput = {
 export type Exercise = ExerciseInput & {
   id: string;
   is_bodyweight: boolean; // generated column — read-only
+  verified: boolean; // moderation flag — toggled from the list, never via the form
   created_by: string | null;
   created_at: string;
 };

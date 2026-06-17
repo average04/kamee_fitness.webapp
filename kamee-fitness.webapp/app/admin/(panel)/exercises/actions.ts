@@ -167,3 +167,21 @@ export async function setDemoVideo(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/**
+ * Inline toggle of the `verified` moderation flag from the list table. Returns
+ * a result instead of redirecting so the checkbox can stay put.
+ */
+export async function setVerified(
+  id: string,
+  verified: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const admin = createAdminSupabase();
+  const { error } = await admin
+    .from("exercises")
+    .update({ verified })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
