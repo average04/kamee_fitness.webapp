@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanProgressInput } from "./plan";
+import type { SetWithExercise } from "./workoutDetail";
 
 export type Units = "metric" | "imperial";
 
@@ -192,5 +193,199 @@ export async function loadPlanProgress(
     title: p.title ?? "Your plan",
     currentWeek: (up as { current_week: number | null }).current_week ?? 0,
     totalWeeks: p.weeks_count ?? 0,
+  };
+}
+
+const RATING_LABEL: Record<string, string> = {
+  too_easy: "Too easy",
+  just_right: "Just right",
+  too_hard: "Too hard",
+};
+
+export type WorkoutDetailData = {
+  session: {
+    id: string;
+    startedAt: string;
+    durationSeconds: number | null;
+    avgHr: number | null;
+  };
+  dayTitle: string;
+  ratingLabel: string | null;
+  current: SetWithExercise[];
+  previous: SetWithExercise[];
+  names: Record<string, string>;
+  priorMax: Record<string, number>;
+};
+
+type RawSetRow = {
+  plan_exercise_id: string | null;
+  reps_done: number | null;
+  weight: number | null;
+};
+
+/** Map raw session_sets rows + a planEx→exercise map into SetWithExercise. */
+function toSets(
+  rows: RawSetRow[],
+  exByPlanEx: Map<string, { id: string; name: string }>,
+): SetWithExercise[] {
+  const out: SetWithExercise[] = [];
+  for (const r of rows) {
+    const ex = r.plan_exercise_id ? exByPlanEx.get(r.plan_exercise_id) : undefined;
+    if (!ex) continue;
+    out.push({ exerciseId: ex.id, reps: r.reps_done ?? 0, weightKg: r.weight ?? 0 });
+  }
+  return out;
+}
+
+export async function loadWorkoutDetail(
+  supabase: SupabaseClient,
+  userId: string,
+  sessionId: string,
+): Promise<WorkoutDetailData | null> {
+  const { data: s } = await supabase
+    .from("workout_sessions")
+    .select("id, user_id, day_id, started_at, duration_seconds, avg_hr, status")
+    .eq("id", sessionId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!s) return null;
+  const sess = s as {
+    id: string;
+    day_id: string | null;
+    started_at: string;
+    duration_seconds: number | null;
+    avg_hr: number | null;
+  };
+
+  const [curRowsRes, fbRes, dayRes] = await Promise.all([
+    supabase
+      .from("session_sets")
+      .select("plan_exercise_id, reps_done, weight")
+      .eq("session_id", sessionId),
+    supabase
+      .from("workout_session_feedback")
+      .select("overall_rating")
+      .eq("session_id", sessionId)
+      .maybeSingle(),
+    sess.day_id
+      ? supabase.from("plan_days").select("title").eq("id", sess.day_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const curRows = (curRowsRes.data ?? []) as RawSetRow[];
+
+  // Previous completed session of the same workout day.
+  let prevRows: RawSetRow[] = [];
+  if (sess.day_id) {
+    const { data: prevSession } = await supabase
+      .from("workout_sessions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("day_id", sess.day_id)
+      .eq("status", "completed")
+      .lt("started_at", sess.started_at)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (prevSession) {
+      const { data } = await supabase
+        .from("session_sets")
+        .select("plan_exercise_id, reps_done, weight")
+        .eq("session_id", (prevSession as { id: string }).id);
+      prevRows = (data ?? []) as RawSetRow[];
+    }
+  }
+
+  // Resolve plan_exercise_id -> { exercise id, name } for all involved rows.
+  const planExIds = [
+    ...new Set(
+      [...curRows, ...prevRows]
+        .map((r) => r.plan_exercise_id)
+        .filter(Boolean) as string[],
+    ),
+  ];
+  const exByPlanEx = new Map<string, { id: string; name: string }>();
+  if (planExIds.length) {
+    const { data: pe } = await supabase
+      .from("plan_exercises")
+      .select("id, exercise_id, exercises(id, name)")
+      .in("id", planExIds);
+    for (const row of (pe ?? []) as Array<{
+      id: string;
+      exercise_id: string;
+      exercises:
+        | { id: string; name: string | null }
+        | { id: string; name: string | null }[]
+        | null;
+    }>) {
+      const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
+      if (ex) exByPlanEx.set(row.id, { id: ex.id, name: ex.name ?? "Exercise" });
+    }
+  }
+
+  const current = toSets(curRows, exByPlanEx);
+  const previous = toSets(prevRows, exByPlanEx);
+  const names: Record<string, string> = {};
+  for (const v of exByPlanEx.values()) names[v.id] = v.name;
+
+  // Prior all-time max weight per exercise BEFORE this session (for PRs).
+  const priorMax: Record<string, number> = {};
+  const exIds = [...new Set(current.map((c) => c.exerciseId))];
+  if (exIds.length) {
+    const { data: peIds } = await supabase
+      .from("plan_exercises")
+      .select("id, exercise_id")
+      .in("exercise_id", exIds);
+    const exByPe = new Map(
+      ((peIds ?? []) as { id: string; exercise_id: string }[]).map((r) => [
+        r.id,
+        r.exercise_id,
+      ]),
+    );
+    if (exByPe.size) {
+      const { data: priorSessions } = await supabase
+        .from("workout_sessions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("status", "completed")
+        .lt("started_at", sess.started_at);
+      const priorIds = ((priorSessions ?? []) as { id: string }[]).map((r) => r.id);
+      if (priorIds.length) {
+        const { data: priorSets } = await supabase
+          .from("session_sets")
+          .select("plan_exercise_id, weight")
+          .in("session_id", priorIds)
+          .in("plan_exercise_id", [...exByPe.keys()]);
+        for (const r of (priorSets ?? []) as {
+          plan_exercise_id: string | null;
+          weight: number | null;
+        }[]) {
+          const ex = r.plan_exercise_id ? exByPe.get(r.plan_exercise_id) : undefined;
+          if (!ex || r.weight == null) continue;
+          priorMax[ex] = Math.max(priorMax[ex] ?? 0, r.weight);
+        }
+      }
+    }
+  }
+
+  const dayTitle = (dayRes.data as { title?: string | null } | null)?.title ?? "Workout";
+  const rating = fbRes.data as { overall_rating?: string } | null;
+  const ratingLabel =
+    rating && rating.overall_rating
+      ? RATING_LABEL[rating.overall_rating] ?? null
+      : null;
+
+  return {
+    session: {
+      id: sess.id,
+      startedAt: sess.started_at,
+      durationSeconds: sess.duration_seconds,
+      avgHr: sess.avg_hr,
+    },
+    dayTitle,
+    ratingLabel,
+    current,
+    previous,
+    names,
+    priorMax,
   };
 }
