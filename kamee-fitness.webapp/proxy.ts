@@ -53,9 +53,16 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // End-user stats area: any authenticated user; unauthenticated -> /login.
+  if (pathname.startsWith("/me") && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/me/:path*", "/login"],
 };
