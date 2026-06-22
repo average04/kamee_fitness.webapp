@@ -8,9 +8,9 @@ const ALL = resolveWindow("all", now);
 const WEEK = resolveWindow("week", now);
 
 const workouts: WorkoutSessionRow[] = [
-  { id: "s1", started_at: "2026-06-20T10:00:00Z", duration_seconds: 1800, status: "completed", avg_hr: 120 },
-  { id: "s2", started_at: "2026-06-10T10:00:00Z", duration_seconds: 2400, status: "completed", avg_hr: null },
-  { id: "s3", started_at: "2026-06-09T10:00:00Z", duration_seconds: 999, status: "abandoned", avg_hr: null },
+  { id: "s1", started_at: "2026-06-20T10:00:00Z", duration_seconds: 1800, status: "completed", avg_hr: 120, day_id: null },
+  { id: "s2", started_at: "2026-06-10T10:00:00Z", duration_seconds: 2400, status: "completed", avg_hr: null, day_id: null },
+  { id: "s3", started_at: "2026-06-09T10:00:00Z", duration_seconds: 999, status: "abandoned", avg_hr: null, day_id: null },
 ];
 const sets: SessionSetRow[] = [
   { session_id: "s1", plan_exercise_id: "pe1", reps_done: 10, weight: 50 },

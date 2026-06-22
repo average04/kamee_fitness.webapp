@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PlanProgressInput } from "./plan";
 
 export type Units = "metric" | "imperial";
 
@@ -18,6 +19,7 @@ export type WorkoutSessionRow = {
   duration_seconds: number | null;
   status: "completed" | "abandoned" | "active";
   avg_hr: number | null;
+  day_id: string | null;
 };
 
 export type SessionSetRow = {
@@ -57,6 +59,7 @@ export type MeData = {
   tracks: TrackSessionRow[];
   streaks: StreakRow;
   weights: WeightRow[];
+  dayTitleBySession: Record<string, string>;
 };
 
 export async function loadMeData(
@@ -74,7 +77,7 @@ export async function loadMeData(
         .maybeSingle(),
       supabase
         .from("workout_sessions")
-        .select("id, started_at, duration_seconds, status, avg_hr")
+        .select("id, started_at, duration_seconds, status, avg_hr, day_id")
         .eq("user_id", userId)
         .order("started_at", { ascending: true }),
       supabase
@@ -130,6 +133,29 @@ export async function loadMeData(
     }
   }
 
+  // Resolve each workout session's plan-day title for the feed.
+  const dayTitleBySession: Record<string, string> = {};
+  const dayIds = [
+    ...new Set(workouts.map((w) => w.day_id).filter(Boolean) as string[]),
+  ];
+  if (dayIds.length) {
+    const daysRes = await supabase
+      .from("plan_days")
+      .select("id, title")
+      .in("id", dayIds);
+    const titleByDay = new Map(
+      ((daysRes.data ?? []) as { id: string; title: string | null }[]).map((d) => [
+        d.id,
+        d.title ?? "Workout",
+      ]),
+    );
+    for (const w of workouts) {
+      if (w.day_id && titleByDay.has(w.day_id)) {
+        dayTitleBySession[w.id] = titleByDay.get(w.day_id)!;
+      }
+    }
+  }
+
   return {
     profile: (profileRes.data ?? null) as ProfileRow | null,
     workouts,
@@ -138,5 +164,33 @@ export async function loadMeData(
     tracks: (tracksRes.data ?? []) as TrackSessionRow[],
     streaks: (streaksRes.data ?? null) as StreakRow,
     weights: (weightsRes.data ?? []) as WeightRow[],
+    dayTitleBySession,
+  };
+}
+
+export async function loadPlanProgress(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<PlanProgressInput> {
+  const { data: up } = await supabase
+    .from("user_plans")
+    .select("plan_id, current_week")
+    .eq("user_id", userId)
+    .is("completed_at", null)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!up) return null;
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("title, weeks_count")
+    .eq("id", (up as { plan_id: string }).plan_id)
+    .maybeSingle();
+  if (!plan) return null;
+  const p = plan as { title: string | null; weeks_count: number | null };
+  return {
+    title: p.title ?? "Your plan",
+    currentWeek: (up as { current_week: number | null }).current_week ?? 0,
+    totalWeeks: p.weeks_count ?? 0,
   };
 }
