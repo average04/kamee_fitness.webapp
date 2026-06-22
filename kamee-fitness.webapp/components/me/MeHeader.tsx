@@ -1,4 +1,5 @@
 import { signOut } from "@/app/me/actions";
+import { avatarSrc } from "@/lib/me/avatars";
 import type { Range } from "@/lib/me/range";
 import RangeToggle from "./RangeToggle";
 
@@ -17,15 +18,18 @@ export default function MeHeader({
   from?: string;
   to?: string;
 }) {
+  // avatar_url is a preset key (e.g. "female-coder"), not a URL — resolve it to
+  // a ported web asset; real URLs pass through; unknown/null → initial.
+  const src = avatarSrc(avatarUrl);
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 pb-6">
       <div className="flex items-center gap-3">
-        {avatarUrl ? (
-          // Avatar host is arbitrary (Supabase storage, Google, …) — a plain
-          // <img> avoids next/image's per-host allowlist requirement.
+        {src ? (
+          // Source may be a same-origin /avatars asset or an arbitrary remote
+          // URL — a plain <img> avoids next/image's per-host allowlist.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={avatarUrl}
+            src={src}
             alt=""
             width={44}
             height={44}
