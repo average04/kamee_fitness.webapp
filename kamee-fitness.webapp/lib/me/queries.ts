@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanProgressInput } from "./plan";
 import type { SetWithExercise } from "./workoutDetail";
+import type { SetWithDate } from "./exerciseHistory";
 
 export type Units = "metric" | "imperial";
 
@@ -388,4 +389,56 @@ export async function loadWorkoutDetail(
     names,
     priorMax,
   };
+}
+
+export async function loadExerciseHistory(
+  supabase: SupabaseClient,
+  userId: string,
+  exerciseId: string,
+): Promise<{ name: string; sets: SetWithDate[] } | null> {
+  const { data: ex } = await supabase
+    .from("exercises")
+    .select("name")
+    .eq("id", exerciseId)
+    .maybeSingle();
+  if (!ex) return null;
+  const name = (ex as { name: string | null }).name ?? "Exercise";
+
+  const { data: peRows } = await supabase
+    .from("plan_exercises")
+    .select("id")
+    .eq("exercise_id", exerciseId);
+  const peIds = ((peRows ?? []) as { id: string }[]).map((r) => r.id);
+  if (!peIds.length) return { name, sets: [] };
+
+  const { data: sessions } = await supabase
+    .from("workout_sessions")
+    .select("id, started_at")
+    .eq("user_id", userId)
+    .eq("status", "completed");
+  const dateById = new Map(
+    ((sessions ?? []) as { id: string; started_at: string }[]).map((s) => [
+      s.id,
+      s.started_at.slice(0, 10),
+    ]),
+  );
+  if (!dateById.size) return { name, sets: [] };
+
+  const { data: setRows } = await supabase
+    .from("session_sets")
+    .select("session_id, reps_done, weight")
+    .in("plan_exercise_id", peIds)
+    .in("session_id", [...dateById.keys()]);
+
+  const sets: SetWithDate[] = [];
+  for (const r of (setRows ?? []) as {
+    session_id: string;
+    reps_done: number | null;
+    weight: number | null;
+  }[]) {
+    const dateIso = dateById.get(r.session_id);
+    if (!dateIso || r.weight == null) continue;
+    sets.push({ dateIso, reps: r.reps_done ?? 0, weightKg: r.weight });
+  }
+  return { name, sets };
 }
