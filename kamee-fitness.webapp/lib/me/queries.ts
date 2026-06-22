@@ -442,3 +442,43 @@ export async function loadExerciseHistory(
   }
   return { name, sets };
 }
+
+export async function loadTrackDetail(
+  supabase: SupabaseClient,
+  userId: string,
+  trackId: string,
+): Promise<{
+  track: TrackSessionRow;
+  previous: { distanceM: number; durationS: number } | null;
+} | null> {
+  const { data: t } = await supabase
+    .from("track_sessions")
+    .select(
+      "id, user_id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, avg_hr, finished_at, created_at, route_points",
+    )
+    .eq("id", trackId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!t) return null;
+  const track = t as TrackSessionRow;
+  const when = track.finished_at ?? track.created_at;
+
+  const { data: prev } = await supabase
+    .from("track_sessions")
+    .select("distance_meters, duration_seconds, finished_at, created_at")
+    .eq("user_id", userId)
+    .eq("mode", track.mode)
+    .neq("id", trackId)
+    .or(`finished_at.lt.${when},and(finished_at.is.null,created_at.lt.${when})`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const previous = prev
+    ? {
+        distanceM: (prev as { distance_meters: number | null }).distance_meters ?? 0,
+        durationS: (prev as { duration_seconds: number | null }).duration_seconds ?? 0,
+      }
+    : null;
+  return { track, previous };
+}
