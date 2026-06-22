@@ -34,12 +34,20 @@ export default function Header() {
             Kamee Fitness
           </span>
         </a>
-        <a
-          href="#get-the-app"
-          className="rounded-full border border-leaf-500/40 bg-leaf-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-leaf-300 transition-colors hover:bg-leaf-500/20"
-        >
-          Get the app
-        </a>
+        <div className="flex items-center gap-4">
+          <a
+            href="/me"
+            className="text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist"
+          >
+            Log in
+          </a>
+          <a
+            href="#get-the-app"
+            className="rounded-full border border-leaf-500/40 bg-leaf-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-leaf-300 transition-colors hover:bg-leaf-500/20"
+          >
+            Get the app
+          </a>
+        </div>
       </div>
     </header>
   );
