@@ -24,6 +24,10 @@
   /* Sun — celebration yellow */
   --color-sun-500: #efb54e;
 
+  /* Teal — outdoor / GPS track identity (from the mobile app) */
+  --color-teal-600: #0e7c86;
+  --color-teal-500: #3fb6c0;
+
   --color-mist: #eef4f0;
   --color-muted: #8ea0a3;
 
