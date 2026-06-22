@@ -99,7 +99,7 @@ export default function Hero() {
                   "translate3d(calc(var(--px,0) * 10px), calc(var(--py,0) * 10px), 0)",
               }}
             >
-              <PhoneFrame src={undefined} alt="Kamee Fitness home screen" priority />
+              <PhoneFrame src="/screens/home.png" alt="Kamee Fitness home screen" priority />
             </div>
           </div>
         </div>

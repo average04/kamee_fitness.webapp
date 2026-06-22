@@ -68,13 +68,6 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/brand-visual.png",
-        width: 1024,
-        height: 1536,
-        alt: "Kamee Fitness",
-        type: "image/png",
-      },
-      {
         url: "/adaptive-icon.png",
         width: 1024,
         height: 1024,
@@ -88,7 +81,7 @@ export const metadata: Metadata = {
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
       "Slow and steady wins the race. Free on iOS, early access on Android.",
-    images: ["/brand-visual.png"],
+    images: ["/adaptive-icon.png"],
   },
   appleWebApp: {
     capable: true,
