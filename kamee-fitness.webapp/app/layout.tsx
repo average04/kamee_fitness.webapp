@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · Kamee Fitness",
   },
   description:
-    "Kamee Fitness is a personal workout and training app built on steady, sustainable progress. Download free on iOS for guided workouts, training plans, and progress tracking. Android coming soon.",
+    "Kamee Fitness — personalized plans, guided workouts, GPS tracking, and a coach named Kamy. Free on iOS, now in early access on Android.",
   applicationName: "Kamee Fitness",
   authors: [{ name: "Kamee Fitness" }],
   creator: "Kamee Fitness",
@@ -41,6 +41,7 @@ export const metadata: Metadata = {
     "gym workout",
     "fitness coaching",
     "iOS fitness app",
+    "Android fitness app",
     "progress tracking",
   ],
   alternates: {
@@ -63,7 +64,7 @@ export const metadata: Metadata = {
     siteName: "Kamee Fitness",
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
-      "Build a stronger you, one steady step at a time. Download Kamee Fitness free on iOS — guided workouts, training plans, and progress tracking. Android coming soon.",
+      "Slow and steady wins the race. Personalized plans, guided workouts, GPS tracking, and Coach Kamy. Free on iOS, early access on Android.",
     locale: "en_US",
     images: [
       {
@@ -79,7 +80,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
-      "Build a stronger you, one steady step at a time. Download Kamee Fitness free on iOS. Android coming soon.",
+      "Slow and steady wins the race. Free on iOS, early access on Android.",
     images: ["/adaptive-icon.png"],
   },
   appleWebApp: {
