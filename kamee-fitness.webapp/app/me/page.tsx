@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { loadMeData } from "@/lib/me/queries";
+import { loadMeData, loadPlanProgress } from "@/lib/me/queries";
 import { parseRange, resolveWindow } from "@/lib/me/range";
 import { summarizeWorkouts } from "@/lib/me/workouts";
 import { summarizeTracks } from "@/lib/me/tracks";
 import { buildHeatmap } from "@/lib/me/heatmap";
 import { buildWeightSeries } from "@/lib/me/weight";
+import { buildFeed } from "@/lib/me/feed";
+import { buildMomentum } from "@/lib/me/momentum";
+import { summarizePlan } from "@/lib/me/plan";
+import MomentumBar from "@/components/me/MomentumBar";
+import PlanProgressCard from "@/components/me/PlanProgressCard";
+import ActivityFeed from "@/components/me/ActivityFeed";
 import {
   fmtDistance,
   fmtDuration,
@@ -52,6 +58,15 @@ export default async function MePage({
   const t = summarizeTracks(data.tracks, data.streaks, dateWindow);
   const heat = buildHeatmap(data.workouts, data.tracks, 26, now);
   const weight = buildWeightSeries(data.weights, data.profile);
+  const plan = summarizePlan(await loadPlanProgress(supabase, user.id));
+  const momentum = buildMomentum(data.workouts, data.tracks, now);
+  const feed = buildFeed(
+    data.workouts,
+    data.sets,
+    data.tracks,
+    data.dayTitleBySession,
+    20,
+  );
 
   return (
     <main className="relative z-10 mx-auto max-w-5xl px-6 py-10">
@@ -63,6 +78,11 @@ export default async function MePage({
         from={sp.from}
         to={sp.to}
       />
+
+      <div className="mt-6 space-y-3">
+        <MomentumBar m={momentum} />
+        {plan && <PlanProgressCard plan={plan} />}
+      </div>
 
       {/* Activity */}
       <section className="mt-10">
@@ -250,6 +270,16 @@ export default async function MePage({
             </div>
           </div>
         )}
+      </section>
+
+      {/* Recent activity feed */}
+      <section className="mt-12">
+        <h2 className="font-display text-sm font-semibold uppercase tracking-[0.16em] text-muted">
+          Recent
+        </h2>
+        <div className="mt-4">
+          <ActivityFeed items={feed} units={units} />
+        </div>
       </section>
 
       <footer className="mt-16 border-t border-white/8 pt-6 text-xs text-muted">
