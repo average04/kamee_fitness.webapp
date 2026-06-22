@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { summarizeWorkouts } from "./workouts";
+import { resolveWindow } from "./range";
 import type { SessionSetRow, WorkoutSessionRow } from "./queries";
 
 const now = new Date("2026-06-23T12:00:00Z");
+const ALL = resolveWindow("all", now);
+const WEEK = resolveWindow("week", now);
 
 const workouts: WorkoutSessionRow[] = [
   { id: "s1", started_at: "2026-06-20T10:00:00Z", duration_seconds: 1800, status: "completed", avg_hr: 120 },
@@ -19,18 +22,18 @@ const streaks = { current_streak: 9, longest_streak: 14, track_current_streak: 0
 
 describe("summarizeWorkouts", () => {
   it("counts only completed sessions in range", () => {
-    const all = summarizeWorkouts(workouts, sets, names, streaks, "all", now);
+    const all = summarizeWorkouts(workouts, sets, names, streaks, ALL);
     expect(all.sessions).toBe(2);
-    const week = summarizeWorkouts(workouts, sets, names, streaks, "week", now);
+    const week = summarizeWorkouts(workouts, sets, names, streaks, WEEK);
     expect(week.sessions).toBe(1);
   });
   it("sums volume = reps*weight and time across completed sessions", () => {
-    const all = summarizeWorkouts(workouts, sets, names, streaks, "all", now);
+    const all = summarizeWorkouts(workouts, sets, names, streaks, ALL);
     expect(all.totalVolumeKg).toBe(10 * 50 + 8 * 60 + 12 * 20);
     expect(all.timeTrainedSeconds).toBe(1800 + 2400);
   });
   it("passes streaks through and computes PRs + top exercises by name", () => {
-    const all = summarizeWorkouts(workouts, sets, names, streaks, "all", now);
+    const all = summarizeWorkouts(workouts, sets, names, streaks, ALL);
     expect(all.currentStreak).toBe(9);
     expect(all.longestStreak).toBe(14);
     expect(all.prs).toContainEqual({ name: "Bench Press", weightKg: 60 });

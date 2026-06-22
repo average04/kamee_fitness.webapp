@@ -7,11 +7,15 @@ export default function MeHeader({
   avatarUrl,
   isPremium,
   range,
+  from,
+  to,
 }: {
   name: string;
   avatarUrl: string | null;
   isPremium: boolean;
   range: Range;
+  from?: string;
+  to?: string;
 }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/8 pb-6">
@@ -42,7 +46,7 @@ export default function MeHeader({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <RangeToggle range={range} />
+        <RangeToggle range={range} from={from} to={to} />
         <form action={signOut}>
           <button className="rounded-full border border-white/12 px-3 py-1.5 text-xs text-muted hover:text-mist">
             Sign out

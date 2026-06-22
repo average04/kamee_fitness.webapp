@@ -1,5 +1,5 @@
 import type { SessionSetRow, StreakRow, WorkoutSessionRow } from "./queries";
-import { withinRange, type Range } from "./range";
+import { inWindow, type DateWindow } from "./range";
 
 export type WorkoutSummary = {
   sessions: number;
@@ -27,11 +27,10 @@ export function summarizeWorkouts(
   sets: SessionSetRow[],
   exerciseNames: Record<string, string>,
   streaks: StreakRow,
-  range: Range,
-  now: Date,
+  window: DateWindow,
 ): WorkoutSummary {
   const completed = workouts.filter(
-    (w) => w.status === "completed" && withinRange(w.started_at, range, now),
+    (w) => w.status === "completed" && inWindow(w.started_at, window),
   );
   const ids = new Set(completed.map((w) => w.id));
   const inSets = sets.filter((s) => ids.has(s.session_id));

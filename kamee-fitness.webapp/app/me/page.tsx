@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { loadMeData } from "@/lib/me/queries";
-import { parseRange } from "@/lib/me/range";
+import { parseRange, resolveWindow } from "@/lib/me/range";
 import { summarizeWorkouts } from "@/lib/me/workouts";
 import { summarizeTracks } from "@/lib/me/tracks";
 import { buildHeatmap } from "@/lib/me/heatmap";
@@ -28,13 +28,15 @@ export const metadata = { title: "Your stats" };
 export default async function MePage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const user = await requireUser();
   const supabase = await createServerSupabase();
   const data = await loadMeData(supabase, user.id);
-  const range = parseRange((await searchParams).range);
+  const sp = await searchParams;
+  const range = parseRange(sp.range);
   const now = new Date();
+  const dateWindow = resolveWindow(range, now, sp.from, sp.to);
 
   const units = data.profile?.units ?? "metric";
   const name = data.profile?.display_name ?? user.email?.split("@")[0] ?? "You";
@@ -45,10 +47,9 @@ export default async function MePage({
     data.sets,
     data.exerciseNames,
     data.streaks,
-    range,
-    now,
+    dateWindow,
   );
-  const t = summarizeTracks(data.tracks, data.streaks, range, now);
+  const t = summarizeTracks(data.tracks, data.streaks, dateWindow);
   const heat = buildHeatmap(data.workouts, data.tracks, 26, now);
   const weight = buildWeightSeries(data.weights, data.profile);
 
@@ -59,6 +60,8 @@ export default async function MePage({
         avatarUrl={data.profile?.avatar_url ?? null}
         isPremium={isPremium}
         range={range}
+        from={sp.from}
+        to={sp.to}
       />
 
       {/* Activity */}

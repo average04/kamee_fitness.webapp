@@ -5,7 +5,7 @@ import {
   fmtPaceFromMeters,
   fmtWeight,
 } from "./units";
-import { parseRange, withinRange } from "./range";
+import { inWindow, parseRange, resolveWindow } from "./range";
 
 describe("units", () => {
   it("formats weight per unit system", () => {
@@ -31,13 +31,29 @@ describe("range", () => {
   const now = new Date("2026-06-23T12:00:00Z");
   it("parses with a safe default", () => {
     expect(parseRange("week")).toBe("week");
+    expect(parseRange("custom")).toBe("custom");
     expect(parseRange("nonsense")).toBe("all");
     expect(parseRange(undefined)).toBe("all");
   });
-  it("windows timestamps", () => {
-    expect(withinRange("2026-06-20T00:00:00Z", "week", now)).toBe(true);
-    expect(withinRange("2026-06-01T00:00:00Z", "week", now)).toBe(false);
-    expect(withinRange("2026-06-01T00:00:00Z", "month", now)).toBe(true);
-    expect(withinRange("2020-01-01T00:00:00Z", "all", now)).toBe(true);
+  it("resolves preset windows", () => {
+    expect(resolveWindow("all", now)).toEqual({ startMs: null, endMs: null });
+    const week = resolveWindow("week", now);
+    expect(week.endMs).toBeNull();
+    expect(week.startMs).toBe(now.getTime() - 7 * 86_400_000);
+  });
+  it("resolves custom windows from day bounds", () => {
+    const w = resolveWindow("custom", now, "2026-06-01", "2026-06-10");
+    expect(w.startMs).toBe(Date.parse("2026-06-01T00:00:00"));
+    expect(w.endMs).toBe(Date.parse("2026-06-10T23:59:59.999"));
+    const open = resolveWindow("custom", now, "2026-06-01", undefined);
+    expect(open.endMs).toBeNull();
+  });
+  it("includes/excludes timestamps by window bounds", () => {
+    const w = resolveWindow("custom", now, "2026-06-01", "2026-06-10");
+    expect(inWindow("2026-06-05T00:00:00Z", w)).toBe(true);
+    expect(inWindow("2026-06-20T00:00:00Z", w)).toBe(false);
+    expect(inWindow("2020-01-01T00:00:00Z", { startMs: null, endMs: null })).toBe(
+      true,
+    );
   });
 });

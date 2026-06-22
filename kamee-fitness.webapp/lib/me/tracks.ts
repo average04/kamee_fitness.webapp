@@ -1,5 +1,5 @@
 import type { StreakRow, TrackSessionRow } from "./queries";
-import { withinRange, type Range } from "./range";
+import { inWindow, type DateWindow } from "./range";
 
 export type TrackSummary = {
   count: number;
@@ -35,10 +35,9 @@ function when(t: TrackSessionRow): string {
 export function summarizeTracks(
   tracks: TrackSessionRow[],
   streaks: StreakRow,
-  range: Range,
-  now: Date,
+  window: DateWindow,
 ): TrackSummary {
-  const inRange = tracks.filter((t) => withinRange(when(t), range, now));
+  const inRange = tracks.filter((t) => inWindow(when(t), window));
 
   let totalDistanceM = 0;
   let totalDurationS = 0;
