@@ -3,3 +3,8 @@ export const APP_STORE_URL =
 
 export const PLAY_STORE_URL =
   "https://play.google.com/apps/testing/com.kamee.fitness";
+
+// Closed testing requires joining this Google Group first — that membership
+// is what unlocks the Play opt-in link above.
+export const TESTERS_GROUP_URL =
+  "https://groups.google.com/g/kamee-fitness-testers";

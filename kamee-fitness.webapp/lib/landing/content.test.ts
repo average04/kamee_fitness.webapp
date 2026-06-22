@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FAQ, FEATURES } from "./content";
-import { APP_STORE_URL, PLAY_STORE_URL } from "./stores";
+import { APP_STORE_URL, PLAY_STORE_URL, TESTERS_GROUP_URL } from "./stores";
 
 const PLACEHOLDER = /\b(tbd|todo|lorem|placeholder|xxx)\b/i;
 
@@ -37,6 +37,9 @@ describe("store URLs", () => {
     expect(APP_STORE_URL).toContain("apps.apple.com");
     expect(PLAY_STORE_URL).toContain(
       "play.google.com/apps/testing/com.kamee.fitness",
+    );
+    expect(TESTERS_GROUP_URL).toContain(
+      "groups.google.com/g/kamee-fitness-testers",
     );
   });
 });
