@@ -14,6 +14,9 @@ export type ExerciseHistory = {
   prKg: number;
   prDateIso: string | null;
   timesTrained: number;
+  bestVolumeKg: number;
+  lastWeightKg: number;
+  totalReps: number;
 };
 
 export function buildExerciseHistory(sets: SetWithDate[]): ExerciseHistory {
@@ -38,5 +41,16 @@ export function buildExerciseHistory(sets: SetWithDate[]): ExerciseHistory {
       prDateIso = e.dateIso;
     }
   }
-  return { series, prKg, prDateIso, timesTrained: series.length };
+  const bestVolumeKg = series.reduce((m, e) => Math.max(m, e.volumeKg), 0);
+  const lastWeightKg = series.length ? series[series.length - 1].topSetKg : 0;
+  const totalReps = sets.reduce((s, x) => s + x.reps, 0);
+  return {
+    series,
+    prKg,
+    prDateIso,
+    timesTrained: series.length,
+    bestVolumeKg,
+    lastWeightKg,
+    totalReps,
+  };
 }

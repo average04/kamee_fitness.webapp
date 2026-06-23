@@ -15,7 +15,7 @@ const sets: SessionSetRow[] = [
   { session_id: "w1", plan_exercise_id: "p1", reps_done: 10, weight: 50 },
 ];
 const tracks: TrackSessionRow[] = [
-  { id: "t1", mode: "run", title: null, distance_meters: 5000, duration_seconds: 1500, elevation_gain_meters: 0, avg_hr: null, finished_at: "2026-06-23T07:00:00Z", created_at: "2026-06-23T07:00:00Z", route_points: [] },
+  { id: "t1", mode: "run", title: null, distance_meters: 5000, duration_seconds: 1500, elevation_gain_meters: 0, elevation_loss_meters: 0, avg_hr: null, max_hr: null, finished_at: "2026-06-23T07:00:00Z", created_at: "2026-06-23T07:00:00Z", route_points: [] },
 ];
 
 describe("buildFeed", () => {
@@ -23,7 +23,7 @@ describe("buildFeed", () => {
     const feed = buildFeed(workouts, sets, tracks, { w1: "Full Body B" }, 10);
     expect(feed.map((f) => f.id)).toEqual(["t1", "w1", "w2"]);
     const w1 = feed.find((f) => f.id === "w1")!;
-    expect(w1).toMatchObject({ kind: "workout", title: "Full Body B", volumeKg: 1000 });
+    expect(w1).toMatchObject({ kind: "workout", title: "Full Body B", volumeKg: 1000, setCount: 2 });
     const t1 = feed.find((f) => f.id === "t1")!;
     expect(t1).toMatchObject({ kind: "track", title: "Run", distanceM: 5000 });
   });

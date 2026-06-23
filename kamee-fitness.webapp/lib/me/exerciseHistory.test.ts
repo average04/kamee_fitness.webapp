@@ -23,5 +23,8 @@ describe("buildExerciseHistory", () => {
     expect(h.prKg).toBe(60);
     expect(h.prDateIso).toBe("2026-06-10");
     expect(h.series[1].bestEst1RmKg).toBeCloseTo(70, 0);
+    expect(h.lastWeightKg).toBe(60);
+    expect(h.totalReps).toBe(10 + 8 + 5);
+    expect(h.bestVolumeKg).toBe(10 * 50 + 8 * 55);
   });
 });

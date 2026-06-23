@@ -7,8 +7,8 @@ const now = new Date("2026-06-23T12:00:00Z");
 const ALL = resolveWindow("all", now);
 const WEEK = resolveWindow("week", now);
 const tracks: TrackSessionRow[] = [
-  { id: "t1", mode: "run", title: null, distance_meters: 5000, duration_seconds: 1500, elevation_gain_meters: 30, avg_hr: 150, finished_at: "2026-06-21T07:00:00Z", created_at: "2026-06-21T07:00:00Z", route_points: [] },
-  { id: "t2", mode: "walk", title: null, distance_meters: 2000, duration_seconds: 1800, elevation_gain_meters: 5, avg_hr: null, finished_at: "2026-06-01T07:00:00Z", created_at: "2026-06-01T07:00:00Z", route_points: [] },
+  { id: "t1", mode: "run", title: null, distance_meters: 5000, duration_seconds: 1500, elevation_gain_meters: 30, elevation_loss_meters: 30, avg_hr: 150, max_hr: null, finished_at: "2026-06-21T07:00:00Z", created_at: "2026-06-21T07:00:00Z", route_points: [] },
+  { id: "t2", mode: "walk", title: null, distance_meters: 2000, duration_seconds: 1800, elevation_gain_meters: 5, elevation_loss_meters: 5, avg_hr: null, max_hr: null, finished_at: "2026-06-01T07:00:00Z", created_at: "2026-06-01T07:00:00Z", route_points: [] },
 ];
 const streaks = { current_streak: 0, longest_streak: 0, track_current_streak: 10, track_longest_streak: 12 };
 

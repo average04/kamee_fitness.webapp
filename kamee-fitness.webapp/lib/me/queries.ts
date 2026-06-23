@@ -5,6 +5,25 @@ import type { SetWithDate } from "./exerciseHistory";
 
 export type Units = "metric" | "imperial";
 
+/** Just the user's unit preference — cheap query for detail pages. */
+export async function loadUnits(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<Units> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("units")
+    .eq("id", userId)
+    .maybeSingle();
+  return ((data as { units?: Units } | null)?.units ?? "metric") as Units;
+}
+
+/** Public Storage URL for an exercise demo image path. */
+export function exerciseDemoUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  return `${base}/storage/v1/object/public/exercise-demos/${path}`;
+}
+
 export type ProfileRow = {
   display_name: string | null;
   avatar_url: string | null;
@@ -39,7 +58,9 @@ export type TrackSessionRow = {
   distance_meters: number | null;
   duration_seconds: number | null;
   elevation_gain_meters: number | null;
+  elevation_loss_meters: number | null;
   avg_hr: number | null;
+  max_hr: number | null;
   finished_at: string | null;
   created_at: string;
   route_points: unknown;
@@ -88,7 +109,7 @@ export async function loadMeData(
       supabase
         .from("track_sessions")
         .select(
-          "id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, avg_hr, finished_at, created_at, route_points",
+          "id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, elevation_loss_meters, avg_hr, max_hr, finished_at, created_at, route_points",
         )
         .eq("user_id", userId)
         .order("created_at", { ascending: true }),
@@ -220,14 +241,17 @@ export type WorkoutDetailData = {
   session: {
     id: string;
     startedAt: string;
+    endedAt: string | null;
     durationSeconds: number | null;
     avgHr: number | null;
+    maxHr: number | null;
   };
   dayTitle: string;
   ratingLabel: string | null;
   current: SetWithExercise[];
   previous: SetWithExercise[];
   names: Record<string, string>;
+  muscleByExercise: Record<string, string>;
   priorMax: Record<string, number>;
 };
 
@@ -258,7 +282,9 @@ export async function loadWorkoutDetail(
 ): Promise<WorkoutDetailData | null> {
   const { data: s } = await supabase
     .from("workout_sessions")
-    .select("id, user_id, day_id, started_at, duration_seconds, avg_hr, status")
+    .select(
+      "id, user_id, day_id, started_at, ended_at, duration_seconds, avg_hr, max_hr, status",
+    )
     .eq("id", sessionId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -267,8 +293,10 @@ export async function loadWorkoutDetail(
     id: string;
     day_id: string | null;
     started_at: string;
+    ended_at: string | null;
     duration_seconds: number | null;
     avg_hr: number | null;
+    max_hr: number | null;
   };
 
   const [curRowsRes, fbRes, dayRes] = await Promise.all([
@@ -318,21 +346,25 @@ export async function loadWorkoutDetail(
     ),
   ];
   const exByPlanEx = new Map<string, { id: string; name: string }>();
+  const muscleByExercise: Record<string, string> = {};
   if (planExIds.length) {
     const { data: pe } = await supabase
       .from("plan_exercises")
-      .select("id, exercise_id, exercises(id, name)")
+      .select("id, exercise_id, exercises(id, name, primary_muscle)")
       .in("id", planExIds);
     for (const row of (pe ?? []) as Array<{
       id: string;
       exercise_id: string;
       exercises:
-        | { id: string; name: string | null }
-        | { id: string; name: string | null }[]
+        | { id: string; name: string | null; primary_muscle: string | null }
+        | { id: string; name: string | null; primary_muscle: string | null }[]
         | null;
     }>) {
       const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
-      if (ex) exByPlanEx.set(row.id, { id: ex.id, name: ex.name ?? "Exercise" });
+      if (ex) {
+        exByPlanEx.set(row.id, { id: ex.id, name: ex.name ?? "Exercise" });
+        if (ex.primary_muscle) muscleByExercise[ex.id] = ex.primary_muscle;
+      }
     }
   }
 
@@ -392,14 +424,17 @@ export async function loadWorkoutDetail(
     session: {
       id: sess.id,
       startedAt: sess.started_at,
+      endedAt: sess.ended_at,
       durationSeconds: sess.duration_seconds,
       avgHr: sess.avg_hr,
+      maxHr: sess.max_hr,
     },
     dayTitle,
     ratingLabel,
     current,
     previous,
     names,
+    muscleByExercise,
     priorMax,
   };
 }
@@ -408,21 +443,33 @@ export async function loadExerciseHistory(
   supabase: SupabaseClient,
   userId: string,
   exerciseId: string,
-): Promise<{ name: string; sets: SetWithDate[] } | null> {
+): Promise<{
+  name: string;
+  primaryMuscle: string | null;
+  demoImagePath: string | null;
+  sets: SetWithDate[];
+} | null> {
   const { data: ex } = await supabase
     .from("exercises")
-    .select("name")
+    .select("name, primary_muscle, demo_image_path")
     .eq("id", exerciseId)
     .maybeSingle();
   if (!ex) return null;
-  const name = (ex as { name: string | null }).name ?? "Exercise";
+  const meta = ex as {
+    name: string | null;
+    primary_muscle: string | null;
+    demo_image_path: string | null;
+  };
+  const name = meta.name ?? "Exercise";
+  const primaryMuscle = meta.primary_muscle;
+  const demoImagePath = meta.demo_image_path;
 
   const { data: peRows } = await supabase
     .from("plan_exercises")
     .select("id")
     .eq("exercise_id", exerciseId);
   const peIds = ((peRows ?? []) as { id: string }[]).map((r) => r.id);
-  if (!peIds.length) return { name, sets: [] };
+  if (!peIds.length) return { name, primaryMuscle, demoImagePath, sets: [] };
 
   const { data: sessions } = await supabase
     .from("workout_sessions")
@@ -435,7 +482,7 @@ export async function loadExerciseHistory(
       s.started_at.slice(0, 10),
     ]),
   );
-  if (!dateById.size) return { name, sets: [] };
+  if (!dateById.size) return { name, primaryMuscle, demoImagePath, sets: [] };
 
   const { data: setRows } = await supabase
     .from("session_sets")
@@ -453,7 +500,7 @@ export async function loadExerciseHistory(
     if (!dateIso || r.weight == null) continue;
     sets.push({ dateIso, reps: r.reps_done ?? 0, weightKg: r.weight });
   }
-  return { name, sets };
+  return { name, primaryMuscle, demoImagePath, sets };
 }
 
 export async function loadTrackDetail(
@@ -467,7 +514,7 @@ export async function loadTrackDetail(
   const { data: t } = await supabase
     .from("track_sessions")
     .select(
-      "id, user_id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, avg_hr, finished_at, created_at, route_points",
+      "id, user_id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, elevation_loss_meters, avg_hr, max_hr, finished_at, created_at, route_points",
     )
     .eq("id", trackId)
     .eq("user_id", userId)
