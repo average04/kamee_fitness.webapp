@@ -10,8 +10,10 @@ import { buildWeightSeries } from "@/lib/me/weight";
 import { buildFeed } from "@/lib/me/feed";
 import { buildMomentum } from "@/lib/me/momentum";
 import { summarizePlan } from "@/lib/me/plan";
+import { buildWeeklyGoal } from "@/lib/me/goal";
 import MomentumBar from "@/components/me/MomentumBar";
 import PlanProgressCard from "@/components/me/PlanProgressCard";
+import WeeklyGoalCard from "@/components/me/WeeklyGoalCard";
 import ActivityFeed from "@/components/me/ActivityFeed";
 import {
   fmtDistance,
@@ -67,6 +69,12 @@ export default async function MePage({
     data.dayTitleBySession,
     20,
   );
+  const weeklyGoal = buildWeeklyGoal(
+    data.workouts,
+    now,
+    data.profile?.days_per_week ?? 0,
+    8,
+  );
 
   return (
     <main className="relative z-10 mx-auto max-w-5xl px-6 py-10">
@@ -82,6 +90,7 @@ export default async function MePage({
       <div className="mt-6 space-y-3">
         <MomentumBar m={momentum} />
         {plan && <PlanProgressCard plan={plan} />}
+        <WeeklyGoalCard goal={weeklyGoal} />
       </div>
 
       {/* Activity */}
@@ -96,7 +105,15 @@ export default async function MePage({
 
       {/* Workouts */}
       <section className="mt-12">
-        <h2 className="font-display text-xl font-bold text-leaf-400">Workouts</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-xl font-bold text-leaf-400">Workouts</h2>
+          <Link
+            href="/me/records"
+            className="text-xs text-leaf-300 hover:text-leaf-200"
+          >
+            Records →
+          </Link>
+        </div>
         {w.sessions === 0 ? (
           <div className="mt-4">
             <EmptyState
