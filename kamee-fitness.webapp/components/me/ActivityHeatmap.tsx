@@ -35,9 +35,8 @@ export default function ActivityHeatmap({
         {days.map((d, i) => {
           const col = Math.floor(i / 7);
           const row = i % 7;
-          return (
+          const cell = (
             <rect
-              key={d.date}
               x={col * (CELL + GAP)}
               y={row * (CELL + GAP)}
               width={CELL}
@@ -47,6 +46,13 @@ export default function ActivityHeatmap({
             >
               <title>{`${d.date}: ${d.count} ${d.count === 1 ? "activity" : "activities"}`}</title>
             </rect>
+          );
+          return d.count > 0 ? (
+            <a key={d.date} href={`/me/day/${d.date}`}>
+              {cell}
+            </a>
+          ) : (
+            <g key={d.date}>{cell}</g>
           );
         })}
       </svg>

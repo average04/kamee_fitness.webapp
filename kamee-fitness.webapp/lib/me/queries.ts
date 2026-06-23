@@ -13,6 +13,7 @@ export type ProfileRow = {
   target_date: string | null;
   weight_kg: number | null;
   is_premium: boolean | null;
+  days_per_week: number | null;
 };
 
 export type WorkoutSessionRow = {
@@ -62,6 +63,8 @@ export type MeData = {
   streaks: StreakRow;
   weights: WeightRow[];
   dayTitleBySession: Record<string, string>;
+  exerciseIdByPlanEx: Record<string, string>;
+  nameByExercise: Record<string, string>;
 };
 
 export async function loadMeData(
@@ -73,7 +76,7 @@ export async function loadMeData(
       supabase
         .from("profiles")
         .select(
-          "display_name, avatar_url, units, target_weight_kg, target_date, weight_kg, is_premium",
+          "display_name, avatar_url, units, target_weight_kg, target_date, weight_kg, is_premium, days_per_week",
         )
         .eq("id", userId)
         .maybeSingle(),
@@ -118,20 +121,28 @@ export async function loadMeData(
 
   // Resolve plan_exercise_id -> exercise name. Degrades to {} if RLS blocks.
   const exerciseNames: Record<string, string> = {};
+  const exerciseIdByPlanEx: Record<string, string> = {};
+  const nameByExercise: Record<string, string> = {};
   const planExIds = [
     ...new Set(sets.map((s) => s.plan_exercise_id).filter(Boolean) as string[]),
   ];
   if (planExIds.length) {
     const nameRes = await supabase
       .from("plan_exercises")
-      .select("id, exercises(name)")
+      .select("id, exercise_id, exercises(name)")
       .in("id", planExIds);
     for (const row of (nameRes.data ?? []) as Array<{
       id: string;
+      exercise_id: string | null;
       exercises: { name: string | null } | { name: string | null }[] | null;
     }>) {
       const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
-      if (ex?.name) exerciseNames[row.id] = ex.name;
+      const name = ex?.name ?? null;
+      if (name) exerciseNames[row.id] = name;
+      if (row.exercise_id) {
+        exerciseIdByPlanEx[row.id] = row.exercise_id;
+        if (name) nameByExercise[row.exercise_id] = name;
+      }
     }
   }
 
@@ -167,6 +178,8 @@ export async function loadMeData(
     streaks: (streaksRes.data ?? null) as StreakRow,
     weights: (weightsRes.data ?? []) as WeightRow[],
     dayTitleBySession,
+    exerciseIdByPlanEx,
+    nameByExercise,
   };
 }
 
