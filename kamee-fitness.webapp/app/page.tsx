@@ -7,7 +7,7 @@ import Faq from "@/components/landing/Faq";
 import Footer from "@/components/landing/Footer";
 import { APP_STORE_URL } from "@/lib/landing/stores";
 
-const SITE_URL = "https://kamee.fitness";
+const SITE_URL = "https://kamee.fit";
 
 const jsonLd = {
   "@context": "https://schema.org",
