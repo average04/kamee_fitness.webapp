@@ -14,7 +14,7 @@ const hanken = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://kamee.fitness"),
+  metadataBase: new URL("https://kamee.fit"),
   title: {
     default: "Kamee Fitness — Personal Workout & Training App",
     template: "%s · Kamee Fitness",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    url: "https://kamee.fitness",
+    url: "https://kamee.fit",
     siteName: "Kamee Fitness",
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
