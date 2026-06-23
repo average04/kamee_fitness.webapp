@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  fmtClock,
   fmtDistance,
   fmtDuration,
+  fmtElevation,
   fmtPaceFromMeters,
   fmtWeight,
 } from "./units";
@@ -24,6 +26,13 @@ describe("units", () => {
   it("formats pace per km/mi", () => {
     expect(fmtPaceFromMeters(1000, 300, "metric")).toBe("5:00 /km");
     expect(fmtPaceFromMeters(0, 300, "metric")).toBe("—");
+  });
+  it("formats elevation and clock times", () => {
+    expect(fmtElevation(240, "metric")).toBe("240 m");
+    expect(fmtElevation(305, "imperial")).toBe("1001 ft");
+    expect(fmtClock(272)).toBe("4:32");
+    expect(fmtClock(1450)).toBe("24:10");
+    expect(fmtClock(3725)).toBe("1:02:05");
   });
 });
 
