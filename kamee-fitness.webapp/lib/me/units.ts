@@ -30,6 +30,22 @@ export function fmtDuration(seconds: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+export function fmtElevation(meters: number, units: Units): string {
+  return units === "imperial"
+    ? `${Math.round(meters / 0.3048)} ft`
+    : `${Math.round(meters)} m`;
+}
+
+/** Clock time: m:ss, or h:mm:ss when >= 1 hour. */
+export function fmtClock(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  return (h > 0 ? `${h}:` : "") + `${mm}:${String(sec).padStart(2, "0")}`;
+}
+
 export function fmtPaceFromMeters(
   meters: number,
   seconds: number,
