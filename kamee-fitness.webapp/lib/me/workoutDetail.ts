@@ -7,6 +7,7 @@ export type SetWithExercise = {
 export type ExerciseBlock = {
   exerciseId: string;
   name: string;
+  primaryMuscle: string | null;
   sets: { reps: number; weightKg: number }[];
   topSetKg: number;
   volumeKg: number;
@@ -18,6 +19,8 @@ export type ExerciseBlock = {
 export type WorkoutDetailSummary = {
   totalVolumeKg: number;
   totalVolumeDeltaKg: number | null;
+  totalSets: number;
+  totalReps: number;
   exercises: ExerciseBlock[];
 };
 
@@ -40,6 +43,7 @@ export function summarizeWorkoutDetail(
   previous: SetWithExercise[],
   names: Record<string, string>,
   priorMaxByExercise: Record<string, number>,
+  muscleByExercise: Record<string, string>,
 ): WorkoutDetailSummary {
   const cur = group(current);
   const prev = group(previous);
@@ -51,6 +55,7 @@ export function summarizeWorkoutDetail(
     return {
       exerciseId,
       name: names[exerciseId] ?? "Exercise",
+      primaryMuscle: muscleByExercise[exerciseId] ?? null,
       sets: a.sets,
       topSetKg: a.top,
       volumeKg: a.vol,
@@ -63,9 +68,13 @@ export function summarizeWorkoutDetail(
 
   const totalVolumeKg = exercises.reduce((s, e) => s + e.volumeKg, 0);
   const prevTotal = [...prev.values()].reduce((s, a) => s + a.vol, 0);
+  const totalSets = current.length;
+  const totalReps = current.reduce((s, x) => s + x.reps, 0);
   return {
     totalVolumeKg,
     totalVolumeDeltaKg: hasPrev ? totalVolumeKg - prevTotal : null,
+    totalSets,
+    totalReps,
     exercises,
   };
 }

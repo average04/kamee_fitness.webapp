@@ -23,7 +23,7 @@ describe("buildFeed", () => {
     const feed = buildFeed(workouts, sets, tracks, { w1: "Full Body B" }, 10);
     expect(feed.map((f) => f.id)).toEqual(["t1", "w1", "w2"]);
     const w1 = feed.find((f) => f.id === "w1")!;
-    expect(w1).toMatchObject({ kind: "workout", title: "Full Body B", volumeKg: 1000 });
+    expect(w1).toMatchObject({ kind: "workout", title: "Full Body B", volumeKg: 1000, setCount: 2 });
     const t1 = feed.find((f) => f.id === "t1")!;
     expect(t1).toMatchObject({ kind: "track", title: "Run", distanceM: 5000 });
   });
