@@ -21,6 +21,11 @@ export default function ExerciseSetTable({
           <div className="flex items-center justify-between gap-3">
             <div className="font-display font-semibold text-mist">
               {e.name}
+              {e.primaryMuscle && (
+                <span className="ml-2 text-xs font-normal capitalize text-muted">
+                  {e.primaryMuscle}
+                </span>
+              )}
               {e.isPr && (
                 <span className="ml-2 text-sun-500" title="Personal record">
                   ★ PR

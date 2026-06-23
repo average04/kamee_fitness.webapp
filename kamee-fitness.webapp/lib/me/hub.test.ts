@@ -15,7 +15,7 @@ const sets: SessionSetRow[] = [
   { session_id: "w1", plan_exercise_id: "p1", reps_done: 10, weight: 50 },
 ];
 const tracks: TrackSessionRow[] = [
-  { id: "t1", mode: "run", title: null, distance_meters: 5000, duration_seconds: 1500, elevation_gain_meters: 0, avg_hr: null, finished_at: "2026-06-23T07:00:00Z", created_at: "2026-06-23T07:00:00Z", route_points: [] },
+  { id: "t1", mode: "run", title: null, distance_meters: 5000, duration_seconds: 1500, elevation_gain_meters: 0, elevation_loss_meters: 0, avg_hr: null, max_hr: null, finished_at: "2026-06-23T07:00:00Z", created_at: "2026-06-23T07:00:00Z", route_points: [] },
 ];
 
 describe("buildFeed", () => {

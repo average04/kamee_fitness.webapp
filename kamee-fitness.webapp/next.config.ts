@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
 
+// Supabase Storage host for the public exercise-demos bucket (next/image).
+const supabaseHost = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname;
+  } catch {
+    return undefined;
+  }
+})();
+
 const nextConfig: NextConfig = {
   // Allow .mdx files to be treated as routable/importable page-like modules.
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
@@ -11,6 +20,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  images: supabaseHost
+    ? { remotePatterns: [{ protocol: "https", hostname: supabaseHost }] }
+    : undefined,
 };
 
 // No remark/rehype plugins — Turbopack (Next 16) doesn't run them. Heading

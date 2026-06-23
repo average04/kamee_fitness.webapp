@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { loadMeData, loadTrackDetail } from "@/lib/me/queries";
+import { loadTrackDetail, loadUnits } from "@/lib/me/queries";
 import { computeSplits, summarizeTrackDetail } from "@/lib/me/trackDetail";
-import { fmtDistance, fmtDuration } from "@/lib/me/units";
+import { fmtDistance, fmtDuration, fmtPaceFromMeters } from "@/lib/me/units";
 import BackLink from "@/components/me/BackLink";
 import RouteMap from "@/components/me/RouteMap";
 import SplitBars from "@/components/me/SplitBars";
+import StatGrid from "@/components/me/StatGrid";
 
 export const metadata = { title: "Track" };
 
@@ -20,12 +21,11 @@ export default async function TrackDetailPage({
   const user = await requireUser();
   const supabase = await createServerSupabase();
   const { id } = await params;
-  const [res, me] = await Promise.all([
+  const [res, units] = await Promise.all([
     loadTrackDetail(supabase, user.id, id),
-    loadMeData(supabase, user.id),
+    loadUnits(supabase, user.id),
   ]);
   if (!res) notFound();
-  const units = me.profile?.units ?? "metric";
   const { track, previous } = res;
   const distanceM = track.distance_meters ?? 0;
   const durationS = track.duration_seconds ?? 0;
@@ -49,13 +49,26 @@ export default async function TrackDetailPage({
           {cap(track.mode)}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          {(track.finished_at ?? track.created_at).slice(0, 10)} ·{" "}
-          {fmtDistance(distanceM, units)} · {fmtDuration(durationS)}
-          {track.elevation_gain_meters
-            ? ` · ↑${Math.round(track.elevation_gain_meters)}m`
-            : ""}
-          {track.avg_hr ? ` · ♥ ${track.avg_hr}` : ""}
+          {(track.finished_at ?? track.created_at).slice(0, 10)}
         </p>
+        <div className="mt-4">
+          <StatGrid
+            cells={[
+              { label: "Distance", value: fmtDistance(distanceM, units) },
+              { label: "Duration", value: fmtDuration(durationS) },
+              {
+                label: "Avg pace",
+                value: fmtPaceFromMeters(distanceM, durationS, units),
+              },
+              { label: "Avg HR", value: track.avg_hr ? `♥ ${track.avg_hr}` : "—" },
+              { label: "Max HR", value: track.max_hr ? `♥ ${track.max_hr}` : "—" },
+              {
+                label: "Elev ↑/↓",
+                value: `${Math.round(track.elevation_gain_meters ?? 0)}/${Math.round(track.elevation_loss_meters ?? 0)}m`,
+              },
+            ]}
+          />
+        </div>
         {paceDeltaLabel && (
           <p
             className={

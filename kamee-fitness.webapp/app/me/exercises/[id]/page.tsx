@@ -1,9 +1,14 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { loadExerciseHistory, loadMeData } from "@/lib/me/queries";
+import {
+  exerciseDemoUrl,
+  loadExerciseHistory,
+  loadUnits,
+} from "@/lib/me/queries";
 import { buildExerciseHistory } from "@/lib/me/exerciseHistory";
-import { fmtWeight } from "@/lib/me/units";
+import { fmtVolume, fmtWeight } from "@/lib/me/units";
 import BackLink from "@/components/me/BackLink";
 import ExerciseProgressionChart from "@/components/me/ExerciseProgressionChart";
 
@@ -17,12 +22,11 @@ export default async function ExercisePage({
   const user = await requireUser();
   const supabase = await createServerSupabase();
   const { id } = await params;
-  const [hist, me] = await Promise.all([
+  const [hist, units] = await Promise.all([
     loadExerciseHistory(supabase, user.id, id),
-    loadMeData(supabase, user.id),
+    loadUnits(supabase, user.id),
   ]);
   if (!hist) notFound();
-  const units = me.profile?.units ?? "metric";
   const h = buildExerciseHistory(hist.sets);
   const chart = h.series.map((s) => ({
     dateIso: s.dateIso,
@@ -36,14 +40,30 @@ export default async function ExercisePage({
       <BackLink />
       <header className="mt-4">
         <h1 className="font-display text-2xl font-bold text-mist">{hist.name}</h1>
+        {hist.primaryMuscle && (
+          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-teal-500">
+            {hist.primaryMuscle}
+          </p>
+        )}
+        {hist.demoImagePath && (
+          <Image
+            src={exerciseDemoUrl(hist.demoImagePath)}
+            alt={hist.name}
+            width={320}
+            height={320}
+            className="mt-4 size-40 rounded-2xl border border-white/8 object-cover"
+          />
+        )}
         {h.timesTrained > 0 ? (
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-4 text-sm text-muted">
             PR {fmtWeight(h.prKg, units)}
             {h.prDateIso ? ` (${h.prDateIso})` : ""} · est 1RM{" "}
-            {fmtWeight(bestEst1Rm, units)} · trained {h.timesTrained}×
+            {fmtWeight(bestEst1Rm, units)} · last {fmtWeight(h.lastWeightKg, units)}{" "}
+            · best vol {fmtVolume(h.bestVolumeKg, units)} · trained{" "}
+            {h.timesTrained}×
           </p>
         ) : (
-          <p className="mt-1 text-sm text-muted">No sets logged yet.</p>
+          <p className="mt-4 text-sm text-muted">No sets logged yet.</p>
         )}
       </header>
       {chart.length > 1 && (
