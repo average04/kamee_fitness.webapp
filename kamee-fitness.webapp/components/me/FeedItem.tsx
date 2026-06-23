@@ -8,6 +8,7 @@ import {
   type Units,
 } from "@/lib/me/units";
 import RouteThumbnail from "./RouteThumbnail";
+import RowPendingArrow from "./RowPendingArrow";
 
 function DumbbellIcon() {
   return (
@@ -79,9 +80,7 @@ export default function FeedItem({ item, units }: { item: Item; units: Units }) 
       </div>
       <div className="flex shrink-0 items-center gap-2 text-sm">
         <span className={accent}>{metric}</span>
-        <span className="text-muted" aria-hidden>
-          →
-        </span>
+        <RowPendingArrow />
       </div>
     </Link>
   );
