@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ExerciseRecord } from "@/lib/me/records";
 import { fmtWeight, type Units } from "@/lib/me/units";
+import RowPendingArrow from "./RowPendingArrow";
 
 export default function RecordsList({
   records,
@@ -26,9 +27,7 @@ export default function RecordsList({
                 {r.prDateIso ?? ""} · 1RM {fmtWeight(r.est1RmKg, units)} ·{" "}
                 {r.timesTrained}×
               </span>
-              <span className="text-muted" aria-hidden>
-                →
-              </span>
+              <RowPendingArrow />
             </span>
           </Link>
         </li>

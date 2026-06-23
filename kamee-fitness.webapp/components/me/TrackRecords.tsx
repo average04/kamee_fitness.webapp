@@ -8,6 +8,7 @@ import {
   type Units,
 } from "@/lib/me/units";
 import StatGrid from "./StatGrid";
+import RowPendingArrow from "./RowPendingArrow";
 
 function paceLabel(secPerKm: number, units: Units): string {
   const secPerUnit = units === "imperial" ? secPerKm * 1.609344 : secPerKm;
@@ -37,9 +38,7 @@ function BestRow({
         <span className="hidden text-xs capitalize text-muted sm:inline">
           {best.mode} · {best.dateIso}
         </span>
-        <span className="text-muted" aria-hidden>
-          →
-        </span>
+        <RowPendingArrow />
       </span>
     </Link>
   );
