@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidEmail } from "@/lib/email";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 type Payload = {
   email?: unknown;
@@ -9,6 +9,20 @@ type Payload = {
 };
 
 export async function POST(request: NextRequest) {
+  // Coarse per-IP limit — this is an unauthenticated public write.
+  const { ok: allowed } = await rateLimit({
+    name: "waitlist",
+    key: clientIp(request.headers),
+    max: 5,
+    windowSec: 3600,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 },
+    );
+  }
+
   let body: Payload;
   try {
     body = await request.json();
@@ -24,7 +38,7 @@ export async function POST(request: NextRequest) {
   const email =
     typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 
-  if (!EMAIL_RE.test(email) || email.length > 320) {
+  if (!isValidEmail(email)) {
     return NextResponse.json(
       { error: "Please enter a valid email address." },
       { status: 400 },
