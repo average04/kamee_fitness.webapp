@@ -29,13 +29,17 @@ curl -H "X-Api-Key: $KAMEE_API_KEY" "https://kamee.fit/api/plans?discipline=runn
       "disciplineLabel": "Outdoor",
       "weeksCount": 9,
       "daysPerWeek": 3,
-      "estMinutesPerSession": 30
+      "estMinutesPerSession": 30,
+      "webUrl": "https://kamee.fit/plans/3f2c8a1e-6b7d-4e9f-a1b2-c3d4e5f60718",
+      "appUrl": "kamee://plan/3f2c8a1e-6b7d-4e9f-a1b2-c3d4e5f60718"
     }
   ]
 }
 ```
 
 Field notes: `level` is one of `none | beginner | intermediate | advanced`; `coverUrl`, `summary`, `daysPerWeek`, and `estMinutesPerSession` may be `null`. `disciplineLabel` is the display name (`Workouts` for strength, `Outdoor` for running).
+
+Linking: `webUrl` is always safe to render — it opens the plan's page on kamee.fit, which itself offers app and store links. `appUrl` is a deep link that opens the plan inside the Kamee app; it only works on a device with the app installed and does nothing elsewhere, so prefer `webUrl` unless you know the app is present.
 
 ## Errors
 

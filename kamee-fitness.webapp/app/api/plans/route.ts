@@ -1,6 +1,15 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
+import {
+  DISCIPLINE_LABELS,
+  DISCIPLINES,
+  PLAN_COLUMNS,
+  planAppUrl,
+  planCoverUrl,
+  planWebUrl,
+  type PlanRow,
+} from "@/lib/public-plans";
 
 /**
  * Partner API: the published training-plan catalog. Read-only, keyed by the
@@ -8,30 +17,6 @@ import { createSupabaseServerClient } from "@/lib/supabase";
  * Anon RLS on `plans` (published + approved only) is the second safety net
  * behind the explicit filters below.
  */
-
-const DISCIPLINES = ["strength", "running"] as const;
-type Discipline = (typeof DISCIPLINES)[number];
-
-const DISCIPLINE_LABELS: Record<Discipline, string> = {
-  strength: "Workouts",
-  running: "Outdoor",
-};
-
-// Fixed projection — never SELECT *.
-const PLAN_COLUMNS =
-  "id, title, summary, cover_image_path, level, discipline, weeks_count, days_per_week, est_minutes_per_session";
-
-type PlanRow = {
-  id: string;
-  title: string;
-  summary: string | null;
-  cover_image_path: string | null;
-  level: "none" | "beginner" | "intermediate" | "advanced";
-  discipline: Discipline;
-  weeks_count: number;
-  days_per_week: number | null;
-  est_minutes_per_session: number | null;
-};
 
 /** Shared response headers; CORS only when a partner origin is configured. */
 function baseHeaders(): Record<string, string> {
@@ -94,18 +79,19 @@ export async function GET(request: NextRequest) {
       return errorJson(500, "Server error.");
     }
 
-    const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/`;
     const plans = ((data ?? []) as PlanRow[]).map((row) => ({
       id: row.id,
       title: row.title,
       summary: row.summary,
-      coverUrl: row.cover_image_path ? storageBase + row.cover_image_path : null,
+      coverUrl: planCoverUrl(row.cover_image_path),
       level: row.level,
       discipline: row.discipline,
       disciplineLabel: DISCIPLINE_LABELS[row.discipline],
       weeksCount: row.weeks_count,
       daysPerWeek: row.days_per_week,
       estMinutesPerSession: row.est_minutes_per_session,
+      webUrl: planWebUrl(row.id),
+      appUrl: planAppUrl(row.id),
     }));
 
     return NextResponse.json(
