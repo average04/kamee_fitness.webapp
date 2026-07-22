@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       title: row.title,
       summary: row.summary,
       coverUrl: planCoverUrl(row.cover_image_path),
-      level: row.level,
+      level: row.level ?? "none",
       discipline: row.discipline,
       disciplineLabel: DISCIPLINE_LABELS[row.discipline],
       weeksCount: row.weeks_count,

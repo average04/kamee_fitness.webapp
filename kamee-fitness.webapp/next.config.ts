@@ -30,6 +30,20 @@ const nextConfig: NextConfig = {
     // separate, tested follow-up.
     return [
       {
+        // Public plan pages are dynamic SSR; the CDN cache is the cost
+        // defense (same staleness contract as /api/plans). Applies to the
+        // route's 404s too, so a just-published plan's page can lag up to an
+        // hour — consistent with the documented feed behavior.
+        source: "/plans/:id",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=300" },
+          {
+            key: "Netlify-CDN-Cache-Control",
+            value: "public, durable, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        ],
+      },
+      {
         source: "/(.*)",
         headers: [
           {

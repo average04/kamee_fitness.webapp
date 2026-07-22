@@ -17,7 +17,7 @@ import { createSupabaseServerClient } from "@/lib/supabase";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const LEVEL_LABELS: Record<PlanRow["level"], string | null> = {
+const LEVEL_LABELS: Record<NonNullable<PlanRow["level"]>, string | null> = {
   none: null,
   beginner: "Beginner",
   intermediate: "Intermediate",
@@ -61,7 +61,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     plan.summary ??
     `A ${plan.weeks_count}-week ${DISCIPLINE_LABELS[plan.discipline].toLowerCase()} plan in the Kamee Fitness app.`;
-  const coverUrl = planCoverUrl(plan.cover_image_path);
+  // Fall back to the site icon so coverless plans still unfurl with an image.
+  // Next merges metadata shallowly per key, so openGraph/twitter must be
+  // restated in full here — a partial object would drop the layout's fields.
+  const images = [planCoverUrl(plan.cover_image_path) ?? "/adaptive-icon.png"];
 
   return {
     title: plan.title,
@@ -70,7 +73,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: plan.title,
       description,
-      images: coverUrl ? [coverUrl] : undefined,
+      url: `/plans/${plan.id}`,
+      siteName: "Kamee Fitness",
+      type: "website",
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: plan.title,
+      description,
+      images,
     },
   };
 }
@@ -94,7 +106,7 @@ export default async function PlanPage({ params }: Props) {
   if (!plan) notFound();
 
   const coverUrl = planCoverUrl(plan.cover_image_path);
-  const levelLabel = LEVEL_LABELS[plan.level];
+  const levelLabel = plan.level ? LEVEL_LABELS[plan.level] : null;
   const stats: Array<{ label: string; value: string }> = [
     { label: "Length", value: `${plan.weeks_count} weeks` },
     ...(plan.days_per_week !== null

@@ -23,7 +23,9 @@ export type PlanRow = {
   title: string;
   summary: string | null;
   cover_image_path: string | null;
-  level: "none" | "beginner" | "intermediate" | "advanced";
+  // Nullable in the DB (author-created plans may omit it); public surfaces
+  // coalesce null to "none" so the partner contract stays a closed enum.
+  level: "none" | "beginner" | "intermediate" | "advanced" | null;
   discipline: Discipline;
   weeks_count: number;
   days_per_week: number | null;
