@@ -22,11 +22,7 @@ export default function Hero() {
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-leaf-300">
               <span className="blink size-1.5 rounded-full bg-leaf-400" /> Now on
-              iOS
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-ember-400">
-              <span className="blink size-1.5 rounded-full bg-ember-400" /> Early
-              access on Android
+              iOS &amp; Android
             </span>
           </div>
 

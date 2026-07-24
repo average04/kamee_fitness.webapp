@@ -176,11 +176,7 @@ export default async function PlanPage({ params }: Props) {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <StoreBadge platform="ios" href={APP_STORE_URL} />
-            <StoreBadge
-              platform="android"
-              href={PLAY_STORE_URL}
-              eyebrow="Early access"
-            />
+            <StoreBadge platform="android" href={PLAY_STORE_URL} />
           </div>
         </div>
       </div>

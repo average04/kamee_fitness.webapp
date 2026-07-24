@@ -2,10 +2,10 @@ import Atmosphere from "@/components/landing/Atmosphere";
 import Header from "@/components/landing/Header";
 import Hero from "@/components/landing/Hero";
 import Features from "@/components/landing/Features";
-import HowToJoin from "@/components/landing/HowToJoin";
+import GetStarted from "@/components/landing/GetStarted";
 import Faq from "@/components/landing/Faq";
 import Footer from "@/components/landing/Footer";
-import { APP_STORE_URL } from "@/lib/landing/stores";
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/landing/stores";
 
 const SITE_URL = "https://kamee.fit";
 
@@ -18,7 +18,7 @@ const jsonLd = {
       name: "Kamee Fitness",
       url: SITE_URL,
       logo: `${SITE_URL}/adaptive-icon.png`,
-      sameAs: [APP_STORE_URL],
+      sameAs: [APP_STORE_URL, PLAY_STORE_URL],
     },
     {
       "@type": "WebSite",
@@ -33,8 +33,8 @@ const jsonLd = {
       operatingSystem: "iOS, Android",
       applicationCategory: "HealthApplication",
       url: SITE_URL,
-      downloadUrl: APP_STORE_URL,
-      installUrl: APP_STORE_URL,
+      downloadUrl: [APP_STORE_URL, PLAY_STORE_URL],
+      installUrl: [APP_STORE_URL, PLAY_STORE_URL],
       image: `${SITE_URL}/adaptive-icon.png`,
       description:
         "Personal workout and training app built on steady, sustainable progress.",
@@ -56,7 +56,7 @@ export default function Home() {
       <main className="relative z-10">
         <Hero />
         <Features />
-        <HowToJoin />
+        <GetStarted />
         <Faq />
       </main>
       <Footer />

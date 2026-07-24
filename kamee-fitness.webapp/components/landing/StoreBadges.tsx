@@ -44,7 +44,8 @@ export function StoreBadge({
       </span>
       <span className="flex flex-col leading-tight">
         <span className="text-[0.62rem] font-medium uppercase tracking-[0.16em] text-leaf-400/80">
-          {eyebrow ?? (live ? "Download on the" : "Coming soon")}
+          {eyebrow ??
+            (live ? (isIos ? "Download on the" : "Get it on") : "Coming soon")}
         </span>
         <span className="font-display text-sm font-semibold text-mist">
           {storeName}
@@ -62,7 +63,9 @@ export function StoreBadge({
         aria-label={
           eyebrow
             ? `${eyebrow} to Kamee Fitness on ${storeName}`
-            : `Download Kamee Fitness on the ${storeName}`
+            : isIos
+              ? "Download Kamee Fitness on the App Store"
+              : "Get Kamee Fitness on Google Play"
         }
         className={className}
       >
@@ -78,7 +81,7 @@ export function StoreBadges({ className }: { className?: string }) {
   return (
     <div className={"flex flex-wrap items-center gap-3 " + (className ?? "")}>
       <StoreBadge platform="ios" href={APP_STORE_URL} />
-      <StoreBadge platform="android" href={PLAY_STORE_URL} eyebrow="Early access" />
+      <StoreBadge platform="android" href={PLAY_STORE_URL} />
     </div>
   );
 }

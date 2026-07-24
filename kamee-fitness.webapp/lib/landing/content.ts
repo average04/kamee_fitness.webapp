@@ -67,16 +67,16 @@ export const FAQ: FaqItem[] = [
     a: "Yes — free to start. Kamee Premium removes ads and adds custom plans plus advanced weekly and monthly stats.",
   },
   {
-    q: "How do I send feedback during early access?",
-    a: "Email bayogjayr@gmail.com. During early access your reports go straight to the team.",
+    q: "Where can I download Kamee?",
+    a: "On Google Play for Android and the App Store for iPhone. Both are live today.",
   },
   {
-    q: "When does Android fully launch?",
-    a: "Soon. Early access is the final shakeout before the public Play Store release.",
+    q: "How do I send feedback?",
+    a: "Email bayogjayr@gmail.com. Reports go straight to the team.",
   },
   {
-    q: "Will my early-access data carry over?",
-    a: "Yes. Your account and progress stay with you through the public release.",
+    q: "I was in the Android early access — do I keep my data?",
+    a: "Yes. Your account and progress carry over to the public release automatically.",
   },
   {
     q: "Is my data private?",
