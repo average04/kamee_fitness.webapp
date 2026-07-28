@@ -35,6 +35,9 @@ export default function Footer() {
             <a href="/delete-account" className="hover:text-white">
               Delete account
             </a>
+            <a href="https://developer.kamee.fit" className="hover:text-white">
+              Developers
+            </a>
             <a href="mailto:bayogjayr@gmail.com" className="hover:text-white">
               Contact
             </a>
