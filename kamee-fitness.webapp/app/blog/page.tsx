@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { GROUP_ACCENT } from "@/components/blog/accents";
+import { BlogShell } from "@/components/blog/BlogShell";
 import { PostCard } from "@/components/blog/PostCard";
 import {
   GROUP_BLURBS,
@@ -37,11 +39,13 @@ export const metadata: Metadata = {
 
 export default function BlogIndexPage() {
   const pillar = getPillar();
+  const guides = getGuides();
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: TITLE,
-    itemListElement: getGuides().map((post, i) => ({
+    itemListElement: guides.map((post, i) => ({
       "@type": "ListItem",
       position: i + 1,
       url: postUrl(post.slug),
@@ -50,55 +54,90 @@ export default function BlogIndexPage() {
   };
 
   return (
-    <main className="min-h-screen bg-ink-950 text-ink-100">
+    <BlogShell>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="mx-auto max-w-5xl px-6 py-12 lg:py-16">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-sm text-ink-400 hover:text-leaf-400"
-        >
-          ← Kamee Fitness
-        </Link>
 
-        <h1 className="font-display mt-6 text-4xl font-bold text-leaf-300 lg:text-5xl">
-          {TITLE}
+      <div className="mx-auto max-w-5xl px-6 pb-8 pt-14 lg:pt-20">
+        {/* Page hero */}
+        <p className="text-[0.62rem] font-medium uppercase tracking-[0.22em] text-leaf-400/80">
+          Kamee Guides
+        </p>
+        <h1 className="font-display mt-4 max-w-3xl text-[clamp(2.2rem,6vw,3.4rem)] font-bold leading-[1.08] text-mist">
+          Every type of run,{" "}
+          <span className="text-leaf-300">explained.</span>
         </h1>
-        <p className="mt-4 max-w-2xl text-ink-300">{DESCRIPTION}</p>
+        <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink-300">
+          {DESCRIPTION}
+        </p>
+        <p className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.62rem] font-medium uppercase tracking-[0.16em] text-ink-500">
+          <span>{guides.length} guides</span>
+          <span aria-hidden>·</span>
+          <span>No jargon</span>
+          <span aria-hidden>·</span>
+          <span>Free</span>
+        </p>
 
         {/* Featured pillar */}
         <Link
           href={`/blog/${pillar.slug}`}
-          className="group mt-10 block rounded-3xl border border-leaf-500/30 bg-leaf-500/[0.05] p-6 transition-colors hover:border-leaf-500/60"
+          className="group relative mt-12 block overflow-hidden rounded-3xl border border-leaf-500/25 bg-leaf-500/[0.04] p-7 transition-colors hover:border-leaf-500/50 sm:p-9"
         >
-          <p className="text-[0.62rem] font-medium uppercase tracking-[0.16em] text-leaf-400">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-leaf-500 opacity-[0.09] blur-3xl transition-opacity duration-500 group-hover:opacity-[0.16]"
+          />
+          <p className="text-[0.62rem] font-medium uppercase tracking-[0.2em] text-leaf-400">
             Start here
           </p>
-          <h2 className="font-display mt-2 text-2xl font-semibold text-mist group-hover:text-leaf-300">
+          <h2 className="font-display mt-3 max-w-2xl text-2xl font-semibold leading-snug text-mist group-hover:text-white sm:text-3xl">
             {pillar.title}
           </h2>
-          <p className="mt-2 max-w-2xl text-sm text-ink-300">{pillar.excerpt}</p>
-          <p className="mt-3 text-[0.62rem] uppercase tracking-[0.16em] text-ink-400">
-            {pillar.readingMinutes} min read
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300">
+            {pillar.excerpt}
+          </p>
+          <p className="mt-5 inline-flex items-center gap-2 text-[0.62rem] font-medium uppercase tracking-[0.16em] text-leaf-300">
+            Read the overview
+            <span
+              aria-hidden
+              className="transition-transform duration-300 group-hover:translate-x-1"
+            >
+              →
+            </span>
+            <span className="text-ink-500">· {pillar.readingMinutes} min</span>
           </p>
         </Link>
 
-        {POST_GROUPS.map((group) => (
-          <section key={group} className="mt-12">
-            <h2 className="font-display text-xl font-semibold text-leaf-400">
-              {group}
-            </h2>
-            <p className="mt-1 text-sm text-ink-400">{GROUP_BLURBS[group]}</p>
-            <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {getGuidesByGroup(group).map((post) => (
-                <PostCard key={post.slug} post={post} />
-              ))}
-            </ul>
-          </section>
-        ))}
+        {/* Guides by group */}
+        {POST_GROUPS.map((group) => {
+          const accent = GROUP_ACCENT[group];
+          const posts = getGuidesByGroup(group);
+          return (
+            <section key={group} className="mt-14">
+              <div className="flex items-baseline gap-3">
+                <h2
+                  className={`font-display text-xl font-semibold ${accent.label}`}
+                >
+                  {group}
+                </h2>
+                <span className="text-[0.62rem] font-medium uppercase tracking-[0.16em] text-ink-500">
+                  {posts.length} guides
+                </span>
+              </div>
+              <p className="mt-1.5 max-w-2xl text-sm text-ink-400">
+                {GROUP_BLURBS[group]}
+              </p>
+              <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {posts.map((post) => (
+                  <PostCard key={post.slug} post={post} />
+                ))}
+              </ul>
+            </section>
+          );
+        })}
       </div>
-    </main>
+    </BlogShell>
   );
 }

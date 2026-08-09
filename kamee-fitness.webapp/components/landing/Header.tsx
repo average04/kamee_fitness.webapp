@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function Header() {
@@ -22,7 +23,9 @@ export default function Header() {
       }
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="#top" className="flex items-center gap-2.5">
+        {/* Root-relative hashes so the header works off the landing page too:
+            on "/" the browser still treats these as same-document scrolls. */}
+        <Link href="/#top" className="flex items-center gap-2.5">
           <Image
             src="/adaptive-icon.png"
             alt=""
@@ -33,20 +36,26 @@ export default function Header() {
           <span className="font-display text-sm font-semibold uppercase tracking-[0.18em] text-mist">
             Kamee Fitness
           </span>
-        </a>
+        </Link>
         <div className="flex items-center gap-4">
+          <Link
+            href="/blog"
+            className="text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist"
+          >
+            Blog
+          </Link>
           <a
             href="/me"
             className="text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist"
           >
             Log in
           </a>
-          <a
-            href="#get-the-app"
+          <Link
+            href="/#get-the-app"
             className="rounded-full border border-leaf-500/40 bg-leaf-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-leaf-300 transition-colors hover:bg-leaf-500/20"
           >
             Get the app
-          </a>
+          </Link>
         </div>
       </div>
     </header>

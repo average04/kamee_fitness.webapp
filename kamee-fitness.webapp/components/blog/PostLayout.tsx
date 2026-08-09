@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { GROUP_ACCENT } from "./accents";
+import { BlogShell } from "./BlogShell";
 import { StoreBadge } from "@/components/landing/StoreBadges";
 import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/landing/stores";
 import { postUrl, type RunPost } from "@/lib/blog/posts";
@@ -20,6 +22,8 @@ function formatDate(iso: string): string {
 }
 
 export function PostLayout({ post, prev, next, children }: Props) {
+  const isPillar = post.kind === "pillar";
+  const accent = post.group ? GROUP_ACCENT[post.group] : null;
   const dateLabel = post.updated
     ? `Updated ${formatDate(post.updated)}`
     : formatDate(post.published);
@@ -36,8 +40,8 @@ export function PostLayout({ post, prev, next, children }: Props) {
     mainEntityOfPage: { "@type": "WebPage", "@id": postUrl(post.slug) },
   };
 
-  return (
-    <main className="min-h-screen bg-ink-950 text-ink-100">
+  const content = (
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -45,50 +49,64 @@ export function PostLayout({ post, prev, next, children }: Props) {
       <div className="mx-auto max-w-3xl px-6 py-12 lg:py-16">
         <Link
           href="/blog"
-          className="inline-flex items-center gap-1 text-sm text-ink-400 hover:text-leaf-400"
+          className="inline-flex items-center gap-1 text-sm text-ink-400 transition-colors hover:text-leaf-400"
         >
           ← All running guides
         </Link>
 
         <header className="mt-6">
           {post.group && (
-            <span className="rounded-full border border-leaf-500/40 bg-leaf-500/[0.07] px-3 py-1 text-[0.62rem] font-medium uppercase tracking-[0.16em] text-leaf-300">
+            <span
+              className={`rounded-full border px-3 py-1 text-[0.62rem] font-medium uppercase tracking-[0.16em] ${accent?.pill}`}
+            >
               {post.group}
             </span>
           )}
-          <h1 className="font-display mt-4 text-4xl font-bold text-leaf-300 lg:text-5xl">
+          <h1 className="font-display mt-4 text-[clamp(2rem,5.5vw,3rem)] font-bold leading-[1.1] text-leaf-300">
             {post.title}
           </h1>
-          <p className="mt-4 text-lg text-ink-300">{post.description}</p>
-          <p className="mt-4 text-sm text-ink-400">
-            {dateLabel} · {post.readingMinutes} min read
-            {post.effort ? ` · ${post.effort} effort` : ""}
+          <p className="mt-4 text-lg leading-relaxed text-ink-300">
+            {post.description}
+          </p>
+          <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.62rem] font-medium uppercase tracking-[0.16em] text-ink-500">
+            <span>{dateLabel}</span>
+            <span aria-hidden>·</span>
+            <span>{post.readingMinutes} min read</span>
+            {post.effort && (
+              <>
+                <span aria-hidden>·</span>
+                <span>{post.effort} effort</span>
+              </>
+            )}
           </p>
         </header>
 
         <article className="mt-10 max-w-[72ch]">{children}</article>
 
-        {/* App CTA */}
-        <section className="mt-12 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-          <p className="font-display text-lg font-semibold text-mist">
-            Run it with Kamee
-          </p>
-          <p className="mt-2 text-sm text-ink-300">
-            Track the session with GPS, watch your pace live, and review your
-            splits afterwards. Free on iOS and Android.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <StoreBadge platform="ios" href={APP_STORE_URL} />
-            <StoreBadge platform="android" href={PLAY_STORE_URL} />
-          </div>
-        </section>
+        {/* The pillar renders inside BlogShell, whose footer already carries
+            the store CTA — a second one here would just repeat it. */}
+        {!isPillar && (
+          <section className="mt-12 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+            <p className="font-display text-lg font-semibold text-mist">
+              Run it with Kamee
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-ink-300">
+              Track the session with GPS, watch your pace live, and review your
+              splits afterwards. Free on iOS and Android.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <StoreBadge platform="ios" href={APP_STORE_URL} />
+              <StoreBadge platform="android" href={PLAY_STORE_URL} />
+            </div>
+          </section>
+        )}
 
         {(prev || next) && (
           <nav className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:justify-between">
             {prev ? (
               <Link
                 href={`/blog/${prev.slug}`}
-                className="text-sm text-ink-300 hover:text-leaf-400"
+                className="text-sm text-ink-300 transition-colors hover:text-leaf-400"
               >
                 ← {prev.title}
               </Link>
@@ -98,7 +116,7 @@ export function PostLayout({ post, prev, next, children }: Props) {
             {next && (
               <Link
                 href={`/blog/${next.slug}`}
-                className="text-sm text-ink-300 hover:text-leaf-400 sm:text-right"
+                className="text-sm text-ink-300 transition-colors hover:text-leaf-400 sm:text-right"
               >
                 {next.title} →
               </Link>
@@ -106,12 +124,20 @@ export function PostLayout({ post, prev, next, children }: Props) {
           </nav>
         )}
 
-        <p className="mt-10 border-t border-white/10 pt-6 text-xs text-ink-500">
+        <p className="mt-10 border-t border-white/10 pt-6 text-xs leading-relaxed text-ink-500">
           General training information, not medical advice. Check with a doctor
           before starting or changing a training plan, especially if you have an
           existing condition or injury.
         </p>
       </div>
-    </main>
+    </>
+  );
+
+  // Entry points wear the site chrome; individual guides stay a plain reading
+  // page so the article is the whole screen.
+  if (isPillar) return <BlogShell>{content}</BlogShell>;
+
+  return (
+    <main className="min-h-screen bg-ink-950 text-ink-100">{content}</main>
   );
 }

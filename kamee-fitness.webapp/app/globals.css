@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
 @theme {
+  /* Ink 100–500 — foreground ramp for body copy on the dark backgrounds,
+     running from just under `mist` down to the faintest readable meta text.
+     400 matches `muted`; 500 still clears 4.5:1 on ink-950. Below that the
+     ink steps are backgrounds/borders, not text. */
+  --color-ink-100: #dde5e3;
+  --color-ink-200: #c6d2d1;
+  --color-ink-300: #aab8b9;
+  --color-ink-400: #8ea0a3;
+  --color-ink-500: #6b7d80;
+
   /* Ink — deep, slightly green-black backgrounds */
   --color-ink-950: #07090a;
   --color-ink-900: #0b1012;
