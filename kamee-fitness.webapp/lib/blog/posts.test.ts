@@ -24,7 +24,7 @@ const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const BLOG_DIR = path.join(process.cwd(), "content", "blog");
 
 /** Route segments that live under /blog and would shadow a post slug. */
-const RESERVED_SEGMENTS = ["topics"];
+const RESERVED_SEGMENTS = ["topics", "feed.json"];
 
 function mdxFiles(): string[] {
   try {
