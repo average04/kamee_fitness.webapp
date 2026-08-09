@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { planWebUrl } from "@/lib/public-plans";
+import { POSTS, postUrl } from "@/lib/blog/posts";
 
 const SITE = "https://kamee.fit";
 
@@ -28,6 +29,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.2,
     },
+    // Blog: derived from the static registry, so these survive the plans
+    // query failing below.
+    {
+      url: `${SITE}/blog`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    ...POSTS.map((post) => ({
+      url: postUrl(post.slug),
+      lastModified: new Date(post.updated ?? post.published),
+      changeFrequency: "monthly" as const,
+      priority: post.kind === "pillar" ? 0.7 : 0.6,
+    })),
   ];
 
   // Published plan pages. Generated at build time, so new plans appear on the

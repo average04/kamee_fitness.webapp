@@ -26,6 +26,9 @@ export default function Footer() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 sm:flex-row">
           <span>© 2026 Kamee Fitness. All rights reserved.</span>
           <nav className="flex flex-wrap items-center justify-center gap-5">
+            <a href="/blog" className="hover:text-white">
+              Blog
+            </a>
             <a href="/terms" className="hover:text-white">
               Terms
             </a>
