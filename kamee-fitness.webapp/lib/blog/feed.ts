@@ -7,7 +7,6 @@
 
 // Relative imports: this module is under vitest, which has no "@/" alias.
 import {
-  CATEGORIES,
   POSTS,
   getCategoryById,
   postUrl,
