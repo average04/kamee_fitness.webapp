@@ -115,6 +115,12 @@ describe("content/blog MDX files", () => {
     }
   });
 
+  it("every registry entry has a file on disk", () => {
+    const onDisk = new Set(mdxFiles().map((f) => f.replace(/\.mdx$/, "")));
+    const missing = POST_SLUGS.filter((slug) => !onDisk.has(slug));
+    expect(missing).toEqual([]);
+  });
+
   it("no file declares a top-level H1", () => {
     for (const file of mdxFiles()) {
       const src = readFileSync(path.join(BLOG_DIR, file), "utf8");
