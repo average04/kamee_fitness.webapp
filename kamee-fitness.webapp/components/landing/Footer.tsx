@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { StoreBadges } from "./StoreBadges";
 
 export default function Footer() {
@@ -26,18 +27,18 @@ export default function Footer() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 sm:flex-row">
           <span>© 2026 Kamee Fitness. All rights reserved.</span>
           <nav className="flex flex-wrap items-center justify-center gap-5">
-            <a href="/blog" className="hover:text-white">
+            <Link href="/blog" className="hover:text-white">
               Blog
-            </a>
-            <a href="/terms" className="hover:text-white">
+            </Link>
+            <Link href="/terms" className="hover:text-white">
               Terms
-            </a>
-            <a href="/privacy" className="hover:text-white">
+            </Link>
+            <Link href="/privacy" className="hover:text-white">
               Privacy
-            </a>
-            <a href="/delete-account" className="hover:text-white">
+            </Link>
+            <Link href="/delete-account" className="hover:text-white">
               Delete account
-            </a>
+            </Link>
             <a href="https://developer.kamee.fit" className="hover:text-white">
               Developers
             </a>
