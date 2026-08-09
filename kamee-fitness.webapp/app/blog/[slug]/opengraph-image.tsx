@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { getPost, POST_SLUGS } from "@/lib/blog/posts";
+import { getCategoryById, getPost, POST_SLUGS } from "@/lib/blog/posts";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -19,7 +19,8 @@ export default async function OgImage({
   const { slug } = await params;
   const post = getPost(slug);
   const title = post?.title ?? "Kamee Fitness";
-  const eyebrow = post?.group ?? "Running guide";
+  const categoryName = post ? getCategoryById(post.category)?.name : undefined;
+  const eyebrow = [categoryName, post?.group].filter(Boolean).join(" · ") || "Guide";
 
   return new ImageResponse(
     (

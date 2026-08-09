@@ -1,14 +1,19 @@
 import Link from "next/link";
-import { GROUP_ACCENT } from "./accents";
+import { ACCENTS, DEFAULT_ACCENT } from "./accents";
 import { BlogShell } from "./BlogShell";
 import { StoreBadge } from "@/components/landing/StoreBadges";
 import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/landing/stores";
-import { postUrl, type RunPost } from "@/lib/blog/posts";
+import {
+  getCategoryById,
+  postUrl,
+  topicPath,
+  type Post,
+} from "@/lib/blog/posts";
 
 type Props = {
-  post: RunPost;
-  prev: RunPost | null;
-  next: RunPost | null;
+  post: Post;
+  prev: Post | null;
+  next: Post | null;
   children: React.ReactNode;
 };
 
@@ -23,7 +28,10 @@ function formatDate(iso: string): string {
 
 export function PostLayout({ post, prev, next, children }: Props) {
   const isPillar = post.kind === "pillar";
-  const accent = post.group ? GROUP_ACCENT[post.group] : null;
+  const category = getCategoryById(post.category);
+  const group = category?.groups?.find((g) => g.name === post.group);
+  const accent = ACCENTS[group?.accent ?? category?.accent ?? "leaf"] ?? DEFAULT_ACCENT;
+
   const dateLabel = post.updated
     ? `Updated ${formatDate(post.updated)}`
     : formatDate(post.published);
@@ -35,6 +43,7 @@ export function PostLayout({ post, prev, next, children }: Props) {
     description: post.description,
     datePublished: post.published,
     dateModified: post.updated ?? post.published,
+    articleSection: category?.name,
     author: { "@type": "Organization", name: "Kamee Fitness" },
     publisher: { "@type": "Organization", name: "Kamee Fitness" },
     mainEntityOfPage: { "@type": "WebPage", "@id": postUrl(post.slug) },
@@ -47,17 +56,30 @@ export function PostLayout({ post, prev, next, children }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="mx-auto max-w-3xl px-6 py-12 lg:py-16">
-        <Link
-          href="/blog"
-          className="inline-flex items-center gap-1 text-sm text-ink-400 transition-colors hover:text-leaf-400"
-        >
-          ← All running guides
-        </Link>
+        {/* Breadcrumb back into the topic, not to a generic index. */}
+        <nav className="flex flex-wrap items-center gap-2 text-sm text-ink-400">
+          <Link href="/blog" className="transition-colors hover:text-leaf-400">
+            Blog
+          </Link>
+          {category && (
+            <>
+              <span aria-hidden className="text-ink-500">
+                /
+              </span>
+              <Link
+                href={topicPath(category.slug)}
+                className="transition-colors hover:text-leaf-400"
+              >
+                {category.name}
+              </Link>
+            </>
+          )}
+        </nav>
 
         <header className="mt-6">
           {post.group && (
             <span
-              className={`rounded-full border px-3 py-1 text-[0.62rem] font-medium uppercase tracking-[0.16em] ${accent?.pill}`}
+              className={`rounded-full border px-3 py-1 text-[0.62rem] font-medium uppercase tracking-[0.16em] ${accent.pill}`}
             >
               {post.group}
             </span>
@@ -124,7 +146,19 @@ export function PostLayout({ post, prev, next, children }: Props) {
           </nav>
         )}
 
-        <p className="mt-10 border-t border-white/10 pt-6 text-xs leading-relaxed text-ink-500">
+        {category && (
+          <p className="mt-10 text-sm text-ink-400">
+            More in{" "}
+            <Link
+              href={topicPath(category.slug)}
+              className={`underline underline-offset-2 ${accent.label}`}
+            >
+              {category.name}
+            </Link>
+          </p>
+        )}
+
+        <p className="mt-8 border-t border-white/10 pt-6 text-xs leading-relaxed text-ink-500">
           General training information, not medical advice. Check with a doctor
           before starting or changing a training plan, especially if you have an
           existing condition or injury.
@@ -137,7 +171,5 @@ export function PostLayout({ post, prev, next, children }: Props) {
   // page so the article is the whole screen.
   if (isPillar) return <BlogShell>{content}</BlogShell>;
 
-  return (
-    <main className="min-h-screen bg-ink-950 text-ink-100">{content}</main>
-  );
+  return <main className="min-h-screen bg-ink-950 text-ink-100">{content}</main>;
 }

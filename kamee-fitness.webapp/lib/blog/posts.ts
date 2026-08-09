@@ -32,34 +32,80 @@ export const POST_SLUGS = [
 
 export type PostSlug = (typeof POST_SLUGS)[number];
 
-export type PostGroup = "Foundation" | "Speed" | "Strength" | "Race";
+/** Palette keys; the concrete classes live in components/blog/accents.ts. */
+export type AccentName = "leaf" | "ember" | "teal" | "sun";
 
-export const POST_GROUPS: readonly PostGroup[] = [
-  "Foundation",
-  "Speed",
-  "Strength",
-  "Race",
-];
-
-export const GROUP_BLURBS: Record<PostGroup, string> = {
-  Foundation: "The aerobic base. Most of your weekly running lives here.",
-  Speed: "Faster than comfortable, on purpose. One or two of these a week.",
-  Strength: "Terrain does the work — power and stability without the track.",
-  Race: "Sharpening, rehearsing, and testing what you've built.",
+/**
+ * A topic. Running is the first; adding another means appending a Category
+ * here, adding its posts with a matching `category`, and writing the MDX.
+ * Nothing else in the blog needs to change — the index, topic pages, and
+ * sitemap all derive from this list.
+ */
+export type Category = {
+  id: string;
+  name: string;
+  /** URL segment under /blog/topics/. */
+  slug: string;
+  tagline: string;
+  blurb: string;
+  accent: AccentName;
+  /**
+   * Optional sub-groups used to break a large topic into sections. Free-form
+   * per category, since a nutrition topic won't group the way running does.
+   */
+  groups?: readonly { name: string; blurb: string; accent: AccentName }[];
 };
 
-export type RunPost = {
+export const CATEGORIES: Category[] = [
+  {
+    id: "running",
+    name: "Running",
+    slug: "running",
+    tagline: "Every type of run, explained",
+    blurb:
+      "Easy, tempo, interval, long, fartlek, hills and more — what each session does, how hard it should feel, and how to fit it into a week.",
+    accent: "leaf",
+    groups: [
+      {
+        name: "Foundation",
+        blurb: "The aerobic base. Most of your weekly running lives here.",
+        accent: "leaf",
+      },
+      {
+        name: "Speed",
+        blurb:
+          "Faster than comfortable, on purpose. One or two of these a week.",
+        accent: "ember",
+      },
+      {
+        name: "Strength",
+        blurb: "Terrain does the work — power and stability without the track.",
+        accent: "teal",
+      },
+      {
+        name: "Race",
+        blurb: "Sharpening, rehearsing, and testing what you've built.",
+        accent: "sun",
+      },
+    ],
+  },
+];
+
+export type Post = {
   slug: PostSlug;
+  /** Which topic this belongs to — matches a Category id. */
+  category: string;
+  /** A pillar is the topic's overview; guides are the individual pieces. */
   kind: "pillar" | "guide";
   title: string;
   /** Meta description. Kept to 50–160 chars — enforced by test. */
   description: string;
-  /** Hub card blurb. */
+  /** Card blurb. */
   excerpt: string;
-  /** Omitted on the pillar, which describes no single workout. */
-  group?: PostGroup;
+  /** Sub-group within the category; omitted on pillars. */
+  group?: string;
   effort?: "Easy" | "Moderate" | "Hard";
-  /** One line: what this run builds. */
+  /** One line: what this piece is for. */
   purpose: string;
   /** Hand-authored — there's no build-time MDX parsing to compute it from. */
   readingMinutes: number;
@@ -69,10 +115,11 @@ export type RunPost = {
 
 const PUBLISHED = "2026-08-09";
 
-export const POSTS: RunPost[] = [
+export const POSTS: Post[] = [
   {
     slug: "types-of-running-workouts",
     kind: "pillar",
+    category: "running",
     title: "The 15 Types of Running Workouts, Explained",
     description:
       "Easy, tempo, interval, long, fartlek, hills and more — what every type of run does for you, how hard each should feel, and how to fit them into a week.",
@@ -85,6 +132,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "easy-run",
     kind: "guide",
+    category: "running",
     title: "The Easy Run: Why Slowing Down Makes You Faster",
     description:
       "An easy run is a conversational-pace run that builds your aerobic base. How to pace one, how long it should be, and why most runners do them too fast.",
@@ -99,6 +147,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "base-run",
     kind: "guide",
+    category: "running",
     title: "The Base Run: Your Everyday Training Mile",
     description:
       "A base run is the standard moderate-distance run that makes up the bulk of a training week. How it differs from an easy run, and how to pace it.",
@@ -113,6 +162,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "long-run",
     kind: "guide",
+    category: "running",
     title: "The Long Run: Building Endurance That Lasts",
     description:
       "The long run is the single most important session for endurance. How far to go, how fast, when to fuel, and how to add distance without getting hurt.",
@@ -127,6 +177,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "recovery-run",
     kind: "guide",
+    category: "running",
     title: "The Recovery Run: Running to Recover, Not to Train",
     description:
       "A recovery run is a short, very slow run the day after hard training. What it's for, how slow is slow enough, and when to just take the rest day instead.",
@@ -141,6 +192,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "progression-run",
     kind: "guide",
+    category: "running",
     title: "The Progression Run: Start Easy, Finish Strong",
     description:
       "A progression run starts easy and gets faster to the finish. How to structure the thirds, what it teaches about pacing, and why it beats going out hard.",
@@ -155,6 +207,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "tempo-run",
     kind: "guide",
+    category: "running",
     title: "The Tempo Run: Training at Your Lactate Threshold",
     description:
       "A tempo run is a sustained comfortably-hard effort at lactate threshold. How to find the right pace by feel, plus two sessions worth building a week around.",
@@ -169,6 +222,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "interval-run",
     kind: "guide",
+    category: "running",
     title: "Interval Runs: Hard Reps With Recovery Between",
     description:
       "Interval training alternates hard efforts with recovery jogs. How to pick rep length, pace and rest, plus a first interval session that won't wreck you.",
@@ -183,6 +237,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "vo2-max-intervals",
     kind: "guide",
+    category: "running",
     title: "VO2 Max Intervals: Training Your Aerobic Ceiling",
     description:
       "VO2 max intervals are three-to-five-minute reps at near-maximum aerobic effort. What makes them different from ordinary intervals, and how often to run them.",
@@ -197,6 +252,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "fartlek-run",
     kind: "guide",
+    category: "running",
     title: "Fartlek: Speed Play Without the Stopwatch",
     description:
       "Fartlek is unstructured speed work run by feel instead of by the clock. Where it came from, how to run one, and why it's the friendliest intro to fast running.",
@@ -211,6 +267,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "strides",
     kind: "guide",
+    category: "running",
     title: "Strides: Short Accelerations That Sharpen Your Form",
     description:
       "Strides are 20-second controlled accelerations run after easy runs. What they do for your form and turnover, and how to add them without adding fatigue.",
@@ -225,6 +282,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "hill-repeats",
     kind: "guide",
+    category: "running",
     title: "Hill Repeats: Strength Training That Counts as Running",
     description:
       "Hill repeats are hard uphill efforts with a jog-down recovery. Why they build power with less impact than flat speedwork, and how to run them with good form.",
@@ -239,6 +297,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "trail-run",
     kind: "guide",
+    category: "running",
     title: "Trail Running: Why Pace Stops Meaning Anything Off-Road",
     description:
       "Trail running trades pace for terrain. How to judge effort when your splits go out the window, what it builds, and how to descend without wrecking your quads.",
@@ -253,6 +312,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "race-pace-run",
     kind: "guide",
+    category: "running",
     title: "Race-Pace Runs: Rehearsing the Day Itself",
     description:
       "A race-pace run practices your goal pace before race day. How much of a run to spend at pace, and how it rehearses fueling and kit as well as effort.",
@@ -267,6 +327,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "time-trial",
     kind: "guide",
+    category: "running",
     title: "The Time Trial: Testing Fitness Without a Race",
     description:
       "A time trial is a solo all-out effort over a set distance, used to measure fitness and set training paces. How often to run one, and how to pace it properly.",
@@ -281,6 +342,7 @@ export const POSTS: RunPost[] = [
   {
     slug: "shakeout-run",
     kind: "guide",
+    category: "running",
     title: "The Shakeout Run: The Easiest Run of Your Week",
     description:
       "A shakeout run is a very short, very easy run before or after a race. What it does for stiff legs and race nerves, and how to keep it genuinely easy.",
@@ -295,36 +357,76 @@ export const POSTS: RunPost[] = [
 ];
 
 const BY_SLUG = new Map(POSTS.map((p) => [p.slug as string, p]));
+const BY_CATEGORY_SLUG = new Map(CATEGORIES.map((c) => [c.slug, c]));
 
-export function getPost(slug: string): RunPost | undefined {
+export function getPost(slug: string): Post | undefined {
   return BY_SLUG.get(slug);
 }
 
-export function getGuides(): RunPost[] {
-  return POSTS.filter((p) => p.kind === "guide");
+export function getCategory(slug: string): Category | undefined {
+  return BY_CATEGORY_SLUG.get(slug);
 }
 
-export function getPillar(): RunPost {
-  const pillar = POSTS.find((p) => p.kind === "pillar");
-  if (!pillar) throw new Error("blog registry has no pillar post");
-  return pillar;
+export function getCategoryById(id: string): Category | undefined {
+  return CATEGORIES.find((c) => c.id === id);
 }
 
-export function getGuidesByGroup(group: PostGroup): RunPost[] {
-  return getGuides().filter((p) => p.group === group);
+/** Every post in a topic, pillar first. */
+export function getPostsIn(categoryId: string): Post[] {
+  return POSTS.filter((p) => p.category === categoryId);
 }
 
-/** Prev/next walk the guides in registry order; the pillar sits outside it. */
+export function getGuidesIn(categoryId: string): Post[] {
+  return getPostsIn(categoryId).filter((p) => p.kind === "guide");
+}
+
+/** A topic's overview post, if it has one. */
+export function getPillarIn(categoryId: string): Post | undefined {
+  return getPostsIn(categoryId).find((p) => p.kind === "pillar");
+}
+
+export function getGuidesInGroup(categoryId: string, group: string): Post[] {
+  return getGuidesIn(categoryId).filter((p) => p.group === group);
+}
+
+/** Only topics that actually have posts — an empty topic reads as broken. */
+export function getPublishedCategories(): Category[] {
+  return CATEGORIES.filter((c) => getPostsIn(c.id).length > 0);
+}
+
+/** Newest first; registry order breaks ties, so it is stable. */
+export function getLatestPosts(limit: number): Post[] {
+  return [...POSTS]
+    .sort((a, b) => (a.published < b.published ? 1 : a.published > b.published ? -1 : 0))
+    .slice(0, limit);
+}
+
+/**
+ * Prev/next stay inside the post's own topic — walking from the last running
+ * guide into an unrelated nutrition post would be nonsense.
+ */
 export function getAdjacent(slug: PostSlug): {
-  prev: RunPost | null;
-  next: RunPost | null;
+  prev: Post | null;
+  next: Post | null;
 } {
-  const guides = getGuides();
+  const post = getPost(slug);
+  if (!post) return { prev: null, next: null };
+  const guides = getGuidesIn(post.category);
   const i = guides.findIndex((p) => p.slug === slug);
   if (i === -1) return { prev: null, next: null };
   return { prev: guides[i - 1] ?? null, next: guides[i + 1] ?? null };
 }
 
+export const SITE_BLOG_URL = `${SITE_URL}/blog`;
+
 export function postUrl(slug: PostSlug): string {
   return `${SITE_URL}/blog/${slug}`;
+}
+
+export function topicPath(categorySlug: string): string {
+  return `/blog/topics/${categorySlug}`;
+}
+
+export function topicUrl(categorySlug: string): string {
+  return `${SITE_URL}${topicPath(categorySlug)}`;
 }

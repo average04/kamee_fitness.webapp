@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { planWebUrl } from "@/lib/public-plans";
-import { POSTS, postUrl } from "@/lib/blog/posts";
+import { CATEGORIES, POSTS, postUrl, topicUrl } from "@/lib/blog/posts";
 
 const SITE = "https://kamee.fit";
 
@@ -37,6 +37,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    ...CATEGORIES.map((category) => ({
+      url: topicUrl(category.slug),
+      lastModified,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     ...POSTS.map((post) => ({
       url: postUrl(post.slug),
       lastModified: new Date(post.updated ?? post.published),

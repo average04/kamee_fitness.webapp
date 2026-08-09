@@ -1,27 +1,45 @@
 import Link from "next/link";
-import { EFFORT_PILL, GROUP_ACCENT } from "./accents";
-import type { RunPost } from "@/lib/blog/posts";
+import { ACCENTS, DEFAULT_ACCENT, EFFORT_PILL } from "./accents";
+import { getCategoryById, type Post } from "@/lib/blog/posts";
 
-export function PostCard({ post }: { post: RunPost }) {
-  const accent = post.group ? GROUP_ACCENT[post.group] : null;
+/** Resolves the post's group accent, falling back to its category's. */
+function accentOf(post: Post) {
+  const category = getCategoryById(post.category);
+  const group = category?.groups?.find((g) => g.name === post.group);
+  const name = group?.accent ?? category?.accent;
+  return name ? ACCENTS[name] : DEFAULT_ACCENT;
+}
+
+export function PostCard({
+  post,
+  showTopic = false,
+}: {
+  post: Post;
+  /** On the mixed-topic index a card needs to say which topic it's from. */
+  showTopic?: boolean;
+}) {
+  const accent = accentOf(post);
+  const category = getCategoryById(post.category);
 
   return (
     <li>
       <Link
         href={`/blog/${post.slug}`}
-        className={
-          "group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/[0.04] " +
-          (accent?.hover ?? "hover:border-leaf-500/50")
-        }
+        className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/[0.04] ${accent.hover}`}
       >
-        {/* Accent wash, revealed on hover */}
         <span
           aria-hidden
-          className={
-            "pointer-events-none absolute -right-10 -top-10 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-20 " +
-            (accent?.glow ?? "bg-leaf-500")
-          }
+          className={`pointer-events-none absolute -right-10 -top-10 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-20 ${accent.glow}`}
         />
+
+        {showTopic && category && (
+          <p
+            className={`mb-2.5 text-[0.6rem] font-medium uppercase tracking-[0.18em] ${accent.label}`}
+          >
+            {category.name}
+            {post.group ? ` · ${post.group}` : ""}
+          </p>
+        )}
 
         <h3 className="font-display text-base font-semibold leading-snug text-mist transition-colors group-hover:text-white">
           {post.title}
