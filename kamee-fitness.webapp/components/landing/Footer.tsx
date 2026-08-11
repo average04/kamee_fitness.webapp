@@ -15,7 +15,7 @@ export default function Footer() {
           className="mx-auto size-12"
         />
         <p className="mt-6 font-display text-[clamp(1.4rem,3.5vw,2rem)] font-bold text-mist">
-          Slow and steady wins the race.
+          Strong and steady wins the race.
         </p>
         <div className="mt-7 flex justify-center">
           <StoreBadges />

@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     siteName: "Kamee Fitness",
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
-      "Slow and steady wins the race. Personalized plans, guided workouts, GPS tracking, and Coach Kamy. Free on iOS and Android.",
+      "Strong and steady wins the race. Personalized plans, guided workouts, GPS tracking, and Coach Kamy. Free on iOS and Android.",
     locale: "en_US",
     images: [
       {
@@ -80,7 +80,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
-      "Slow and steady wins the race. Free on iOS and Android.",
+      "Strong and steady wins the race. Free on iOS and Android.",
     images: ["/adaptive-icon.png"],
   },
   appleWebApp: {

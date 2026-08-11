@@ -30,7 +30,7 @@ export default function Hero() {
             className="reveal mt-7 font-display text-[clamp(2.5rem,7vw,4.5rem)] font-extrabold uppercase leading-[0.95] tracking-[-0.01em] text-mist"
             style={{ "--d": "0.22s" } as React.CSSProperties}
           >
-            Slow and steady <span className="text-leaf-400">wins the race.</span>
+            Strong and steady <span className="text-leaf-400">wins the race.</span>
           </h1>
 
           <p
