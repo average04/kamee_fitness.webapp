@@ -42,7 +42,7 @@ export default function Footer() {
             <a href="https://developer.kamee.fit" className="hover:text-white">
               Developers
             </a>
-            <a href="mailto:bayogjayr@gmail.com" className="hover:text-white">
+            <a href="mailto:support@kamee.fit" className="hover:text-white">
               Contact
             </a>
           </nav>

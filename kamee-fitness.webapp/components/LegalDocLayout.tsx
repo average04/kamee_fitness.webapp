@@ -53,10 +53,10 @@ export function LegalDocLayout({ title, sections, children }: Props) {
         <footer className="mt-16 pt-6 border-t border-ink-700 text-xs text-ink-500">
           Questions? Email{" "}
           <a
-            href="mailto:bayogjayr@gmail.com"
+            href="mailto:support@kamee.fit"
             className="text-leaf-400 underline"
           >
-            bayogjayr@gmail.com
+            support@kamee.fit
           </a>
           .
         </footer>

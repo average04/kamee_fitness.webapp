@@ -72,7 +72,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "How do I send feedback?",
-    a: "Email bayogjayr@gmail.com. Reports go straight to the team.",
+    a: "Email support@kamee.fit. Reports go straight to the team.",
   },
   {
     q: "I was in the Android early access — do I keep my data?",
