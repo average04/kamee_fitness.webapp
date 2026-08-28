@@ -35,7 +35,7 @@ function Tile({ label, children }: { label: string; children: ReactNode }) {
 
 export default function ProofTiles() {
   return (
-    <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-6xl px-5 pb-6 sm:px-6 sm:pb-8 lg:px-8">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Tile label="Live GPS route">
           <svg
@@ -110,7 +110,7 @@ export default function ProofTiles() {
 
 export function Ticker() {
   return (
-    <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-6xl px-5 pb-4 sm:px-6 sm:pb-6 lg:px-8">
       <div className="flex snap-x gap-2.5 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:justify-center lg:overflow-visible">
         {TICKER.map((item) => (
           <div

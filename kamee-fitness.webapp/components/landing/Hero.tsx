@@ -6,9 +6,11 @@ export default function Hero() {
   return (
     <section
       id="top"
-      className="relative min-h-[34rem] overflow-hidden sm:min-h-[38rem] lg:min-h-[42rem]"
+      className="relative min-h-[34rem] overflow-hidden sm:min-h-[38rem] lg:min-h-[42rem] xl:min-h-[45rem]"
     >
-      {/* Key art. Anchored right on narrow screens so Kamy stays in frame. */}
+      {/* Key art, anchored right on narrow screens so Kamy stays in frame and
+          to the top on wide ones — past the art's 2.18:1 the crop turns
+          vertical, and centring it clips his head. */}
       <div className="absolute inset-0 overflow-hidden">
         <Image
           src="/hero/keyart.webp"
@@ -16,7 +18,7 @@ export default function Hero() {
           fill
           preload
           sizes="100vw"
-          className="object-cover object-[72%_center] sm:object-[64%_center] lg:object-center"
+          className="object-cover object-[72%_center] sm:object-[64%_center] lg:object-[center_top]"
         />
       </div>
 
