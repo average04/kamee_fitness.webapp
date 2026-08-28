@@ -1,103 +1,72 @@
-"use client";
-
+import type { CSSProperties } from "react";
 import Image from "next/image";
-import { usePointerTilt } from "./useParallax";
-import PhoneFrame from "./PhoneFrame";
 import { StoreBadges } from "./StoreBadges";
 
 export default function Hero() {
-  const tilt = usePointerTilt<HTMLDivElement>();
-
   return (
     <section
       id="top"
-      className="relative mx-auto max-w-6xl px-6 pb-20 pt-28 sm:pt-32"
+      className="relative min-h-[34rem] overflow-hidden sm:min-h-[38rem] lg:min-h-[42rem] xl:min-h-[45rem]"
     >
-      <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-        {/* Copy */}
-        <div className="text-center lg:text-left">
-          <div
-            className="reveal flex flex-wrap items-center justify-center gap-2.5 lg:justify-start"
-            style={{ "--d": "0.1s" } as React.CSSProperties}
+      {/* Key art, anchored right on narrow screens so Kamy stays in frame and
+          to the top on wide ones — past the art's 2.18:1 the crop turns
+          vertical, and centring it clips his head. */}
+      <div className="absolute inset-0 overflow-hidden">
+        <Image
+          src="/hero/keyart.webp"
+          alt=""
+          fill
+          preload
+          sizes="100vw"
+          className="object-cover object-[72%_center] sm:object-[64%_center] lg:object-[center_top]"
+        />
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-950/85 via-ink-950/70 to-ink-950/95 lg:bg-gradient-to-r lg:from-ink-950/95 lg:via-ink-950/75 lg:to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink-950 to-transparent" />
+
+      <div className="relative z-10 mx-auto max-w-6xl px-5 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-32 lg:px-8">
+        <div className="flex w-full max-w-xl flex-col items-start gap-6 lg:max-w-2xl">
+          <span
+            className="reveal inline-flex items-center gap-2 rounded-full border border-leaf-500/30 bg-leaf-500/[0.08] px-4 py-2"
+            style={{ "--d": "0.1s" } as CSSProperties}
           >
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-leaf-300">
-              <span className="blink size-1.5 rounded-full bg-leaf-400" /> Now on
-              iOS &amp; Android
+            <span className="blink size-1.5 rounded-full bg-leaf-400" />
+            <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.2em] text-leaf-300">
+              Now on iOS &amp; Android
             </span>
-          </div>
+          </span>
 
           <h1
-            className="reveal mt-7 font-display text-[clamp(2.5rem,7vw,4.5rem)] font-extrabold uppercase leading-[0.95] tracking-[-0.01em] text-mist"
-            style={{ "--d": "0.22s" } as React.CSSProperties}
+            className="reveal font-display text-[clamp(2.25rem,7vw,4rem)] font-extrabold uppercase leading-[0.98] tracking-[-0.01em] text-mist"
+            style={{ "--d": "0.22s" } as CSSProperties}
           >
-            Strong and steady <span className="text-leaf-400">wins the race.</span>
+            Strong and steady{" "}
+            <span className="text-leaf-400">wins the race.</span>
           </h1>
 
           <p
-            className="reveal mx-auto mt-6 max-w-md text-balance text-[clamp(1.05rem,2.6vw,1.3rem)] leading-snug text-mist/85 lg:mx-0"
-            style={{ "--d": "0.34s" } as React.CSSProperties}
+            className="reveal max-w-lg text-[clamp(1rem,2.6vw,1.1875rem)] leading-relaxed text-mist/85"
+            style={{ "--d": "0.34s" } as CSSProperties}
           >
-            Personalized plans, guided workouts, GPS tracking, and a coach named
-            Kamy — built for steady progress, not burnout.
+            Real training plans, serious GPS tracking, and an AI coach named
+            Kamy — built for progress that lasts, not burnout.
           </p>
 
           <div
             id="get-the-app"
-            className="reveal mt-9 flex scroll-mt-24 flex-wrap justify-center gap-3 lg:justify-start"
-            style={{ "--d": "0.46s" } as React.CSSProperties}
+            className="reveal scroll-mt-24"
+            style={{ "--d": "0.46s" } as CSSProperties}
           >
-            <StoreBadges />
+            <StoreBadges placement="hero" />
           </div>
-          <p
-            className="reveal mt-3 text-xs text-muted/70"
-            style={{ "--d": "0.54s" } as React.CSSProperties}
-          >
-            Free to start · iPhone &amp; Android
-          </p>
-        </div>
 
-        {/* Visual */}
-        <div
-          ref={tilt}
-          className="logo-in relative mx-auto w-[clamp(220px,60vw,320px)] [perspective:1200px]"
-          style={{ "--d": "0.3s" } as React.CSSProperties}
-        >
-          <div
-            className="relative"
-            style={{
-              transform:
-                "rotateY(calc(var(--px,0) * 6deg)) rotateX(calc(var(--py,0) * -6deg))",
-              transition: "transform 0.2s ease-out",
-            }}
+          <p
+            className="reveal text-[0.8125rem] text-muted"
+            style={{ "--d": "0.54s" } as CSSProperties}
           >
-            {/* back layer: brand visual (optional, hides if absent) */}
-            <div
-              className="pointer-events-none absolute -inset-10 -z-10"
-              style={{
-                transform:
-                  "translate3d(calc(var(--px,0) * -14px), calc(var(--py,0) * -14px), 0)",
-              }}
-            >
-              <Image
-                src="/brand-visual.png"
-                alt=""
-                fill
-                className="object-contain opacity-70 blur-[1px]"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-            </div>
-            {/* front layer: phone */}
-            <div
-              style={{
-                transform:
-                  "translate3d(calc(var(--px,0) * 10px), calc(var(--py,0) * 10px), 0)",
-              }}
-            >
-              <PhoneFrame src="/screens/home.png" alt="Kamee Fitness home screen" priority />
-            </div>
-          </div>
+            Free to start · Live on Google Play &amp; the App Store
+          </p>
         </div>
       </div>
     </section>

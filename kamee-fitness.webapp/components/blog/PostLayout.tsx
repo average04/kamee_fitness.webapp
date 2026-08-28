@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { ACCENTS, DEFAULT_ACCENT } from "./accents";
 import { BlogShell } from "./BlogShell";
-import { StoreBadge } from "@/components/landing/StoreBadges";
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/landing/stores";
+import { StoreBadges } from "@/components/landing/StoreBadges";
 import {
   getCategoryById,
   postUrl,
@@ -116,10 +115,7 @@ export function PostLayout({ post, prev, next, children }: Props) {
               Track the session with GPS, watch your pace live, and review your
               splits afterwards. Free on iOS and Android.
             </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <StoreBadge platform="ios" href={APP_STORE_URL} />
-              <StoreBadge platform="android" href={PLAY_STORE_URL} />
-            </div>
+            <StoreBadges placement="blog-post" className="mt-4" />
           </section>
         )}
 

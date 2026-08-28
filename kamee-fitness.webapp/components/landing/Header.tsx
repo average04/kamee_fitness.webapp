@@ -22,10 +22,10 @@ export default function Header() {
           : "border-b border-transparent")
       }
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2.5 px-4 py-3.5 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
         {/* Root-relative hashes so the header works off the landing page too:
             on "/" the browser still treats these as same-document scrolls. */}
-        <Link href="/#top" className="flex items-center gap-2.5">
+        <Link href="/#top" className="flex shrink-0 items-center gap-2.5">
           <Image
             src="/adaptive-icon.png"
             alt=""
@@ -33,26 +33,26 @@ export default function Header() {
             height={32}
             className="size-7"
           />
-          <span className="font-display text-sm font-semibold uppercase tracking-[0.18em] text-mist">
-            Kamee Fitness
+          <span className="font-display text-[0.8125rem] font-semibold uppercase tracking-[0.16em] text-mist sm:text-sm sm:tracking-[0.18em]">
+            Kamee<span className="hidden sm:inline"> Fitness</span>
           </span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
           <Link
             href="/blog"
-            className="text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist"
+            className="hidden whitespace-nowrap text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist sm:inline"
           >
             Blog
           </Link>
           <a
             href="/me"
-            className="text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist"
+            className="whitespace-nowrap text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:text-mist sm:text-xs sm:tracking-[0.16em]"
           >
             Log in
           </a>
           <Link
             href="/#get-the-app"
-            className="rounded-full border border-leaf-500/40 bg-leaf-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-leaf-300 transition-colors hover:bg-leaf-500/20"
+            className="flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-leaf-500/40 bg-leaf-500/10 px-3 text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-leaf-300 transition-colors hover:bg-leaf-500/20 sm:min-h-10 sm:px-4 sm:text-xs sm:tracking-[0.16em]"
           >
             Get the app
           </Link>

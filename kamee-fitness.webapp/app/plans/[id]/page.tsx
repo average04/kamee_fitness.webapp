@@ -3,8 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { StoreBadge } from "@/components/landing/StoreBadges";
-import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/landing/stores";
+import { StoreBadges } from "@/components/landing/StoreBadges";
 import {
   DISCIPLINE_LABELS,
   PLAN_COLUMNS,
@@ -174,10 +173,7 @@ export default async function PlanPage({ params }: Props) {
           <p className="mt-6 text-sm text-ink-400">
             Don&apos;t have the app yet?
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <StoreBadge platform="ios" href={APP_STORE_URL} />
-            <StoreBadge platform="android" href={PLAY_STORE_URL} />
-          </div>
+          <StoreBadges placement="plan-detail" className="mt-3" />
         </div>
       </div>
     </main>
