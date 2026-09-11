@@ -59,20 +59,34 @@ export function CoverUpload({
   }
 
   async function finishSetCoverPath(path: string) {
-    const result = await setCoverPath(path);
-    if (result.message) {
+    // Fix round 2 (new Important): a rejected setCoverPath call (network
+    // failure, transport error -- not just a FormState carrying `message`)
+    // previously left `state` stuck at "saving" and the file input disabled
+    // forever, since nothing downstream of the throw ever ran.
+    try {
+      const result = await setCoverPath(path);
+      if (result.message) {
+        setState("error");
+        setError(result.message);
+        setPendingCoverPath(path);
+        revertPreview();
+        return;
+      }
+      setState("saved");
+      setError(null);
+      setPendingCoverPath(null);
+      setLastFile(null);
+      confirmedPreviewRef.current = buildPublicStorageUrl(supabaseUrl, path);
+      setPreview(confirmedPreviewRef.current);
+    } catch {
       setState("error");
-      setError(result.message);
+      setError("Could not save the cover. Please retry.");
+      // The storage upload already succeeded (this function only runs
+      // after that) -- retry should replay setCoverPath only, never
+      // re-upload the same bytes.
       setPendingCoverPath(path);
       revertPreview();
-      return;
     }
-    setState("saved");
-    setError(null);
-    setPendingCoverPath(null);
-    setLastFile(null);
-    confirmedPreviewRef.current = buildPublicStorageUrl(supabaseUrl, path);
-    setPreview(confirmedPreviewRef.current);
   }
 
   async function uploadAndSave(file: File) {
@@ -89,11 +103,19 @@ export function CoverUpload({
       return;
     }
     const path = buildCoverPath(userId, ext);
-    const supabase = createBrowserSupabase();
-    const { error: uploadError } = await supabase.storage
-      .from("social-photos")
-      .upload(path, file, { contentType: file.type, upsert: false });
-    if (uploadError) {
+    try {
+      const supabase = createBrowserSupabase();
+      const { error: uploadError } = await supabase.storage
+        .from("social-photos")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) {
+        setState("error");
+        setError("Could not upload the cover photo. Please retry.");
+        setLastFile(file);
+        revertPreview();
+        return;
+      }
+    } catch {
       setState("error");
       setError("Could not upload the cover photo. Please retry.");
       setLastFile(file);
@@ -111,6 +133,9 @@ export function CoverUpload({
     const check = checkImageFile(file);
     if (!check.ok) {
       setError(check.message);
+      // M9 remainder (fix round 2): a rejected file must not leave a stale
+      // "Saved" sitting next to the new error -- drop back to idle.
+      setState("idle");
       // Reset the native input so re-selecting the same (rejected) file
       // fires onChange again instead of being silently ignored.
       if (inputRef.current) inputRef.current.value = "";

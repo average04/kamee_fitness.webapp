@@ -11,10 +11,10 @@ import { useEffect } from "react";
  */
 export default function CoachingError({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  unstable_retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -29,7 +29,13 @@ export default function CoachingError({
         </p>
         <button
           type="button"
-          onClick={reset}
+          // Fix round 2: `reset()` alone only clears the boundary's React
+          // state; it does not re-fetch server data, so a failure caused by
+          // a bad server response (e.g. loadHub's thrown query error) would
+          // just re-throw immediately. `unstable_retry()` (Next 16.2+)
+          // re-fetches and re-renders the segment, which is what "Try
+          // again" should mean here.
+          onClick={() => unstable_retry()}
           className="mt-6 inline-block rounded-lg bg-leaf-600 px-4 py-2 text-sm font-medium text-white hover:bg-leaf-500"
         >
           Try again

@@ -20,6 +20,11 @@ import type { FormState } from "./profile";
  * - A call whose input is `isEqual` to the last *successfully* saved input
  *   is skipped entirely (no network round trip) -- blur/debounce firing on
  *   a field the user didn't actually change is a no-op.
+ * - `hasPending()` reports whether there is unsaved work outstanding (a
+ *   debounce timer waiting to fire, a save in flight, or a save queued
+ *   behind one in flight) -- fix round 2's I6: this is the single source of
+ *   truth a `beforeunload` handler should read, rather than a React flag
+ *   that drifts out of sync with the controller's actual state.
  */
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
@@ -28,6 +33,7 @@ export type AutosaveController<T> = {
   update(input: T): void;
   saveNow(input: T): void;
   dispose(): void;
+  hasPending(): boolean;
 };
 
 function formStateFailed(result: FormState): boolean {
@@ -78,8 +84,13 @@ export function createAutosaveController<T>(opts: {
   function runSave(input: T) {
     inFlight = true;
     opts.onStateChange("saving");
-    opts
-      .save(input)
+    // Fix round 2: route the call through Promise.resolve().then(...) so a
+    // *synchronous* throw inside opts.save (not just a rejected promise)
+    // still lands in the .catch() below instead of escaping runSave()
+    // uncaught (which would happen synchronously inside saveNow()'s caller,
+    // e.g. an onBlur handler).
+    Promise.resolve()
+      .then(() => opts.save(input))
       .then((result) => {
         inFlight = false;
         opts.onResult?.(result);
@@ -136,6 +147,9 @@ export function createAutosaveController<T>(opts: {
         // Fire-and-forget: the component is unmounting, nothing left to await into.
         trigger(toSave);
       }
+    },
+    hasPending() {
+      return timerId !== null || inFlight || queuedInput !== null;
     },
   };
 }

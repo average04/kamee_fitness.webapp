@@ -35,8 +35,8 @@ export function ProfileForm({
 }) {
   const [form, setForm] = useState<ProfileFormState>(() => profileFormStateFromRow(profile));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [hasPendingWork, setHasPendingWork] = useState(false);
   const controllerRef = useRef<AutosaveController<ProfileFormState> | null>(null);
 
   function controller(): AutosaveController<ProfileFormState> {
@@ -50,11 +50,14 @@ export function ProfileForm({
         // as an uncaught rejection. `isPending` was never read, so the
         // transition bought nothing.
         save: (input) => saveProfile(profileInputFromFormState(input)),
-        onStateChange: (s) => {
-          setSaveState(s);
-          if (s === "saved" || s === "error") setHasPendingWork(false);
+        onStateChange: setSaveState,
+        // M11 (fix round 2): surface result.message (e.g. the "paused while
+        // in review" copy from guardEditable) next to the SaveIndicator,
+        // not just field-level errors.
+        onResult: (result) => {
+          setErrors(result.errors ?? {});
+          setMessage(result.message ?? null);
         },
-        onResult: (result) => setErrors(result.errors ?? {}),
       });
     }
     return controllerRef.current;
@@ -64,41 +67,38 @@ export function ProfileForm({
     return () => controllerRef.current?.dispose();
   }, []);
 
-  // I6 (fix round 1): warn before leaving the page while an edit hasn't
-  // been saved yet (either still debouncing or actively in flight).
+  // I6 (fix round 2): read the autosave controller's own hasPending() --
+  // true iff a debounce timer is pending, a save is in flight, or one is
+  // queued -- instead of a parallel React flag, which drifted out of sync
+  // with the controller (never set while only a timer was pending, cleared
+  // on "saved" before a queued follow-up save had actually finished, and
+  // never cleared when M10's equality check skipped a save outright). The
+  // listener is attached once; it reads the controller fresh on every
+  // unload attempt rather than closing over a stale flag.
   useEffect(() => {
     function handler(e: BeforeUnloadEvent) {
-      if (!hasPendingWork) return;
+      if (!controllerRef.current?.hasPending()) return;
       e.preventDefault();
       e.returnValue = "";
     }
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [hasPendingWork]);
+  }, []);
 
   function update<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
     const next = { ...form, [key]: value };
     setForm(next);
-    if (!readOnly) {
-      setHasPendingWork(true);
-      controller().update(next);
-    }
+    if (!readOnly) controller().update(next);
   }
 
   function updateAndSaveNow<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
     const next = { ...form, [key]: value };
     setForm(next);
-    if (!readOnly) {
-      setHasPendingWork(true);
-      controller().saveNow(next);
-    }
+    if (!readOnly) controller().saveNow(next);
   }
 
   function saveNow() {
-    if (!readOnly) {
-      setHasPendingWork(true);
-      controller().saveNow(form);
-    }
+    if (!readOnly) controller().saveNow(form);
   }
 
   return (
@@ -107,6 +107,11 @@ export function ProfileForm({
         <h2 className="text-sm font-semibold text-mist">Profile</h2>
         <SaveIndicator state={saveState} onRetry={saveNow} />
       </div>
+      {message && (
+        <p role="alert" className="text-sm text-red-400">
+          {message}
+        </p>
+      )}
 
       <Field label="Headline" error={errors.headline} hint={`${form.headline.length}/80`}>
         <input

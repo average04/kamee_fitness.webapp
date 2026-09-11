@@ -36,6 +36,11 @@ describe("createAutosaveController", () => {
     expect(save).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);
+    // The timer fired synchronously, but fix round 2 routes the actual
+    // opts.save(input) call through a microtask (Promise.resolve().then())
+    // so a synchronous throw inside it still lands in .catch(); flush that
+    // microtask before checking the mock was called.
+    await Promise.resolve();
     expect(save).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith("c");
   });
@@ -81,12 +86,25 @@ describe("createAutosaveController", () => {
     await vi.waitFor(() => expect(states).toEqual(["saving", "error"]));
   });
 
+  it("calls onStateChange('error') when save throws synchronously, instead of escaping saveNow() uncaught", async () => {
+    const save = vi.fn<(input: string) => Promise<FormState>>(() => {
+      throw new Error("boom, synchronously");
+    });
+    const states: SaveState[] = [];
+    const c = createAutosaveController<string>({ save, onStateChange: (s) => states.push(s) });
+
+    // Must not throw synchronously out of saveNow() itself.
+    expect(() => c.saveNow("x")).not.toThrow();
+    await vi.waitFor(() => expect(states).toEqual(["saving", "error"]));
+  });
+
   it("saveNow() bypasses the debounce timer and fires immediately", async () => {
     const save = vi.fn<(input: string) => Promise<FormState>>(async () => ({ savedAt: "t" }));
     const c = createAutosaveController<string>({ save, debounceMs: 800, onStateChange: () => {} });
 
     c.update("a");
     c.saveNow("b");
+    await Promise.resolve(); // flush the microtask opts.save is now called through
     expect(save).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith("b");
 
@@ -102,6 +120,7 @@ describe("createAutosaveController", () => {
     const c = createAutosaveController<string>({ save, onStateChange: (s) => states.push(s) });
 
     c.saveNow("a");
+    await Promise.resolve();
     expect(save).toHaveBeenCalledTimes(1);
 
     // Fires while "a" is still in flight -- must queue, not call save again yet.
@@ -121,12 +140,13 @@ describe("createAutosaveController", () => {
     expect(save).toHaveBeenCalledTimes(2);
   });
 
-  it("dispose() flushes a pending debounced save instead of dropping the last edit", () => {
+  it("dispose() flushes a pending debounced save instead of dropping the last edit", async () => {
     const save = vi.fn<(input: string) => Promise<FormState>>(async () => ({ savedAt: "t" }));
     const c = createAutosaveController<string>({ save, debounceMs: 800, onStateChange: () => {} });
 
     c.update("a");
     c.dispose();
+    await Promise.resolve();
     expect(save).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith("a");
 
@@ -149,6 +169,7 @@ describe("createAutosaveController", () => {
     const c = createAutosaveController<string>({ save, debounceMs: 800, onStateChange: () => {} });
 
     c.saveNow("a");
+    await Promise.resolve();
     expect(save).toHaveBeenCalledTimes(1);
 
     c.update("b");
@@ -178,6 +199,26 @@ describe("createAutosaveController", () => {
     const second = deferred<FormState>();
     save.mockReturnValueOnce(second.promise);
     first.resolve({ message: "boom" }); // "a" fails
+
+    await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    expect(save).toHaveBeenLastCalledWith("b");
+
+    second.resolve({ savedAt: "t2" });
+    await vi.waitFor(() => expect(states.at(-1)).toBe("saved"));
+  });
+
+  it("a queued save still runs after the in-flight save's promise rejects, and settles", async () => {
+    const first = deferred<FormState>();
+    const save = vi.fn<(input: string) => Promise<FormState>>().mockReturnValueOnce(first.promise);
+    const states: SaveState[] = [];
+    const c = createAutosaveController<string>({ save, onStateChange: (s) => states.push(s) });
+
+    c.saveNow("a");
+    c.saveNow("b"); // queued while "a" is in flight
+
+    const second = deferred<FormState>();
+    save.mockReturnValueOnce(second.promise);
+    first.reject(new Error("network down")); // "a" rejects outright, not just a message result
 
     await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2));
     expect(save).toHaveBeenLastCalledWith("b");
@@ -226,6 +267,71 @@ describe("createAutosaveController", () => {
 
     c.saveNow("x");
     await vi.waitFor(() => expect(last).toEqual({ errors: { about: "too short" } }));
+  });
+});
+
+describe("hasPending()", () => {
+  it("is false before anything has happened", () => {
+    const save = vi.fn<(input: string) => Promise<FormState>>(async () => ({ savedAt: "t" }));
+    const c = createAutosaveController<string>({ save, onStateChange: () => {} });
+    expect(c.hasPending()).toBe(false);
+  });
+
+  it("is true while a debounce timer is pending, false once it fires and settles", async () => {
+    const save = vi.fn<(input: string) => Promise<FormState>>(async () => ({ savedAt: "t" }));
+    const c = createAutosaveController<string>({ save, debounceMs: 800, onStateChange: () => {} });
+
+    c.update("a");
+    expect(c.hasPending()).toBe(true);
+
+    vi.advanceTimersByTime(800);
+    expect(c.hasPending()).toBe(true); // now in flight
+
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+  });
+
+  it("is true while a save is in flight", async () => {
+    const first = deferred<FormState>();
+    const save = vi.fn<(input: string) => Promise<FormState>>().mockReturnValueOnce(first.promise);
+    const c = createAutosaveController<string>({ save, onStateChange: () => {} });
+
+    c.saveNow("a");
+    expect(c.hasPending()).toBe(true);
+
+    first.resolve({ savedAt: "t" });
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+  });
+
+  it("stays true across a queued save until the queued save itself settles", async () => {
+    const first = deferred<FormState>();
+    const save = vi.fn<(input: string) => Promise<FormState>>().mockReturnValueOnce(first.promise);
+    const c = createAutosaveController<string>({ save, onStateChange: () => {} });
+
+    c.saveNow("a");
+    c.saveNow("b"); // queued
+    expect(c.hasPending()).toBe(true);
+
+    const second = deferred<FormState>();
+    save.mockReturnValueOnce(second.promise);
+    first.resolve({ savedAt: "t1" });
+
+    await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    expect(c.hasPending()).toBe(true); // the queued save ("b") is now the one in flight
+
+    second.resolve({ savedAt: "t2" });
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+  });
+
+  it("is false after a save is skipped for matching the last successfully saved snapshot", async () => {
+    const save = vi.fn<(input: string) => Promise<FormState>>(async () => ({ savedAt: "t" }));
+    const c = createAutosaveController<string>({ save, onStateChange: () => {} });
+
+    c.saveNow("a");
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+
+    c.saveNow("a"); // unchanged -- skipped entirely
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(c.hasPending()).toBe(false);
   });
 });
 
