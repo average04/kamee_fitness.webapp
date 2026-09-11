@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HUB_STATES, isHubState } from "./states";
+import { COACH_STATUS_LABEL, HUB_STATES, isHubState } from "./states";
 
 describe("isHubState", () => {
   it("accepts every hub state", () => {
@@ -9,5 +9,25 @@ describe("isHubState", () => {
     expect(isHubState("invited")).toBe(false);
     expect(isHubState("none")).toBe(false);
     expect(isHubState("revoked")).toBe(false);
+  });
+});
+
+describe("COACH_STATUS_LABEL", () => {
+  it("labels every coach status", () => {
+    const all = [
+      "none",
+      "pending",
+      "rejected",
+      "invited",
+      "onboarding",
+      "in_review",
+      "changes_requested",
+      "approved",
+      "suspended",
+      "revoked",
+    ];
+    expect(Object.keys(COACH_STATUS_LABEL).sort()).toEqual([...all].sort());
+    expect(COACH_STATUS_LABEL.in_review).toBe("In review");
+    expect(COACH_STATUS_LABEL.changes_requested).toBe("Changes requested");
   });
 });

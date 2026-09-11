@@ -6,8 +6,8 @@ import { requireAdmin } from "@/lib/admin/auth";
 import {
   coerceCredentialEvidence,
   credentialEvidenceMatches,
+  credentialRowToEvidence,
   CREDENTIAL_EVIDENCE_CHANGED_MESSAGE,
-  type CredentialEvidence,
   describeRpcError,
   isCoachStatusAction,
   isReviewDecision,
@@ -161,16 +161,20 @@ export async function setCoachStatus(
 }
 
 /**
- * I1 (fix round 1): closes the TOCTOU window between an admin loading the
- * coach detail page and clicking Verify. `expected` is the evidence the
- * page actually rendered (document_path, title, issuer, issued_year,
- * expires_on) -- this re-reads the row fresh with the service role and
- * refuses to attest anything unless every field the admin looked at is
- * still identical. The document is then re-checked a second time right
- * after the (potentially slow) download, since a coach could replace or
- * remove it while the download is in flight. The remaining millisecond
- * window between that final re-read and the RPC call is an accepted risk
- * for now (controller ruling; closing it needs a DB contract change).
+ * I1: narrows the TOCTOU window between an admin loading the coach detail
+ * page and clicking Verify. `expected` is the evidence the page actually
+ * rendered (document_path, title, issuer, issued_year, expires_on). The row
+ * is read fresh with the service role and compared against `expected`
+ * BEFORE the document download, then read and compared IN FULL again AFTER
+ * the download -- the download can take seconds, and a coach could edit
+ * any evidence field (not only the document) while it is in flight. Any
+ * mismatch refuses with the reload message.
+ *
+ * What remains is the gap between that final re-read and the RPC call (one
+ * round trip, no download in between). admin_verify_coaching_credential
+ * computes the evidence hash from the row it sees at that moment, so an
+ * edit landing inside that gap would be attested unseen; closing it needs
+ * the RPC to take an expected evidence hash (deferred DB change, R24).
  */
 export async function verifyCredential(
   credentialId: unknown,
@@ -189,13 +193,7 @@ export async function verifyCredential(
     .single();
   if (fetchError || !row) return { ok: false, error: "That credential could not be found." };
 
-  const actualEvidence: CredentialEvidence = {
-    documentPath: row.document_path,
-    title: row.title,
-    issuer: row.issuer,
-    issuedYear: row.issued_year,
-    expiresOn: row.expires_on,
-  };
+  const actualEvidence = credentialRowToEvidence(row);
   if (!credentialEvidenceMatches(expectedEvidence, actualEvidence)) {
     return { ok: false, error: CREDENTIAL_EVIDENCE_CHANGED_MESSAGE };
   }
@@ -209,19 +207,19 @@ export async function verifyCredential(
     const buf = Buffer.from(await blob.arrayBuffer());
     sha = createHash("sha256").update(buf).digest("hex");
 
-    // Re-read document_path once more after the download completes -- a
-    // coach could have replaced or removed the document while the (slow,
-    // network-bound) download was in flight, which would otherwise let a
-    // hash for stale evidence get attested against the current row.
+    // Re-read the FULL evidence once more after the download completes --
+    // the (slow, network-bound) download is a window of seconds in which a
+    // coach could replace the document or edit title/issuer/dates, which
+    // would otherwise let evidence the admin never saw be attested.
     const { data: recheck, error: recheckError } = await db
       .from("coaching_credentials")
-      .select("document_path")
+      .select("document_path, title, issuer, issued_year, expires_on")
       .eq("id", credentialId)
       .single();
     if (
       recheckError ||
       !recheck ||
-      recheck.document_path !== actualEvidence.documentPath
+      !credentialEvidenceMatches(expectedEvidence, credentialRowToEvidence(recheck))
     ) {
       return { ok: false, error: CREDENTIAL_EVIDENCE_CHANGED_MESSAGE };
     }

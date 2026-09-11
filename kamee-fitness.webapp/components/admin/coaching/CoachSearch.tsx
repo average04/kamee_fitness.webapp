@@ -3,9 +3,8 @@
 import { useState, useTransition } from "react";
 import { searchCoachCandidate } from "@/app/admin/(panel)/coaches/actions";
 import type { InviteCandidate } from "@/app/admin/(panel)/coaches/queries";
+import { isInvitable } from "@/lib/coaching/admin";
 import { InviteBlock } from "./InviteBlock";
-
-const INVITABLE_STATUSES = new Set(["none", "pending", "rejected", "invited"]);
 
 type SearchState = {
   searched: string;
@@ -91,11 +90,13 @@ export function CoachSearch() {
             )}
             <p className="mt-1 text-xs text-zinc-500">status: {result.candidate.coach_status}</p>
           </div>
-          {INVITABLE_STATUSES.has(result.candidate.coach_status) ? (
+          {isInvitable(result.candidate.role, result.candidate.coach_status) ? (
             <InviteBlock
               userId={result.candidate.id}
               label={result.candidate.coach_status === "invited" ? "Resend" : "Invite"}
             />
+          ) : result.candidate.role === "admin" ? (
+            <p className="text-xs text-zinc-500">Admins cannot be coaches.</p>
           ) : (
             <p className="text-xs text-zinc-500">
               Already past the invite stage — open their profile below.

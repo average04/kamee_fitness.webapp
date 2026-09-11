@@ -15,6 +15,9 @@ const FROM = "KAMEE Fitness <noreply@kamee.fit>";
  * showing the copyable invite URL instead of erroring the whole action. A
  * non-2xx response from Resend throws; `inviteCoach` catches it and reports
  * `emailed: false` without surfacing the raw error.
+ *
+ * Also the transport for ./review-send (the operator "profile ready for
+ * review" email): same sender, same pinned From address.
  */
 export async function sendInviteEmail(
   to: string,

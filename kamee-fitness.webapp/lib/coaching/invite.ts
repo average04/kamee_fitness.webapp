@@ -12,8 +12,8 @@ export function inviteUrl(token: string): string {
 
 export type InviteEmail = { subject: string; text: string; html: string };
 
-/** Minimal HTML entity escaping -- the display name is attacker-controlled (a profile field), so it must never be interpolated raw into the html body. */
-function escapeHtml(value: string): string {
+/** Minimal HTML entity escaping -- the display name is attacker-controlled (a profile field), so it must never be interpolated raw into the html body. Shared with ./review-email. */
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

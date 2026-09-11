@@ -340,7 +340,7 @@ export const MISSING_LABELS: Record<string, string> = {
   profile: "Start your coach profile",
   headline: "Add a headline",
   about: "Write at least 80 characters about yourself",
-  avatar: "Set a profile photo in the Kamee app",
+  avatar: "Upload a profile photo in the Kamee app",
   cover: "Upload a cover photo",
   credential: "Add at least one credential",
   gallery: "Add at least 3 gallery photos",

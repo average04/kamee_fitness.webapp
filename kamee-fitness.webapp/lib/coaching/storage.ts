@@ -10,6 +10,8 @@
  * endpoints; the client-sent path string cannot be trusted).
  */
 
+import { isUuid } from "./uuid";
+
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -36,7 +38,6 @@ export function buildCoverPath(
 }
 
 const MAX_PATH_LENGTH = 200;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * True only for a path shaped exactly `coaching/<uid>/cover/<digits>.(jpg|png|webp)`
@@ -50,7 +51,7 @@ export function isOwnCoverPath(path: unknown, uid: string): path is string {
   if (typeof path !== "string" || path.length === 0 || path.length > MAX_PATH_LENGTH) {
     return false;
   }
-  if (!UUID_RE.test(uid)) return false;
+  if (!isUuid(uid)) return false;
   const re = new RegExp(`^coaching/${uid}/cover/\\d+\\.(jpg|png|webp)$`);
   return re.test(path);
 }
@@ -65,7 +66,7 @@ export function isOwnGalleryPath(path: unknown, uid: string): path is string {
   if (typeof path !== "string" || path.length === 0 || path.length > MAX_PATH_LENGTH) {
     return false;
   }
-  if (!UUID_RE.test(uid)) return false;
+  if (!isUuid(uid)) return false;
   const re = new RegExp(`^coaching/${uid}/gallery/\\d+\\.(jpg|png|webp)$`);
   return re.test(path);
 }
@@ -137,8 +138,8 @@ export function isOwnCredentialDocPath(
   if (typeof path !== "string" || path.length === 0 || path.length > MAX_PATH_LENGTH) {
     return false;
   }
-  if (!UUID_RE.test(uid)) return false;
-  if (typeof credentialId !== "string" || !UUID_RE.test(credentialId)) return false;
+  if (!isUuid(uid)) return false;
+  if (!isUuid(credentialId)) return false;
   // Fix round 1: no "i" flag -- crypto.randomUUID() (the only thing that
   // ever generates this segment) always produces lowercase hex, so an
   // uppercase-hex match here would only ever accept an object nothing in

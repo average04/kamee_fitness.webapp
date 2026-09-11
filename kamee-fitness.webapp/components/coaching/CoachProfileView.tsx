@@ -1,3 +1,4 @@
+import { avatarImageUrl, avatarInitial } from "@/lib/coaching/avatar";
 import { buildPublicStorageUrl } from "@/lib/coaching/storage";
 import { Pill } from "./ui";
 
@@ -50,14 +51,11 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
   const coverUrl = data.cover_image_path
     ? buildPublicStorageUrl(supabaseUrl, data.cover_image_path)
     : null;
-  // Fix round 1: prefer the uploaded photo (a `social-photos` path, same
-  // bucket/URL shape as cover/gallery) over `avatar_url`, matching the
-  // app's own Avatar component ("uploaded photo path... wins over the
-  // bust"/preset). `avatar_url` is a fallback for a coach who hasn't
-  // uploaded one.
-  const avatarUrl = data.avatar_photo_path
-    ? buildPublicStorageUrl(supabaseUrl, data.avatar_photo_path)
-    : data.avatar_url;
+  // Only the uploaded photo (a `social-photos` path, same bucket/URL shape
+  // as cover/gallery) is ever an image. `avatar_url` is a preset avatar id,
+  // not a URL, so a coach without an uploaded photo gets a neutral initial.
+  const avatarUrl = avatarImageUrl(data.avatar_photo_path, supabaseUrl);
+  const name = data.display_name || data.username || "Coach";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -75,18 +73,25 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            {avatarUrl && (
+            {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={avatarUrl}
                 alt=""
                 className="h-12 w-12 rounded-full border border-white/10 object-cover"
               />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-ink-900 font-display text-lg font-semibold text-muted"
+              >
+                {avatarInitial(name)}
+              </div>
             )}
             <div>
               <div className="flex items-center gap-1.5">
                 <p className="font-display text-lg font-semibold text-mist">
-                  {data.display_name || data.username || "Coach"}
+                  {name}
                 </p>
                 {/* Fix round 1: the app's profile-level verified seal is
                     its dedicated blue `colors.verified` (#1D9BF0) token,

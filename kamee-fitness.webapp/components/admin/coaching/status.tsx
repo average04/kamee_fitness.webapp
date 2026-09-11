@@ -5,18 +5,10 @@
  * too -- it's just plain data plus a pure function component).
  */
 
-export const STATUS_LABEL: Record<string, string> = {
-  none: "None",
-  pending: "Pending",
-  rejected: "Rejected",
-  invited: "Invited",
-  onboarding: "Onboarding",
-  in_review: "In review",
-  changes_requested: "Changes requested",
-  approved: "Approved",
-  suspended: "Suspended",
-  revoked: "Revoked",
-};
+import { COACH_STATUS_LABEL } from "@/lib/coaching/states";
+
+/** The one coach_status label map (lib/coaching/states), also used by the coach hub header. */
+export const STATUS_LABEL: Record<string, string> = COACH_STATUS_LABEL;
 
 const STATUS_CLASS: Record<string, string> = {
   none: "bg-zinc-800 text-zinc-400",

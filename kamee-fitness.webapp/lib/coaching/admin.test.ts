@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   coerceCredentialEvidence,
   credentialEvidenceMatches,
+  credentialRowToEvidence,
   type CredentialEvidence,
   describeRpcError,
   isCoachStatusAction,
+  isInvitable,
+  isInviteStage,
   isReviewDecision,
   isUuid,
   validateNote,
@@ -217,5 +220,67 @@ describe("coerceCredentialEvidence", () => {
     expect(coerceCredentialEvidence({ ...good, issuer: 1 })).toBeNull();
     expect(coerceCredentialEvidence({ ...good, issuedYear: "2020" })).toBeNull();
     expect(coerceCredentialEvidence({ ...good, expiresOn: 123 })).toBeNull();
+  });
+});
+
+describe("credentialRowToEvidence", () => {
+  it("maps a coaching_credentials row onto the evidence shape", () => {
+    expect(
+      credentialRowToEvidence({
+        document_path: "u/c/d.pdf",
+        title: "Coach L1",
+        issuer: "PATAFA",
+        issued_year: 2021,
+        expires_on: "2027-01-01",
+      }),
+    ).toEqual({
+      documentPath: "u/c/d.pdf",
+      title: "Coach L1",
+      issuer: "PATAFA",
+      issuedYear: 2021,
+      expiresOn: "2027-01-01",
+    });
+  });
+
+  it("keeps nulls as nulls (a credential with no document)", () => {
+    const ev = credentialRowToEvidence({
+      document_path: null,
+      title: "t",
+      issuer: "i",
+      issued_year: null,
+      expires_on: null,
+    });
+    expect(ev.documentPath).toBeNull();
+    expect(ev.issuedYear).toBeNull();
+    expect(ev.expiresOn).toBeNull();
+  });
+});
+
+describe("isInvitable", () => {
+  it("allows a non-admin in none/pending/rejected/invited", () => {
+    for (const s of ["none", "pending", "rejected", "invited"]) {
+      expect(isInvitable("user", s)).toBe(true);
+    }
+  });
+
+  it("refuses an admin whatever their coach_status", () => {
+    for (const s of ["none", "pending", "rejected", "invited"]) {
+      expect(isInvitable("admin", s)).toBe(false);
+    }
+  });
+
+  it("refuses anyone already past the invite stage", () => {
+    for (const s of ["onboarding", "in_review", "changes_requested", "approved", "suspended", "revoked"]) {
+      expect(isInvitable("user", s)).toBe(false);
+    }
+  });
+});
+
+describe("isInviteStage", () => {
+  it("is role-agnostic: true for none/pending/rejected/invited only", () => {
+    expect(isInviteStage("invited")).toBe(true);
+    expect(isInviteStage("none")).toBe(true);
+    expect(isInviteStage("onboarding")).toBe(false);
+    expect(isInviteStage("revoked")).toBe(false);
   });
 });

@@ -1,16 +1,9 @@
 import Link from "next/link";
 import { requireCoach } from "@/lib/coaching/auth";
+import { COACH_STATUS_LABEL } from "@/lib/coaching/states";
 import { signOutCoach } from "./actions";
 
 const ONBOARDING_VISIBLE_STATES = ["onboarding", "in_review", "changes_requested"];
-
-const STATUS_LABEL: Record<string, string> = {
-  onboarding: "Onboarding",
-  in_review: "In review",
-  changes_requested: "Changes requested",
-  approved: "Approved",
-  suspended: "Suspended",
-};
 
 const STATUS_CLASS: Record<string, string> = {
   onboarding: "border-white/10 text-muted",
@@ -56,7 +49,7 @@ export default async function CoachingHubLayout({
           <span
             className={`rounded-full border px-2.5 py-1 text-xs ${STATUS_CLASS[status] ?? "border-white/10 text-muted"}`}
           >
-            {STATUS_LABEL[status] ?? status}
+            {COACH_STATUS_LABEL[status] ?? status}
           </span>
           <form action={signOutCoach}>
             <button className="rounded-md border border-white/10 px-2 py-1 text-sm text-muted hover:text-mist">

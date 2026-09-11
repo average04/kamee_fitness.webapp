@@ -11,6 +11,8 @@ import {
   MISSING_LABELS,
   type FormState,
 } from "@/lib/coaching/profile";
+import { buildReviewReadyEmail } from "@/lib/coaching/review-email";
+import { sendReviewReadyEmail } from "@/lib/coaching/review-send";
 import { HUB_STATES, type CoachStatus } from "@/lib/coaching/states";
 import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -384,6 +386,7 @@ export async function submitProfile(): Promise<FormState> {
   // is the real authority on whether a submission is valid.
   const gate = await guardEditable(HUB_STATES);
   if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
 
   const supabase = await createServerSupabase();
   const { error } = await supabase.rpc("submit_coaching_profile");
@@ -397,6 +400,21 @@ export async function submitProfile(): Promise<FormState> {
     }
     return { message: "Could not submit. Please retry." };
   }
+
+  // Spec 4.3 / R27: tell the operators a profile is waiting. Best-effort --
+  // the submit already succeeded, so a failed name read, a missing
+  // RESEND_API_KEY or a Resend error must never turn it into a failure.
+  try {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    await sendReviewReadyEmail(buildReviewReadyEmail(me?.display_name ?? null, user.id));
+  } catch {
+    // Swallowed on purpose: see above.
+  }
+
   revalidatePath("/coaching/onboarding");
   return { savedAt: new Date().toISOString() };
 }

@@ -70,6 +70,7 @@ export type InviteCandidate = {
   id: string;
   username: string | null;
   display_name: string | null;
+  role: string;
   coach_status: CoachStatus;
 };
 
@@ -113,7 +114,7 @@ export async function findUserForInvite(q: string): Promise<InviteSearchResult> 
       if (hit) {
         const { data: p, error: pErr } = await db
           .from("profiles")
-          .select("id, username, display_name, coach_status")
+          .select("id, username, display_name, role, coach_status")
           .eq("id", hit.id)
           .single();
         if (pErr) throw new Error(pErr.message);
@@ -129,7 +130,7 @@ export async function findUserForInvite(q: string): Promise<InviteSearchResult> 
   const username = query.replace(/^@/, "");
   const { data: p, error } = await db
     .from("profiles")
-    .select("id, username, display_name, coach_status")
+    .select("id, username, display_name, role, coach_status")
     .eq("username", username)
     .maybeSingle();
   if (error) throw new Error(error.message);

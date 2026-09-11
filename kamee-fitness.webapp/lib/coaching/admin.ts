@@ -9,11 +9,24 @@
 
 import { MISSING_LABELS } from "./profile";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export { isUuid } from "./uuid";
 
-/** True only for a syntactically valid UUID string. */
-export function isUuid(value: unknown): value is string {
-  return typeof value === "string" && UUID_RE.test(value);
+/** coach_status values admin_invite_coach accepts (it raises wrong_state for any other). */
+const INVITABLE_STATUSES: readonly string[] = ["none", "pending", "rejected", "invited"];
+
+/**
+ * Whether the admin UI offers Invite/Resend for a user. Admins are never
+ * offered it: admin_invite_coach keeps an admin's role as 'admin', and the
+ * hub (requireCoach) only admits role 'coach', so an invited admin would
+ * land on a dead end.
+ */
+export function isInvitable(role: string | null | undefined, status: string): boolean {
+  return role !== "admin" && isInviteStage(status);
+}
+
+/** True while a user is at (or before) the invite stage, regardless of role -- the admin detail page shows its Invite section for these. */
+export function isInviteStage(status: string): boolean {
+  return INVITABLE_STATUSES.includes(status);
 }
 
 /** Decisions accepted by admin_review_coaching_profile. */
@@ -67,6 +80,26 @@ export type CredentialEvidence = {
   expiresOn: string | null;
 };
 
+/** The five evidence columns of a coaching_credentials row, as the service-role read returns them. */
+export type CredentialEvidenceRow = {
+  document_path: string | null;
+  title: string;
+  issuer: string;
+  issued_year: number | null;
+  expires_on: string | null;
+};
+
+/** Maps a fresh coaching_credentials read onto the CredentialEvidence shape `credentialEvidenceMatches` compares -- used for both the pre-download and the post-download re-read in verifyCredential. */
+export function credentialRowToEvidence(row: CredentialEvidenceRow): CredentialEvidence {
+  return {
+    documentPath: row.document_path,
+    title: row.title,
+    issuer: row.issuer,
+    issuedYear: row.issued_year,
+    expiresOn: row.expires_on,
+  };
+}
+
 /** Normalizes a date-ish string to its YYYY-MM-DD prefix so a `date` column value and a full ISO timestamp for the same calendar day compare equal instead of falsely mismatching on formatting alone. */
 function normalizeDateOnly(value: string | null): string | null {
   if (value === null) return null;
@@ -74,11 +107,11 @@ function normalizeDateOnly(value: string | null): string | null {
 }
 
 /**
- * Fix round 1, I1: closes the TOCTOU window between an admin loading the
+ * I1: narrows the TOCTOU window between an admin loading the
  * coach detail page and clicking Verify. `expected` is the evidence the
  * page rendered (sent back by the client); `actual` is a fresh service-role
- * read taken immediately before hashing. True only when every field the
- * admin actually looked at -- `document_path` (including its absence),
+ * read (taken both before and after the document download). True only
+ * when every field the admin actually looked at -- `document_path` (including its absence),
  * `title`, `issuer`, `issued_year`, and `expires_on` (compared as a date,
  * not a raw string) -- is still identical. `verifyCredential` refuses to
  * attest anything when this returns false.
@@ -135,7 +168,7 @@ export function coerceCredentialEvidence(raw: unknown): CredentialEvidence | nul
   return { documentPath, title: r.title, issuer: r.issuer, issuedYear, expiresOn };
 }
 
-/** Shown to the admin whenever a fresh re-read of a credential's evidence no longer matches what the page rendered -- both the initial mismatch check and the post-download document_path recheck use this exact copy. */
+/** Shown to the admin whenever a fresh re-read of a credential's evidence no longer matches what the page rendered -- both the pre-download check and the post-download full-evidence recheck use this exact copy. */
 export const CREDENTIAL_EVIDENCE_CHANGED_MESSAGE =
   "This credential changed since you opened the page. Reload and review it again.";
 

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
-import { isUuid } from "@/lib/coaching/admin";
+import { isInvitable, isInviteStage, isUuid } from "@/lib/coaching/admin";
+import { avatarImageUrl, avatarInitial } from "@/lib/coaching/avatar";
 import { MISSING_LABELS } from "@/lib/coaching/profile";
 import { buildPublicStorageUrl } from "@/lib/coaching/storage";
 import { createAdminSupabase } from "@/lib/supabase/admin";
@@ -13,7 +14,6 @@ import { VerifyCredentialButton } from "@/components/admin/coaching/VerifyCreden
 import { loadCoachDetail } from "../queries";
 
 const CHECKLIST_KEYS = Object.keys(MISSING_LABELS).filter((k) => k !== "profile");
-const INVITABLE_STATUSES = new Set(["none", "pending", "rejected", "invited"]);
 const DOCUMENT_SIGNED_URL_TTL_SECONDS = 300;
 
 export default async function CoachDetailPage({
@@ -65,16 +65,17 @@ export default async function CoachDetailPage({
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
-  // I2 (fix round 1): same precedence as the coach-facing CoachProfileView --
-  // prefer the uploaded photo (a `social-photos` path) over the legacy
-  // `avatar_url`, so the reviewer sees what the public profile will show.
-  const avatarUrl = profile.avatar_photo_path
-    ? buildPublicStorageUrl(supabaseUrl, profile.avatar_photo_path)
-    : profile.avatar_url;
+  // Same rule as the coach-facing CoachProfileView: only the uploaded photo
+  // (a `social-photos` path) is an image. `avatar_url` is a preset id, not
+  // a URL, and never satisfies the completeness "avatar" item.
+  const avatarUrl = avatarImageUrl(profile.avatar_photo_path, supabaseUrl);
   const coverUrl = coaching?.cover_image_path
     ? buildPublicStorageUrl(supabaseUrl, coaching.cover_image_path)
     : null;
   const coachName = profile.display_name ?? profile.username ?? "Coach";
+  const isAdminTarget = profile.role === "admin";
+  const canInvite = isInvitable(profile.role, status);
+  const inviteStage = isInviteStage(status);
 
   return (
     <div className="space-y-8">
@@ -93,7 +94,7 @@ export default async function CoachDetailPage({
         </div>
       </div>
 
-      {(INVITABLE_STATUSES.has(status) || invite) && (
+      {(inviteStage || invite) && (
         <section className="space-y-3 rounded-xl border border-zinc-800 p-4">
           <h2 className="text-sm font-semibold text-zinc-300">Invite</h2>
           {/* M8 (fix round 1): show the latest invite's full history, not just after a fresh send. */}
@@ -104,11 +105,16 @@ export default async function CoachDetailPage({
               revoked {invite.revoked_at ? fmtDateTime(invite.revoked_at) : "no"}
             </p>
           )}
-          {INVITABLE_STATUSES.has(status) && (
+          {canInvite && (
             <InviteBlock
               userId={profile.id}
               label={status === "invited" ? "Resend" : "Invite"}
             />
+          )}
+          {isAdminTarget && inviteStage && (
+            <p className="text-xs text-zinc-500">
+              Admins cannot be coaches. Use a separate non-admin account to coach.
+            </p>
           )}
         </section>
       )}
@@ -151,10 +157,11 @@ export default async function CoachDetailPage({
             />
           ) : (
             <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-500"
-              aria-label="No avatar set"
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-lg font-semibold text-zinc-500"
+              role="img"
+              aria-label="No profile photo uploaded"
             >
-              No avatar
+              {avatarInitial(coachName)}
             </div>
           )}
           {coverUrl ? (

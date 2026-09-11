@@ -93,8 +93,8 @@ export function StatusActionButton({
       >
         <h2 className="text-base font-semibold">{copy.label} this coach?</h2>
         <p className="mt-2 text-sm text-zinc-400">
-          This will {copy.verb} the account. The coach will see this note on their
-          review history.
+          This will {copy.verb} the account. The note is saved to this coach&apos;s review
+          history.
         </p>
 
         <textarea
