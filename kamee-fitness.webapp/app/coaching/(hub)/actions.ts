@@ -3,11 +3,18 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCoachSession, requireCoach } from "@/lib/coaching/auth";
-import { coerceProfileInput, validateProfile, type FormState } from "@/lib/coaching/profile";
-import { isOwnCoverPath } from "@/lib/coaching/storage";
+import {
+  coerceProfileInput,
+  parseCredentialForm,
+  validateCredential,
+  validateProfile,
+  type FormState,
+} from "@/lib/coaching/profile";
+import type { CoachStatus } from "@/lib/coaching/states";
+import { isOwnCoverPath, isOwnCredentialDocPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-const EDITABLE = ["onboarding", "changes_requested", "approved", "suspended"] as const;
+const EDITABLE: CoachStatus[] = ["onboarding", "changes_requested", "approved", "suspended"];
 
 const PAUSED_MESSAGE = "Your profile is in review, so changes are paused.";
 
@@ -19,15 +26,21 @@ const PAUSED_MESSAGE = "Your profile is in review, so changes are paused.";
  * autosave fires afterwards). Check the session status first and hand back
  * a friendly paused message for that one case; every other disallowed
  * state still goes through requireCoach's redirects.
+ *
+ * R20(e): every new Server Action in this module (credentials, gallery,
+ * submit) reuses this same gate rather than re-deriving the in_review
+ * short-circuit. `allowed` lets a caller narrow the final `requireCoach`
+ * allow-list (e.g. `submitProfile` only wants onboarding/changes_requested)
+ * while still getting the friendly in_review message first.
  */
-async function guardEditable(): Promise<
-  { user: { id: string } } | { blocked: true; message: string }
-> {
+async function guardEditable(
+  allowed: CoachStatus[] = EDITABLE,
+): Promise<{ user: { id: string } } | { blocked: true; message: string }> {
   const session = await getCoachSession();
   if (session.user && session.role === "coach" && session.status === "in_review") {
     return { blocked: true, message: PAUSED_MESSAGE };
   }
-  const { user } = await requireCoach([...EDITABLE]);
+  const { user } = await requireCoach(allowed);
   return { user };
 }
 
@@ -107,6 +120,110 @@ export async function setCoverPath(path: unknown): Promise<FormState> {
     return { message: "Could not save the cover. Please try again." };
   }
   revalidatePath("/coaching/onboarding");
+  return { savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// Task 11: credentials manager
+// ---------------------------------------------------------------------------
+
+/**
+ * Hidden `id` present -> UPDATE (own row only); absent -> INSERT with a
+ * server-generated uuid. Never upsert: PostgREST's ON CONFLICT DO UPDATE
+ * writes id and coach_id, which have no UPDATE grant, so every upsert
+ * would fail (partial-upsert trap). The document is attached afterward via
+ * `setCredentialDocument` once the row (and its id) exists.
+ */
+export async function upsertCredential(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  const input = parseCredentialForm(formData);
+  const v = validateCredential(input);
+  if (!v.ok) return { errors: v.errors };
+
+  const existingId = formData.get("id");
+  const fields = {
+    title: v.value.title,
+    issuer: v.value.issuer,
+    issued_year: v.value.issuedYear,
+    expires_on: v.value.expiresOn,
+  };
+  const supabase = await createServerSupabase();
+
+  const { data, error } =
+    typeof existingId === "string" && existingId
+      ? await supabase
+          .from("coaching_credentials")
+          .update(fields)
+          .eq("id", existingId)
+          .eq("coach_id", user.id)
+          .select("id")
+      : await supabase
+          .from("coaching_credentials")
+          .insert({ id: crypto.randomUUID(), coach_id: user.id, ...fields })
+          .select("id");
+
+  // I5-style rule (matches saveProfile/setCoverPath): "saved" is only true
+  // once exactly one row comes back, not merely the absence of an error.
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not save the credential." };
+  }
+  revalidatePath("/coaching/credentials");
+  return { savedAt: new Date().toISOString() };
+}
+
+export async function deleteCredential(id: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string" || !id) return { message: "Could not delete." };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_credentials")
+    .delete()
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+  if (error || !data || data.length !== 1) return { message: "Could not delete." };
+  revalidatePath("/coaching/credentials");
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * Attaches a document already uploaded (browser-side, insert-only) to the
+ * private `coaching-documents` bucket. `isOwnCredentialDocPath` requires
+ * the exact `<uid>/<credentialId>/<uuid>.(pdf|jpg|png)` shape -- a crafted
+ * path pointing at another coach's folder or another credential id is
+ * rejected before it ever reaches the database.
+ */
+export async function setCredentialDocument(id: unknown, path: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string") return { message: "Could not attach the document." };
+  if (!isOwnCredentialDocPath(path, user.id, id)) {
+    return { message: "Could not attach the document." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_credentials")
+    .update({ document_path: path })
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not attach the document." };
+  }
+  revalidatePath("/coaching/credentials");
   return { savedAt: new Date().toISOString() };
 }
 

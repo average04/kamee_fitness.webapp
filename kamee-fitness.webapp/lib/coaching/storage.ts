@@ -1,11 +1,13 @@
 /**
- * Pure helpers for the Coaching Hub's `social-photos` uploads (cover photo
- * for now; gallery reuses the same bucket/shape in a later task). No I/O —
- * components call `createBrowserSupabase().storage.from("social-photos")`
- * themselves with the path these functions build, and the `setCoverPath`
- * Server Action calls `isOwnCoverPath` before ever touching the database
- * (Server Actions are public endpoints; the client-sent path string cannot
- * be trusted).
+ * Pure helpers for the Coaching Hub's storage uploads: `social-photos`
+ * (cover photo + gallery) and the private `coaching-documents` bucket
+ * (credential evidence). No I/O — components call
+ * `createBrowserSupabase().storage.from(...)` themselves with the path
+ * these functions build, and every Server Action that writes a
+ * client-supplied path (`setCoverPath`, `addGalleryPhoto`,
+ * `setCredentialDocument`) validates it with the matching `isOwn*Path`
+ * helper before ever touching the database (Server Actions are public
+ * endpoints; the client-sent path string cannot be trusted).
  */
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -53,6 +55,21 @@ export function isOwnCoverPath(path: unknown, uid: string): path is string {
   return re.test(path);
 }
 
+/**
+ * True only for a path shaped exactly `coaching/<uid>/gallery/<digits>.(jpg|png|webp)`
+ * for the given uid (task-12: `social-photos` bucket, `coaching_gallery.image_path`
+ * CHECK constraint `coaching/<coach_id>/gallery/%`). Same traversal/other-uid/
+ * wrong-subfolder/extension/length guards as `isOwnCoverPath`.
+ */
+export function isOwnGalleryPath(path: unknown, uid: string): path is string {
+  if (typeof path !== "string" || path.length === 0 || path.length > MAX_PATH_LENGTH) {
+    return false;
+  }
+  if (!UUID_RE.test(uid)) return false;
+  const re = new RegExp(`^coaching/${uid}/gallery/\\d+\\.(jpg|png|webp)$`);
+  return re.test(path);
+}
+
 /** Public object URL for a path in the public `social-photos` bucket. */
 export function buildPublicStorageUrl(supabaseUrl: string, path: string): string {
   return `${supabaseUrl}/storage/v1/object/public/social-photos/${path}`;
@@ -69,4 +86,62 @@ export function checkImageFile(file: { type: string; size: number }): FileCheckR
     return { ok: false, message: "Image must be 5 MB or smaller." };
   }
   return { ok: true };
+}
+
+/**
+ * Credential document uploads (task-11): the private `coaching-documents`
+ * bucket accepts pdf/jpeg/png up to 5 MB. A separate mime map from the
+ * cover/gallery images above -- documents allow PDF and never webp.
+ */
+const DOCUMENT_ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+
+export type DocumentExtension = "pdf" | "jpg" | "png";
+
+const DOCUMENT_MIME_TO_EXTENSION: Record<string, DocumentExtension> = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+};
+
+/** The extension `isOwnCredentialDocPath` expects for a given upload's mime type, or null if unsupported. */
+export function extensionForDocumentMimeType(type: string): DocumentExtension | null {
+  return DOCUMENT_MIME_TO_EXTENSION[type] ?? null;
+}
+
+/** Client-side pre-check only -- the storage policy (insert-only, owner path) remains the enforcer. */
+export function checkDocumentFile(file: { type: string; size: number }): FileCheckResult {
+  if (!DOCUMENT_ALLOWED_TYPES.includes(file.type)) {
+    return { ok: false, message: "Please choose a PDF, JPEG, or PNG file." };
+  }
+  if (file.size > MAX_BYTES) {
+    return { ok: false, message: "File must be 5 MB or smaller." };
+  }
+  return { ok: true };
+}
+
+/**
+ * True only for a path shaped exactly `<uid>/<credentialId>/<uuid>.(pdf|jpg|png)`
+ * -- matches `coaching_credentials`' CHECK constraint
+ * `document_path like '<coach_id>/<id>/%'` and the storage bucket's
+ * owner-only insert path. Both `uid` and `credentialId` must already be
+ * UUIDs (the authenticated user's id and the credential row's own id); if
+ * either isn't, every path is rejected rather than built into an
+ * unanchored regex. `credentialId` is `unknown` because it round-trips
+ * through a Server Action argument that the caller controls.
+ */
+export function isOwnCredentialDocPath(
+  path: unknown,
+  uid: string,
+  credentialId: unknown,
+): path is string {
+  if (typeof path !== "string" || path.length === 0 || path.length > MAX_PATH_LENGTH) {
+    return false;
+  }
+  if (!UUID_RE.test(uid)) return false;
+  if (typeof credentialId !== "string" || !UUID_RE.test(credentialId)) return false;
+  const re = new RegExp(
+    `^${uid}/${credentialId}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(pdf|jpg|png)$`,
+    "i",
+  );
+  return re.test(path);
 }

@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildCoverPath,
   buildPublicStorageUrl,
+  checkDocumentFile,
   checkImageFile,
+  extensionForDocumentMimeType,
   extensionForMimeType,
   isOwnCoverPath,
+  isOwnCredentialDocPath,
+  isOwnGalleryPath,
 } from "./storage";
 
 describe("extensionForMimeType", () => {
@@ -96,5 +100,130 @@ describe("checkImageFile", () => {
   });
   it("accepts a file exactly at the 5 MB boundary", () => {
     expect(checkImageFile({ type: "image/png", size: 5 * 1024 * 1024 })).toEqual({ ok: true });
+  });
+});
+
+describe("isOwnGalleryPath", () => {
+  const uid = "11111111-1111-1111-1111-111111111111";
+  const other = "22222222-2222-2222-2222-222222222222";
+
+  it("accepts a well-formed own gallery path for each allowed extension", () => {
+    expect(isOwnGalleryPath(`coaching/${uid}/gallery/1700000000000.jpg`, uid)).toBe(true);
+    expect(isOwnGalleryPath(`coaching/${uid}/gallery/1700000000000.png`, uid)).toBe(true);
+    expect(isOwnGalleryPath(`coaching/${uid}/gallery/1700000000000.webp`, uid)).toBe(true);
+  });
+  it("rejects path traversal", () => {
+    expect(isOwnGalleryPath(`coaching/${uid}/gallery/../../etc/passwd.jpg`, uid)).toBe(false);
+    expect(isOwnGalleryPath(`coaching/${uid}/../${other}/gallery/1.jpg`, uid)).toBe(false);
+  });
+  it("rejects another user's uid", () => {
+    expect(isOwnGalleryPath(`coaching/${other}/gallery/1.jpg`, uid)).toBe(false);
+  });
+  it("rejects the wrong sub-folder", () => {
+    expect(isOwnGalleryPath(`coaching/${uid}/cover/1.jpg`, uid)).toBe(false);
+  });
+  it("rejects a missing or unsupported extension", () => {
+    expect(isOwnGalleryPath(`coaching/${uid}/gallery/1700000000000`, uid)).toBe(false);
+    expect(isOwnGalleryPath(`coaching/${uid}/gallery/1.gif`, uid)).toBe(false);
+  });
+  it("rejects overlong input", () => {
+    const huge = `coaching/${uid}/gallery/${"1".repeat(400)}.jpg`;
+    expect(isOwnGalleryPath(huge, uid)).toBe(false);
+  });
+  it("rejects a non-string path", () => {
+    expect(isOwnGalleryPath(123, uid)).toBe(false);
+    expect(isOwnGalleryPath(null, uid)).toBe(false);
+    expect(isOwnGalleryPath(undefined, uid)).toBe(false);
+  });
+});
+
+describe("extensionForDocumentMimeType", () => {
+  it("maps the three allowed document mime types to their extensions", () => {
+    expect(extensionForDocumentMimeType("application/pdf")).toBe("pdf");
+    expect(extensionForDocumentMimeType("image/jpeg")).toBe("jpg");
+    expect(extensionForDocumentMimeType("image/png")).toBe("png");
+  });
+  it("returns null for anything else, including webp", () => {
+    expect(extensionForDocumentMimeType("image/webp")).toBeNull();
+    expect(extensionForDocumentMimeType("")).toBeNull();
+  });
+});
+
+describe("checkDocumentFile", () => {
+  it("accepts pdf/jpeg/png under 5 MB", () => {
+    expect(checkDocumentFile({ type: "application/pdf", size: 1024 })).toEqual({ ok: true });
+    expect(checkDocumentFile({ type: "image/jpeg", size: 1024 })).toEqual({ ok: true });
+    expect(checkDocumentFile({ type: "image/png", size: 1024 })).toEqual({ ok: true });
+  });
+  it("rejects webp and other file types with a friendly message", () => {
+    const r = checkDocumentFile({ type: "image/webp", size: 1024 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/pdf|jpeg|png/i);
+  });
+  it("rejects files over 5 MB with a friendly message", () => {
+    const r = checkDocumentFile({ type: "application/pdf", size: 5 * 1024 * 1024 + 1 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/5 ?MB/i);
+  });
+  it("accepts a file exactly at the 5 MB boundary", () => {
+    expect(checkDocumentFile({ type: "application/pdf", size: 5 * 1024 * 1024 })).toEqual({
+      ok: true,
+    });
+  });
+});
+
+describe("isOwnCredentialDocPath", () => {
+  const uid = "11111111-1111-1111-1111-111111111111";
+  const other = "22222222-2222-2222-2222-222222222222";
+  const credId = "33333333-3333-3333-3333-333333333333";
+  const otherCredId = "44444444-4444-4444-4444-444444444444";
+  const docUuid = "55555555-5555-5555-5555-555555555555";
+
+  it("accepts a well-formed own credential document path for each allowed extension", () => {
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.pdf`, uid, credId)).toBe(true);
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.jpg`, uid, credId)).toBe(true);
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.png`, uid, credId)).toBe(true);
+  });
+  it("rejects path traversal", () => {
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/../../etc/passwd.pdf`, uid, credId)).toBe(
+      false,
+    );
+    expect(isOwnCredentialDocPath(`${uid}/../${other}/${credId}/${docUuid}.pdf`, uid, credId)).toBe(
+      false,
+    );
+  });
+  it("rejects another user's uid", () => {
+    expect(isOwnCredentialDocPath(`${other}/${credId}/${docUuid}.pdf`, uid, credId)).toBe(false);
+  });
+  it("rejects another credential id", () => {
+    expect(isOwnCredentialDocPath(`${uid}/${otherCredId}/${docUuid}.pdf`, uid, credId)).toBe(
+      false,
+    );
+  });
+  it("rejects a missing or unsupported extension", () => {
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}`, uid, credId)).toBe(false);
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.webp`, uid, credId)).toBe(false);
+  });
+  it("rejects overlong input", () => {
+    const huge = `${uid}/${credId}/${"1".repeat(400)}.pdf`;
+    expect(isOwnCredentialDocPath(huge, uid, credId)).toBe(false);
+  });
+  it("rejects a non-string path", () => {
+    expect(isOwnCredentialDocPath(123, uid, credId)).toBe(false);
+    expect(isOwnCredentialDocPath(null, uid, credId)).toBe(false);
+    expect(isOwnCredentialDocPath(undefined, uid, credId)).toBe(false);
+  });
+  it("rejects a non-string credentialId", () => {
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.pdf`, uid, 123)).toBe(false);
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.pdf`, uid, null)).toBe(false);
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.pdf`, uid, undefined)).toBe(false);
+  });
+  it("rejects when uid or credentialId isn't a UUID, rather than building an unanchored regex", () => {
+    expect(isOwnCredentialDocPath(`not-a-uuid/${credId}/${docUuid}.pdf`, "not-a-uuid", credId)).toBe(
+      false,
+    );
+    expect(isOwnCredentialDocPath(`${uid}/not-a-uuid/${docUuid}.pdf`, uid, "not-a-uuid")).toBe(
+      false,
+    );
   });
 });
