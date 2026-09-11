@@ -56,6 +56,7 @@ export function DecisionForm({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         rows={4}
+        maxLength={2000}
         placeholder="Note for the coach (required for Request changes)"
         aria-label="Review note"
         className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-emerald-600"

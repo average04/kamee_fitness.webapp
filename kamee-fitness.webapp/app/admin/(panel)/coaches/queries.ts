@@ -38,24 +38,30 @@ export type CoachInviteSummary = {
   revoked_at: string | null;
 };
 
-/** Latest coaching_invites row per user id, for the "Invited / Accepted" columns on the list. */
+const IN_FILTER_CHUNK_SIZE = 100;
+
+/** Latest coaching_invites row per user id, for the "Invited / Accepted" columns on the list. Chunks the `.in()` filter (M7, fix round 1) so a long coach list can't overflow the request URL. */
 export async function listLatestInvites(
   userIds: string[],
 ): Promise<Record<string, CoachInviteSummary>> {
   if (userIds.length === 0) return {};
   const db = createAdminSupabase();
-  const { data, error } = await db
-    .from("coaching_invites")
-    .select("user_id, created_at, expires_at, accepted_at, revoked_at")
-    .in("user_id", userIds)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-
   const out: Record<string, CoachInviteSummary> = {};
-  for (const row of (data ?? []) as CoachInviteSummary[]) {
-    // Rows arrive newest-first per the order() above, so the first row seen
-    // for a user_id is already their latest invite.
-    if (!out[row.user_id]) out[row.user_id] = row;
+
+  for (let i = 0; i < userIds.length; i += IN_FILTER_CHUNK_SIZE) {
+    const chunk = userIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
+    const { data, error } = await db
+      .from("coaching_invites")
+      .select("user_id, created_at, expires_at, accepted_at, revoked_at")
+      .in("user_id", chunk)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    for (const row of (data ?? []) as CoachInviteSummary[]) {
+      // Rows arrive newest-first per the order() above, so the first row
+      // seen for a user_id is already their latest invite.
+      if (!out[row.user_id]) out[row.user_id] = row;
+    }
   }
   return out;
 }
@@ -71,6 +77,12 @@ const MAX_LIST_USERS_PAGES = 20;
 const LIST_USERS_PAGE_SIZE = 200;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export type InviteSearchResult = {
+  candidate: InviteCandidate | null;
+  /** True when the email scan exhausted MAX_LIST_USERS_PAGES without ever seeing a short (final) page -- there may be more users beyond what was scanned. */
+  capped: boolean;
+};
+
 /**
  * Finds a candidate user for an invite by email or by username.
  *
@@ -78,12 +90,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * (local-part@domain.tld) -- a bare "@handle" search still goes through the
  * username path below with its leading "@" stripped, matching how coaches
  * type their own handle. Email lookups page `auth.admin.listUsers` (200 per
- * page) until a match or an empty page, capped at 20 pages (~4000 users) so
- * a search for an email nobody has can't loop forever.
+ * page) until a match or a short page (fewer than perPage users means it's
+ * the last page -- no need to fetch one more empty page to confirm),
+ * capped at 20 pages (~4000 users) so a search for an email nobody has
+ * can't loop forever; hitting the cap without a short page sets `capped`.
  */
-export async function findUserForInvite(q: string): Promise<InviteCandidate | null> {
+export async function findUserForInvite(q: string): Promise<InviteSearchResult> {
   const query = q.trim();
-  if (!query) return null;
+  if (!query) return { candidate: null, capped: false };
   const db = createAdminSupabase();
 
   if (EMAIL_RE.test(query)) {
@@ -97,25 +111,29 @@ export async function findUserForInvite(q: string): Promise<InviteCandidate | nu
       const users = data?.users ?? [];
       const hit = users.find((u) => u.email?.toLowerCase() === needle);
       if (hit) {
-        const { data: p } = await db
+        const { data: p, error: pErr } = await db
           .from("profiles")
           .select("id, username, display_name, coach_status")
           .eq("id", hit.id)
           .single();
-        return (p as InviteCandidate) ?? null;
+        if (pErr) throw new Error(pErr.message);
+        return { candidate: (p as InviteCandidate) ?? null, capped: false };
       }
-      if (users.length === 0) break;
+      if (users.length < LIST_USERS_PAGE_SIZE) {
+        return { candidate: null, capped: false };
+      }
     }
-    return null;
+    return { candidate: null, capped: true };
   }
 
   const username = query.replace(/^@/, "");
-  const { data: p } = await db
+  const { data: p, error } = await db
     .from("profiles")
     .select("id, username, display_name, coach_status")
     .eq("username", username)
     .maybeSingle();
-  return (p as InviteCandidate) ?? null;
+  if (error) throw new Error(error.message);
+  return { candidate: (p as InviteCandidate) ?? null, capped: false };
 }
 
 export type CoachProfileDetail = {
@@ -123,6 +141,7 @@ export type CoachProfileDetail = {
   username: string | null;
   display_name: string | null;
   avatar_photo_path: string | null;
+  avatar_url: string | null;
   role: string;
   coach_status: CoachStatus;
 };
@@ -181,13 +200,22 @@ export type CoachDetail = {
   missing: string[];
 };
 
+/**
+ * M1 (fix round 1): every one of these reads throws on its own error
+ * instead of the caller silently defaulting to `[]`/`null`. Before this
+ * fix a failed `coaching_credentials` or `admin_coaching_profile_missing`
+ * query would render as "no credentials" / "0 of 7 complete" -- a false
+ * "nothing here" that looks identical to the coach genuinely having
+ * nothing, instead of surfacing as an error. Next's admin error boundary
+ * (or the default one) handles the throw.
+ */
 export async function loadCoachDetail(id: string): Promise<CoachDetail> {
   const db = createAdminSupabase();
   const [profile, coaching, credentials, gallery, reviews, invite, missing] =
     await Promise.all([
       db
         .from("profiles")
-        .select("id, username, display_name, avatar_photo_path, role, coach_status")
+        .select("id, username, display_name, avatar_photo_path, avatar_url, role, coach_status")
         .eq("id", id)
         .maybeSingle(),
       db.from("coaching_profiles").select("*").eq("user_id", id).maybeSingle(),
@@ -211,6 +239,34 @@ export async function loadCoachDetail(id: string): Promise<CoachDetail> {
         .limit(1),
       db.rpc("admin_coaching_profile_missing", { p_user: id }),
     ]);
+
+  if (profile.error) {
+    throw new Error(`loadCoachDetail: profiles query failed: ${profile.error.message}`);
+  }
+  if (coaching.error) {
+    throw new Error(
+      `loadCoachDetail: coaching_profiles query failed: ${coaching.error.message}`,
+    );
+  }
+  if (credentials.error) {
+    throw new Error(
+      `loadCoachDetail: coaching_credentials query failed: ${credentials.error.message}`,
+    );
+  }
+  if (gallery.error) {
+    throw new Error(`loadCoachDetail: coaching_gallery query failed: ${gallery.error.message}`);
+  }
+  if (reviews.error) {
+    throw new Error(`loadCoachDetail: coaching_reviews query failed: ${reviews.error.message}`);
+  }
+  if (invite.error) {
+    throw new Error(`loadCoachDetail: coaching_invites query failed: ${invite.error.message}`);
+  }
+  if (missing.error) {
+    throw new Error(
+      `loadCoachDetail: admin_coaching_profile_missing failed: ${missing.error.message}`,
+    );
+  }
 
   return {
     profile: (profile.data as CoachProfileDetail) ?? null,

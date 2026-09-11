@@ -82,6 +82,13 @@ export function StatusActionButton({
       <dialog
         ref={dialogRef}
         onClose={() => setError(null)}
+        onCancel={(e) => {
+          // M4 (fix round 1): a native <dialog> fires "cancel" on Escape
+          // just before closing -- block it while a request is in flight so
+          // Escape can't abandon the dialog mid-submit (the button-based
+          // Cancel below is disabled for the same reason).
+          if (pending) e.preventDefault();
+        }}
         className="m-auto w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-zinc-100 backdrop:bg-black/70"
       >
         <h2 className="text-base font-semibold">{copy.label} this coach?</h2>
@@ -94,6 +101,7 @@ export function StatusActionButton({
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
+          maxLength={2000}
           placeholder="Optional note"
           aria-label={`Note for ${copy.verb} decision`}
           className="mt-3 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-emerald-600"
@@ -105,7 +113,8 @@ export function StatusActionButton({
           <button
             type="button"
             onClick={closeModal}
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800"
+            disabled={pending}
+            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 enabled:hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancel
           </button>

@@ -5,7 +5,9 @@ import { MISSING_LABELS } from "@/lib/coaching/profile";
 import { buildPublicStorageUrl } from "@/lib/coaching/storage";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { DecisionForm } from "@/components/admin/coaching/DecisionForm";
+import { fmtDate, fmtDateTime } from "@/components/admin/coaching/format";
 import { InviteBlock } from "@/components/admin/coaching/InviteBlock";
+import { REVIEW_DECISION_LABEL, StatusPill } from "@/components/admin/coaching/status";
 import { StatusActionButton } from "@/components/admin/coaching/StatusActionButton";
 import { VerifyCredentialButton } from "@/components/admin/coaching/VerifyCredentialButton";
 import { loadCoachDetail } from "../queries";
@@ -13,11 +15,6 @@ import { loadCoachDetail } from "../queries";
 const CHECKLIST_KEYS = Object.keys(MISSING_LABELS).filter((k) => k !== "profile");
 const INVITABLE_STATUSES = new Set(["none", "pending", "rejected", "invited"]);
 const DOCUMENT_SIGNED_URL_TTL_SECONDS = 300;
-
-function fmtDate(value: string | null): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleString();
-}
 
 export default async function CoachDetailPage({
   params,
@@ -31,7 +28,7 @@ export default async function CoachDetailPage({
   const detail = await loadCoachDetail(id);
   if (!detail.profile) notFound();
 
-  const { profile, coaching, credentials, gallery, reviews, missing } = detail;
+  const { profile, coaching, credentials, gallery, reviews, invite, missing } = detail;
   const status = profile.coach_status;
 
   // Treat the RPC's "profile" meta-key as "every item missing" (same
@@ -45,27 +42,45 @@ export default async function CoachDetailPage({
   const canApprove = !allMissing && missing.length === 0;
 
   // "View document" links are 5-minute signed URLs generated server-side at
-  // render, never stored or logged.
+  // render, never stored or logged. M2 (fix round 1): distinguish "no
+  // document" from "has a document but signing it failed" -- the latter
+  // shows "Unavailable" and disables Verify, instead of both cases reading
+  // as an identical, misleading "None".
   const db = createAdminSupabase();
   const credentialsWithUrls = await Promise.all(
     credentials.map(async (c) => {
-      if (!c.document_path) return { ...c, documentUrl: null as string | null };
+      if (!c.document_path) {
+        return { ...c, documentUrl: null as string | null, documentUnavailable: false };
+      }
       const { data } = await db.storage
         .from("coaching-documents")
         .createSignedUrl(c.document_path, DOCUMENT_SIGNED_URL_TTL_SECONDS);
-      return { ...c, documentUrl: data?.signedUrl ?? null };
+      return {
+        ...c,
+        documentUrl: data?.signedUrl ?? null,
+        documentUnavailable: !data?.signedUrl,
+      };
     }),
   );
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
+  // I2 (fix round 1): same precedence as the coach-facing CoachProfileView --
+  // prefer the uploaded photo (a `social-photos` path) over the legacy
+  // `avatar_url`, so the reviewer sees what the public profile will show.
+  const avatarUrl = profile.avatar_photo_path
+    ? buildPublicStorageUrl(supabaseUrl, profile.avatar_photo_path)
+    : profile.avatar_url;
+  const coverUrl = coaching?.cover_image_path
+    ? buildPublicStorageUrl(supabaseUrl, coaching.cover_image_path)
+    : null;
+  const coachName = profile.display_name ?? profile.username ?? "Coach";
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">
-            {profile.display_name ?? profile.username ?? profile.id}
-          </h1>
+          <h1 className="text-lg font-semibold">{coachName}</h1>
           {profile.username && (
             <p className="text-sm text-zinc-500">@{profile.username}</p>
           )}
@@ -74,18 +89,27 @@ export default async function CoachDetailPage({
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
             role: {profile.role}
           </span>
-          <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
-            {status}
-          </span>
+          <StatusPill status={status} />
         </div>
       </div>
 
-      {INVITABLE_STATUSES.has(status) && (
-        <section className="rounded-xl border border-zinc-800 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-300">
-            {status === "invited" ? "Resend invite" : "Invite to coach"}
-          </h2>
-          <InviteBlock userId={profile.id} label={status === "invited" ? "Resend" : "Invite"} />
+      {(INVITABLE_STATUSES.has(status) || invite) && (
+        <section className="space-y-3 rounded-xl border border-zinc-800 p-4">
+          <h2 className="text-sm font-semibold text-zinc-300">Invite</h2>
+          {/* M8 (fix round 1): show the latest invite's full history, not just after a fresh send. */}
+          {invite && (
+            <p className="text-xs text-zinc-500">
+              Invited {fmtDateTime(invite.created_at)} · expires {fmtDateTime(invite.expires_at)}{" "}
+              · accepted {invite.accepted_at ? fmtDateTime(invite.accepted_at) : "not yet"} ·
+              revoked {invite.revoked_at ? fmtDateTime(invite.revoked_at) : "no"}
+            </p>
+          )}
+          {INVITABLE_STATUSES.has(status) && (
+            <InviteBlock
+              userId={profile.id}
+              label={status === "invited" ? "Resend" : "Invite"}
+            />
+          )}
         </section>
       )}
 
@@ -115,6 +139,41 @@ export default async function CoachDetailPage({
 
       <section className="rounded-xl border border-zinc-800 p-4">
         <h2 className="mb-3 text-sm font-semibold text-zinc-300">Profile summary</h2>
+
+        {/* I2 (fix round 1): the reviewer previously had no way to see the cover photo or avatar the app will actually show. */}
+        <div className="mb-4 flex items-center gap-4">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset next/image can optimize
+            <img
+              src={avatarUrl}
+              alt={`${coachName} avatar`}
+              className="h-16 w-16 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs text-zinc-500"
+              aria-label="No avatar set"
+            >
+              No avatar
+            </div>
+          )}
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL, not a local asset next/image can optimize
+            <img
+              src={coverUrl}
+              alt={`${coachName} cover photo`}
+              className="h-16 w-32 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-16 w-32 shrink-0 items-center justify-center rounded-lg bg-zinc-800 text-xs text-zinc-500"
+              aria-label="No cover photo set"
+            >
+              No cover
+            </div>
+          )}
+        </div>
+
         {coaching ? (
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <div>
@@ -155,7 +214,7 @@ export default async function CoachDetailPage({
             </div>
             <div>
               <dt className="text-zinc-500">Terms accepted</dt>
-              <dd className="text-zinc-200">{fmtDate(coaching.terms_accepted_at)}</dd>
+              <dd className="text-zinc-200">{fmtDateTime(coaching.terms_accepted_at)}</dd>
             </div>
             <div>
               <dt className="text-zinc-500">Instagram</dt>
@@ -206,12 +265,29 @@ export default async function CoachDetailPage({
                       >
                         View document
                       </a>
+                    ) : c.documentUnavailable ? (
+                      <span className="text-amber-500">Unavailable</span>
                     ) : (
                       <span className="text-zinc-600">None</span>
                     )}
                   </td>
                   <td className="py-2">
-                    <VerifyCredentialButton id={c.id} initialVerified={c.is_verified} />
+                    <VerifyCredentialButton
+                      id={c.id}
+                      initialVerified={c.is_verified}
+                      expected={{
+                        documentPath: c.document_path,
+                        title: c.title,
+                        issuer: c.issuer,
+                        issuedYear: c.issued_year,
+                        expiresOn: c.expires_on,
+                      }}
+                      disabledReason={
+                        c.documentUnavailable
+                          ? "Document link unavailable — reload the page"
+                          : undefined
+                      }
+                    />
                   </td>
                 </tr>
               ))}
@@ -250,7 +326,9 @@ export default async function CoachDetailPage({
             {reviews.map((r) => (
               <li key={r.id} className="rounded-lg border border-zinc-800 p-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-zinc-200">{r.decision}</span>
+                  <span className="font-medium text-zinc-200">
+                    {REVIEW_DECISION_LABEL[r.decision] ?? r.decision}
+                  </span>
                   <span className="text-xs text-zinc-500">{fmtDate(r.created_at)}</span>
                 </div>
                 {r.note && <p className="mt-1 text-zinc-400">{r.note}</p>}

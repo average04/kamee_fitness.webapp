@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  coerceCredentialEvidence,
+  credentialEvidenceMatches,
+  type CredentialEvidence,
   describeRpcError,
   isCoachStatusAction,
   isReviewDecision,
   isUuid,
-  sanitizeNote,
+  validateNote,
 } from "./admin";
 
 describe("isUuid", () => {
@@ -52,19 +55,26 @@ describe("isCoachStatusAction", () => {
   });
 });
 
-describe("sanitizeNote", () => {
+describe("validateNote", () => {
   it("trims whitespace", () => {
-    expect(sanitizeNote("  hello  ")).toBe("hello");
+    expect(validateNote("  hello  ")).toEqual({ ok: true, value: "hello" });
   });
-  it("returns an empty string for non-string input", () => {
-    expect(sanitizeNote(undefined)).toBe("");
-    expect(sanitizeNote(null)).toBe("");
-    expect(sanitizeNote(42)).toBe("");
+  it("treats non-string input as an empty, valid note", () => {
+    expect(validateNote(undefined)).toEqual({ ok: true, value: "" });
+    expect(validateNote(null)).toEqual({ ok: true, value: "" });
+    expect(validateNote(42)).toEqual({ ok: true, value: "" });
   });
-  it("caps at 2000 characters", () => {
+  it("accepts a note at exactly 2000 characters", () => {
+    const exact = "a".repeat(2000);
+    expect(validateNote(exact)).toEqual({ ok: true, value: exact });
+  });
+  it("rejects (never truncates) a note over 2000 characters", () => {
     const long = "a".repeat(2500);
-    const out = sanitizeNote(long);
-    expect(out.length).toBe(2000);
+    const result = validateNote(long);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe("Note must be 2000 characters or fewer.");
+    }
   });
 });
 
@@ -89,17 +99,123 @@ describe("describeRpcError", () => {
     );
   });
   it("gives a generic wrong_state message with no context", () => {
-    expect(describeRpcError("wrong_state")).toMatch(/not allowed/i);
+    expect(describeRpcError("wrong_state")).toBe(
+      "That action is not allowed from the coach's current status.",
+    );
   });
-  it("maps known error codes to readable copy", () => {
-    expect(describeRpcError("user_not_found")).toMatch(/could not be found/i);
-    expect(describeRpcError("bad_decision")).toMatch(/invalid/i);
-    expect(describeRpcError("bad_status")).toMatch(/invalid/i);
-    expect(describeRpcError("not_found")).toMatch(/credential/i);
+  it("maps known error codes to exact readable copy", () => {
+    expect(describeRpcError("user_not_found")).toBe("That user could not be found.");
+    expect(describeRpcError("bad_decision")).toBe("Invalid review decision.");
+    expect(describeRpcError("bad_status")).toBe("Invalid status change.");
+    expect(describeRpcError("not_found")).toBe("That credential could not be found.");
   });
   it("never surfaces an unknown/raw internal error message", () => {
     const msg = describeRpcError('duplicate key value violates unique constraint "x"');
-    expect(msg).not.toContain("duplicate key");
-    expect(msg).not.toContain("constraint");
+    expect(msg).toBe("Something went wrong. Please try again.");
+  });
+});
+
+describe("credentialEvidenceMatches", () => {
+  const base: CredentialEvidence = {
+    documentPath: "u1/c1/doc.pdf",
+    title: "CPT",
+    issuer: "NASM",
+    issuedYear: 2020,
+    expiresOn: "2027-01-01",
+  };
+
+  it("matches identical evidence", () => {
+    expect(credentialEvidenceMatches(base, { ...base })).toBe(true);
+  });
+
+  it("detects each field differing on its own", () => {
+    expect(credentialEvidenceMatches(base, { ...base, title: "CPT II" })).toBe(false);
+    expect(credentialEvidenceMatches(base, { ...base, issuer: "ACE" })).toBe(false);
+    expect(credentialEvidenceMatches(base, { ...base, issuedYear: 2021 })).toBe(false);
+    expect(credentialEvidenceMatches(base, { ...base, documentPath: "u1/c1/other.pdf" })).toBe(
+      false,
+    );
+    expect(credentialEvidenceMatches(base, { ...base, expiresOn: "2028-01-01" })).toBe(false);
+  });
+
+  it("treats a null document on one side and present on the other as a mismatch", () => {
+    expect(credentialEvidenceMatches({ ...base, documentPath: null }, base)).toBe(false);
+    expect(credentialEvidenceMatches(base, { ...base, documentPath: null })).toBe(false);
+  });
+
+  it("treats null documents on both sides as a match", () => {
+    expect(
+      credentialEvidenceMatches({ ...base, documentPath: null }, { ...base, documentPath: null }),
+    ).toBe(true);
+  });
+
+  it("compares expires_on as a date, tolerating an ISO-timestamp vs date-only formatting difference for the same day", () => {
+    expect(
+      credentialEvidenceMatches(
+        { ...base, expiresOn: "2027-01-01" },
+        { ...base, expiresOn: "2027-01-01T00:00:00.000Z" },
+      ),
+    ).toBe(true);
+  });
+
+  it("treats null expiry on both sides as a match, and null vs set as a mismatch", () => {
+    expect(
+      credentialEvidenceMatches({ ...base, expiresOn: null }, { ...base, expiresOn: null }),
+    ).toBe(true);
+    expect(credentialEvidenceMatches({ ...base, expiresOn: null }, base)).toBe(false);
+  });
+});
+
+describe("coerceCredentialEvidence", () => {
+  it("accepts a well-shaped object", () => {
+    expect(
+      coerceCredentialEvidence({
+        documentPath: "u1/c1/doc.pdf",
+        title: "CPT",
+        issuer: "NASM",
+        issuedYear: 2020,
+        expiresOn: "2027-01-01",
+      }),
+    ).toEqual({
+      documentPath: "u1/c1/doc.pdf",
+      title: "CPT",
+      issuer: "NASM",
+      issuedYear: 2020,
+      expiresOn: "2027-01-01",
+    });
+  });
+
+  it("accepts null documentPath, issuedYear, and expiresOn", () => {
+    expect(
+      coerceCredentialEvidence({
+        documentPath: null,
+        title: "CPT",
+        issuer: "NASM",
+        issuedYear: null,
+        expiresOn: null,
+      }),
+    ).toEqual({
+      documentPath: null,
+      title: "CPT",
+      issuer: "NASM",
+      issuedYear: null,
+      expiresOn: null,
+    });
+  });
+
+  it("rejects a non-object", () => {
+    expect(coerceCredentialEvidence(null)).toBeNull();
+    expect(coerceCredentialEvidence(undefined)).toBeNull();
+    expect(coerceCredentialEvidence("x")).toBeNull();
+    expect(coerceCredentialEvidence(42)).toBeNull();
+  });
+
+  it("rejects a wrong-typed field", () => {
+    const good = { documentPath: null, title: "a", issuer: "b", issuedYear: null, expiresOn: null };
+    expect(coerceCredentialEvidence({ ...good, documentPath: 1 })).toBeNull();
+    expect(coerceCredentialEvidence({ ...good, title: 1 })).toBeNull();
+    expect(coerceCredentialEvidence({ ...good, issuer: 1 })).toBeNull();
+    expect(coerceCredentialEvidence({ ...good, issuedYear: "2020" })).toBeNull();
+    expect(coerceCredentialEvidence({ ...good, expiresOn: 123 })).toBeNull();
   });
 });
