@@ -154,6 +154,89 @@ export function validateCredential(
   return { ok: true, value: i };
 }
 
+/**
+ * View-model for the hub's autosaving profile form: every field as a plain
+ * string/primitive so inputs stay uncontrolled-free and comma lists can be
+ * edited freely (trailing commas, in-progress words) without the array
+ * round-tripping fighting the caret. `profileInputFromFormState` converts
+ * back to the shape `saveProfile`/`validateProfile` expect.
+ */
+export type ProfileFormState = {
+  headline: string;
+  about: string;
+  specialties: string;
+  yearsExperience: string;
+  languages: string;
+  locationLabel: string;
+  instagram: string;
+  website: string;
+  responseDays: number;
+  isAcceptingClients: boolean;
+  termsAccepted: boolean;
+};
+
+/** Structural subset of `CoachingProfileRow` (lib/coaching/queries.ts) so this module doesn't need to import it. */
+type ProfileRowLike = {
+  headline: string | null;
+  about: string | null;
+  specialties: string[];
+  years_experience: number | null;
+  languages: string[];
+  location_label: string | null;
+  socials: Record<string, string>;
+  is_accepting_clients: boolean;
+  response_days: number;
+  terms_accepted_at: string | null;
+};
+
+export function profileFormStateFromRow(row: ProfileRowLike): ProfileFormState {
+  return {
+    headline: row.headline ?? "",
+    about: row.about ?? "",
+    specialties: row.specialties.join(", "),
+    yearsExperience: row.years_experience != null ? String(row.years_experience) : "",
+    languages: row.languages.join(", "),
+    locationLabel: row.location_label ?? "",
+    instagram: row.socials?.instagram ?? "",
+    website: row.socials?.website ?? "",
+    responseDays: row.response_days,
+    isAcceptingClients: row.is_accepting_clients,
+    termsAccepted: !!row.terms_accepted_at,
+  };
+}
+
+function splitList(s: string): string[] {
+  return s
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function intOrNull(s: string): number | null {
+  if (s.trim() === "") return null;
+  const n = Number.parseInt(s, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
+  const socials: ProfileInput["socials"] = {};
+  if (s.instagram.trim()) socials.instagram = s.instagram.trim();
+  if (s.website.trim()) socials.website = s.website.trim();
+
+  return {
+    headline: s.headline,
+    about: s.about,
+    specialties: splitList(s.specialties),
+    yearsExperience: intOrNull(s.yearsExperience),
+    languages: splitList(s.languages),
+    locationLabel: s.locationLabel,
+    socials,
+    isAcceptingClients: s.isAcceptingClients,
+    responseDays: s.responseDays,
+    termsAccepted: s.termsAccepted,
+  };
+}
+
 /** Copy for the "what's missing" checklist, keyed by what the approval RPC reports. */
 export const MISSING_LABELS: Record<string, string> = {
   headline: "Add a headline",

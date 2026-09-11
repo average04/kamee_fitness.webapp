@@ -3,6 +3,8 @@ import {
   MISSING_LABELS,
   parseCredentialForm,
   parseProfileForm,
+  profileFormStateFromRow,
+  profileInputFromFormState,
   validateCredential,
   validateProfile,
 } from "./profile";
@@ -122,5 +124,94 @@ describe("MISSING_LABELS", () => {
       "terms",
     ])
       expect(MISSING_LABELS[k]).toBeTruthy();
+  });
+});
+
+const row = {
+  headline: "Run coach",
+  about: "y".repeat(80),
+  specialties: ["5k", "marathon"],
+  years_experience: 7,
+  languages: ["en", "fil"],
+  location_label: "Cebu",
+  socials: { instagram: "@jo", website: "https://jo.run" },
+  is_accepting_clients: true,
+  response_days: 2,
+  terms_accepted_at: "2026-09-01T00:00:00Z",
+};
+
+describe("profileFormStateFromRow", () => {
+  it("maps a coaching_profiles row into editable string fields", () => {
+    expect(profileFormStateFromRow(row)).toEqual({
+      headline: "Run coach",
+      about: "y".repeat(80),
+      specialties: "5k, marathon",
+      yearsExperience: "7",
+      languages: "en, fil",
+      locationLabel: "Cebu",
+      instagram: "@jo",
+      website: "https://jo.run",
+      responseDays: 2,
+      isAcceptingClients: true,
+      termsAccepted: true,
+    });
+  });
+
+  it("falls back to blanks/false for nulls and an empty socials object", () => {
+    const s = profileFormStateFromRow({
+      headline: null,
+      about: null,
+      specialties: [],
+      years_experience: null,
+      languages: [],
+      location_label: null,
+      socials: {},
+      is_accepting_clients: false,
+      response_days: 3,
+      terms_accepted_at: null,
+    });
+    expect(s.headline).toBe("");
+    expect(s.about).toBe("");
+    expect(s.specialties).toBe("");
+    expect(s.yearsExperience).toBe("");
+    expect(s.instagram).toBe("");
+    expect(s.website).toBe("");
+    expect(s.termsAccepted).toBe(false);
+  });
+});
+
+describe("profileInputFromFormState", () => {
+  it("round-trips a form state back into a ProfileInput", () => {
+    const s = profileFormStateFromRow(row);
+    expect(profileInputFromFormState(s)).toEqual({
+      headline: "Run coach",
+      about: "y".repeat(80),
+      specialties: ["5k", "marathon"],
+      yearsExperience: 7,
+      languages: ["en", "fil"],
+      locationLabel: "Cebu",
+      socials: { instagram: "@jo", website: "https://jo.run" },
+      isAcceptingClients: true,
+      responseDays: 2,
+      termsAccepted: true,
+    });
+  });
+
+  it("trims comma lists and drops blanks", () => {
+    const s = profileFormStateFromRow(row);
+    const i = profileInputFromFormState({ ...s, specialties: " 5k, marathon ,, ultra " });
+    expect(i.specialties).toEqual(["5k", "marathon", "ultra"]);
+  });
+
+  it("omits blank socials rather than sending empty strings", () => {
+    const s = profileFormStateFromRow(row);
+    const i = profileInputFromFormState({ ...s, instagram: "  ", website: "" });
+    expect(i.socials).toEqual({});
+  });
+
+  it("treats a blank or non-numeric years field as null, never NaN", () => {
+    const s = profileFormStateFromRow(row);
+    expect(profileInputFromFormState({ ...s, yearsExperience: "" }).yearsExperience).toBeNull();
+    expect(profileInputFromFormState({ ...s, yearsExperience: "abc" }).yearsExperience).toBeNull();
   });
 });
