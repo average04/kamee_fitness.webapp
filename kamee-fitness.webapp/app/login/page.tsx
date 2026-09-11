@@ -3,15 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
-
-/**
- * Only accept a same-app relative path as the post-login destination.
- * Rejects protocol-relative ("//evil.com") and absolute URLs; defaults to /me.
- */
-function safeNext(next: string | null): string {
-  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
-  return "/me";
-}
+import { safeNextPath } from "@/lib/safe-next";
 
 const TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAADSfFsj2UkEr0f3Z";
@@ -39,7 +31,12 @@ declare global {
 
 function LoginForm() {
   const params = useSearchParams();
-  const next = safeNext(params.get("next"));
+  const nextParam = params.get("next");
+  // Resolved lazily (not at render time) because it needs window.location.origin,
+  // which is unavailable during this client component's server-side render pass.
+  function resolveNext(): string {
+    return safeNextPath(nextParam, window.location.origin);
+  }
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle",
@@ -94,7 +91,7 @@ function LoginForm() {
       email: email.trim(),
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(resolveNext())}`,
         captchaToken,
       },
     });
@@ -125,7 +122,7 @@ function LoginForm() {
       setMessage(error.message);
       return;
     }
-    window.location.href = next;
+    window.location.href = resolveNext();
   }
 
   return (

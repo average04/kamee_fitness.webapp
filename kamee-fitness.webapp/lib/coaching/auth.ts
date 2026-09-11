@@ -4,8 +4,14 @@ import type { User } from "@supabase/supabase-js";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { HUB_STATES, type CoachStatus } from "./states";
 
+export type ProfileRole = "user" | "coach" | "admin";
+
 export const getCoachSession = cache(
-  async (): Promise<{ user: User | null; status: CoachStatus; role: string | null }> => {
+  async (): Promise<{
+    user: User | null;
+    status: CoachStatus;
+    role: ProfileRole | null;
+  }> => {
     const supabase = await createServerSupabase();
     const {
       data: { user },
@@ -19,7 +25,7 @@ export const getCoachSession = cache(
     return {
       user,
       status: (data?.coach_status as CoachStatus) ?? "none",
-      role: data?.role ?? null,
+      role: (data?.role as ProfileRole) ?? null,
     };
   },
 );
