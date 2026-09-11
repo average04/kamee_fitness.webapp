@@ -8,6 +8,7 @@ import {
   parseCredentialForm,
   validateCredential,
   validateProfile,
+  MISSING_LABELS,
   type FormState,
 } from "@/lib/coaching/profile";
 import type { CoachStatus } from "@/lib/coaching/states";
@@ -336,6 +337,36 @@ export async function reorderGallery(ids: unknown): Promise<FormState> {
     return { message: FRIENDLY[error.message] ?? "Could not reorder the gallery." };
   }
   revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// Task 13: submit for review
+// ---------------------------------------------------------------------------
+
+/**
+ * R7: imports MISSING_LABELS to translate the RPC's `incomplete:<keys>`
+ * error into the same copy the onboarding Checklist already uses.
+ * Server-side enforcement is the RPC itself; SubmitBlock's disabled state
+ * is convenience only.
+ */
+export async function submitProfile(): Promise<FormState> {
+  const gate = await guardEditable(["onboarding", "changes_requested"]);
+  if ("blocked" in gate) return { message: gate.message };
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc("submit_coaching_profile");
+  if (error) {
+    if (error.message.startsWith("incomplete:")) {
+      const keys = error.message.slice("incomplete:".length).split(",");
+      return { message: "Not ready yet: " + keys.map((k) => MISSING_LABELS[k] ?? k).join("; ") };
+    }
+    if (error.message === "wrong_state") {
+      return { message: "Your profile can't be submitted right now." };
+    }
+    return { message: "Could not submit. Please retry." };
+  }
+  revalidatePath("/coaching/onboarding");
   return { savedAt: new Date().toISOString() };
 }
 

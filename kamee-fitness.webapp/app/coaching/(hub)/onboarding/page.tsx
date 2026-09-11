@@ -4,6 +4,7 @@ import { loadHub } from "@/lib/coaching/queries";
 import { Checklist } from "@/components/coaching/Checklist";
 import { CoverUpload } from "@/components/coaching/CoverUpload";
 import { ProfileForm } from "@/components/coaching/ProfileForm";
+import { SubmitBlock } from "@/components/coaching/SubmitBlock";
 
 export const metadata = { title: "Coach onboarding" };
 
@@ -34,6 +35,7 @@ export default async function OnboardingPage() {
       <Checklist missing={hub.missing} />
       <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
+      <SubmitBlock missing={hub.missing} status={status} />
 
       <div className="flex gap-4 text-sm">
         <Link href="/coaching/credentials" className="text-leaf-500 hover:text-leaf-400">
