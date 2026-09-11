@@ -60,9 +60,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Coaching Hub: any authenticated user; unauthenticated -> /login?next=<path>.
+  // Coach-status gating happens server-side in requireCoach(); this proxy is
+  // the first, not the only, line of defense.
+  if (pathname.startsWith("/coaching") && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/me/:path*", "/login"],
+  matcher: ["/admin/:path*", "/me/:path*", "/login", "/coaching/:path*"],
 };
