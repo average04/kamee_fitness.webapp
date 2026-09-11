@@ -9,19 +9,21 @@ export function SaveIndicator({
   state: SaveState;
   onRetry?: () => void;
 }) {
-  if (state === "idle") return null;
-  if (state === "saving") return <p className="text-xs text-muted">Saving…</p>;
-  if (state === "saved") return <p className="text-xs text-muted">Saved</p>;
+  // I7 (fix round 1): a single persistent live region (rather than
+  // returning null/a fresh element per state) so assistive tech actually
+  // announces the Saving -> Saved/error transition instead of missing it.
   return (
-    <p className="text-xs text-muted">
-      Couldn&apos;t save ·{" "}
-      <button
-        type="button"
-        onClick={onRetry}
-        className="underline hover:text-mist"
-      >
-        Retry
-      </button>
+    <p role="status" aria-live="polite" className="text-xs text-muted">
+      {state === "saving" && "Saving…"}
+      {state === "saved" && "Saved"}
+      {state === "error" && (
+        <>
+          Couldn&apos;t save ·{" "}
+          <button type="button" onClick={onRetry} className="underline hover:text-mist">
+            Retry
+          </button>
+        </>
+      )}
     </p>
   );
 }

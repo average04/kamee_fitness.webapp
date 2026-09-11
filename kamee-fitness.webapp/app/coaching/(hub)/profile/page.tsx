@@ -13,7 +13,7 @@ export default async function CoachProfilePage() {
   return (
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-semibold">Your coach profile</h1>
-      <CoverUpload userId={user.id} current={hub.profile.cover_image_path} />
+      <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
     </div>
   );

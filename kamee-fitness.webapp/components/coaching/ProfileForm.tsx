@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import {
+  cloneElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactElement,
+} from "react";
 import { saveProfile } from "@/app/coaching/(hub)/actions";
 import {
   profileFormStateFromRow,
@@ -29,19 +36,24 @@ export function ProfileForm({
   const [form, setForm] = useState<ProfileFormState>(() => profileFormStateFromRow(profile));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [, startTransition] = useTransition();
+  const [hasPendingWork, setHasPendingWork] = useState(false);
   const controllerRef = useRef<AutosaveController<ProfileFormState> | null>(null);
 
   function controller(): AutosaveController<ProfileFormState> {
     if (!controllerRef.current) {
       controllerRef.current = createAutosaveController<ProfileFormState>({
-        save: (input) =>
-          new Promise((resolve) => {
-            startTransition(async () => {
-              resolve(await saveProfile(profileInputFromFormState(input)));
-            });
-          }),
-        onStateChange: setSaveState,
+        // C1 (fix round 1): call the Server Action directly and let its
+        // real promise (resolve OR reject) reach the autosave controller.
+        // The previous `startTransition(async () => resolve(await ...))`
+        // wrapper never settled the outer Promise when saveProfile
+        // rejected, which wedged `inFlight` true forever and could surface
+        // as an uncaught rejection. `isPending` was never read, so the
+        // transition bought nothing.
+        save: (input) => saveProfile(profileInputFromFormState(input)),
+        onStateChange: (s) => {
+          setSaveState(s);
+          if (s === "saved" || s === "error") setHasPendingWork(false);
+        },
         onResult: (result) => setErrors(result.errors ?? {}),
       });
     }
@@ -52,20 +64,41 @@ export function ProfileForm({
     return () => controllerRef.current?.dispose();
   }, []);
 
+  // I6 (fix round 1): warn before leaving the page while an edit hasn't
+  // been saved yet (either still debouncing or actively in flight).
+  useEffect(() => {
+    function handler(e: BeforeUnloadEvent) {
+      if (!hasPendingWork) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasPendingWork]);
+
   function update<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
     const next = { ...form, [key]: value };
     setForm(next);
-    if (!readOnly) controller().update(next);
+    if (!readOnly) {
+      setHasPendingWork(true);
+      controller().update(next);
+    }
   }
 
   function updateAndSaveNow<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
     const next = { ...form, [key]: value };
     setForm(next);
-    if (!readOnly) controller().saveNow(next);
+    if (!readOnly) {
+      setHasPendingWork(true);
+      controller().saveNow(next);
+    }
   }
 
   function saveNow() {
-    if (!readOnly) controller().saveNow(form);
+    if (!readOnly) {
+      setHasPendingWork(true);
+      controller().saveNow(form);
+    }
   }
 
   return (
@@ -214,16 +247,43 @@ function Field({
   label: string;
   error?: string;
   hint?: string;
-  children: React.ReactNode;
+  // A permissive prop shape (rather than pinning the exact <input>/<textarea>/
+  // <select> attributes union) so cloneElement below accepts whichever of
+  // the three this Field wraps without fighting each intrinsic element's
+  // own (wider) prop types -- e.g. aria-invalid is `Booleanish` on inputs,
+  // not the narrower `boolean` we'd otherwise have to declare here.
+  children: ReactElement<Record<string, unknown>>;
 }) {
+  // I7 (fix round 1): tie the label to its input, and expose the hint/error
+  // to assistive tech via aria-describedby + aria-invalid instead of them
+  // being sighted-only decoration next to an anonymous input.
+  const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <label className="block text-sm text-mist">{label}</label>
-        {hint && <span className="text-xs text-muted">{hint}</span>}
+        <label htmlFor={id} className="block text-sm text-mist">
+          {label}
+        </label>
+        {hint && (
+          <span id={hintId} className="text-xs text-muted">
+            {hint}
+          </span>
+        )}
       </div>
-      {children}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {cloneElement(children, {
+        id,
+        "aria-invalid": error ? true : undefined,
+        "aria-describedby": describedBy,
+      })}
+      {error && (
+        <p id={errorId} role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

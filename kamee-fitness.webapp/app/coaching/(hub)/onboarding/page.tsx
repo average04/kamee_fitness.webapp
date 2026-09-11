@@ -32,7 +32,7 @@ export default async function OnboardingPage() {
       )}
 
       <Checklist missing={hub.missing} />
-      <CoverUpload userId={user.id} current={hub.profile.cover_image_path} />
+      <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
 
       <div className="flex gap-4 text-sm">

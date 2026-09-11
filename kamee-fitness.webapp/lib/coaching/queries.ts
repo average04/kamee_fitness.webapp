@@ -31,7 +31,7 @@ export type ReviewRow = {
  */
 export async function loadHub(userId: string) {
   const supabase = await createServerSupabase();
-  const [{ data: profile }, { data: missing }, { data: reviews }] = await Promise.all([
+  const [profileRes, missingRes, reviewsRes] = await Promise.all([
     supabase.from("coaching_profiles").select("*").eq("user_id", userId).single(),
     supabase.rpc("get_coaching_profile_missing"),
     supabase
@@ -42,9 +42,25 @@ export async function loadHub(userId: string) {
       .order("created_at", { ascending: false })
       .limit(1),
   ]);
+  // M8 (fix round 1): a swallowed error here would otherwise render the hub
+  // with a phantom empty profile. Throw and let app/coaching/error.tsx show
+  // a friendly retry instead of silently lying about the coach's data.
+  if (profileRes.error) {
+    throw new Error(
+      `loadHub: failed to load coaching_profiles for ${userId}: ${profileRes.error.message}`,
+    );
+  }
+  if (missingRes.error) {
+    throw new Error(`loadHub: get_coaching_profile_missing failed: ${missingRes.error.message}`);
+  }
+  if (reviewsRes.error) {
+    throw new Error(
+      `loadHub: failed to load coaching_reviews for ${userId}: ${reviewsRes.error.message}`,
+    );
+  }
   return {
-    profile: profile as CoachingProfileRow,
-    missing: (missing as string[]) ?? [],
-    latestReview: (reviews?.[0] as ReviewRow) ?? null,
+    profile: profileRes.data as CoachingProfileRow,
+    missing: (missingRes.data as string[]) ?? [],
+    latestReview: (reviewsRes.data?.[0] as ReviewRow) ?? null,
   };
 }

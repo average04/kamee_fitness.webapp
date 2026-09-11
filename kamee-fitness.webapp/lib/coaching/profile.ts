@@ -224,17 +224,107 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
   if (s.website.trim()) socials.website = s.website.trim();
 
   return {
-    headline: s.headline,
-    about: s.about,
+    // Trimmed so a whitespace-only headline/about/location never reads as
+    // "filled in" to the checklist or to validateProfile's length checks.
+    headline: s.headline.trim(),
+    about: s.about.trim(),
     specialties: splitList(s.specialties),
     yearsExperience: intOrNull(s.yearsExperience),
     languages: splitList(s.languages),
-    locationLabel: s.locationLabel,
+    locationLabel: s.locationLabel.trim(),
     socials,
     isAcceptingClients: s.isAcceptingClients,
     responseDays: s.responseDays,
     termsAccepted: s.termsAccepted,
   };
+}
+
+/**
+ * Server-side shape guard for `saveProfile`'s input. Server Actions are
+ * public POST endpoints -- anyone can call them with arbitrary JSON, not
+ * just the TS-typed `ProfileInput` our own client sends. This never trusts
+ * the caller: every field is type-checked (strings, arrays of strings,
+ * finite numbers or exactly `null`, booleans strictly `true`/`false`),
+ * strings are trimmed (array items are trimmed and empties dropped), and
+ * `socials` is rebuilt from only `instagram`/`website` so an attacker can't
+ * smuggle extra keys into the jsonb column. Returns `null` on any mismatch;
+ * `saveProfile` treats that as "could not save" without touching the DB.
+ */
+export function coerceProfileInput(raw: unknown): ProfileInput | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+
+  const headline = trimmedString(r.headline);
+  const about = trimmedString(r.about);
+  const locationLabel = trimmedString(r.locationLabel);
+  const specialties = trimmedStringArray(r.specialties);
+  const languages = trimmedStringArray(r.languages);
+  if (
+    headline === null ||
+    about === null ||
+    locationLabel === null ||
+    specialties === null ||
+    languages === null
+  ) {
+    return null;
+  }
+
+  let yearsExperience: number | null;
+  if (r.yearsExperience === null) {
+    yearsExperience = null;
+  } else if (isFiniteNumber(r.yearsExperience)) {
+    yearsExperience = r.yearsExperience;
+  } else {
+    return null;
+  }
+
+  if (!isFiniteNumber(r.responseDays)) return null;
+  if (typeof r.isAcceptingClients !== "boolean") return null;
+  if (typeof r.termsAccepted !== "boolean") return null;
+
+  const socialsRaw =
+    typeof r.socials === "object" && r.socials !== null
+      ? (r.socials as Record<string, unknown>)
+      : {};
+  const instagram = trimmedString(socialsRaw.instagram) ?? "";
+  const website = trimmedString(socialsRaw.website) ?? "";
+  const socials: ProfileInput["socials"] = {};
+  if (instagram) socials.instagram = instagram;
+  if (website) socials.website = website;
+
+  return {
+    headline,
+    about,
+    specialties,
+    yearsExperience,
+    languages,
+    locationLabel,
+    socials,
+    isAcceptingClients: r.isAcceptingClients,
+    responseDays: r.responseDays,
+    termsAccepted: r.termsAccepted,
+  };
+}
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+/** null means "wrong type"; a trimmed (possibly empty) string means "present". */
+function trimmedString(v: unknown): string | null {
+  return typeof v === "string" ? v.trim() : null;
+}
+
+/** null means "not an array, or contained a non-string item"; otherwise trimmed with empties dropped. */
+function trimmedStringArray(v: unknown): string[] | null {
+  if (!Array.isArray(v)) return null;
+  const out: string[] = [];
+  for (const item of v) {
+    if (typeof item !== "string") return null;
+    const t = item.trim();
+    if (t) out.push(t);
+  }
+  return out;
 }
 
 /** Copy for the "what's missing" checklist, keyed by what the approval RPC reports. */

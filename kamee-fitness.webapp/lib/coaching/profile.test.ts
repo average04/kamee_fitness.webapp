@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  coerceProfileInput,
   MISSING_LABELS,
   parseCredentialForm,
   parseProfileForm,
@@ -213,5 +214,92 @@ describe("profileInputFromFormState", () => {
     const s = profileFormStateFromRow(row);
     expect(profileInputFromFormState({ ...s, yearsExperience: "" }).yearsExperience).toBeNull();
     expect(profileInputFromFormState({ ...s, yearsExperience: "abc" }).yearsExperience).toBeNull();
+  });
+
+  it("trims a whitespace-only headline/about/location to empty so they never pass the checklist", () => {
+    const s = profileFormStateFromRow(row);
+    const i = profileInputFromFormState({
+      ...s,
+      headline: "   ",
+      about: "   ",
+      locationLabel: "   ",
+    });
+    expect(i.headline).toBe("");
+    expect(i.about).toBe("");
+    expect(i.locationLabel).toBe("");
+  });
+});
+
+describe("coerceProfileInput", () => {
+  const validRaw = {
+    headline: " Run coach ",
+    about: "y".repeat(80),
+    specialties: ["5k", " marathon ", ""],
+    yearsExperience: 7,
+    languages: ["en", "fil"],
+    locationLabel: "Cebu",
+    socials: { instagram: "@jo", website: "https://jo.run", extra: "nope" },
+    isAcceptingClients: true,
+    responseDays: 2,
+    termsAccepted: true,
+  };
+
+  it("accepts a well-formed shape: trims strings, drops empty array items, rebuilds socials from only instagram/website", () => {
+    expect(coerceProfileInput(validRaw)).toEqual({
+      headline: "Run coach",
+      about: "y".repeat(80),
+      specialties: ["5k", "marathon"],
+      yearsExperience: 7,
+      languages: ["en", "fil"],
+      locationLabel: "Cebu",
+      socials: { instagram: "@jo", website: "https://jo.run" },
+      isAcceptingClients: true,
+      responseDays: 2,
+      termsAccepted: true,
+    });
+  });
+
+  it("returns null for non-object input", () => {
+    expect(coerceProfileInput(null)).toBeNull();
+    expect(coerceProfileInput("nope")).toBeNull();
+    expect(coerceProfileInput(42)).toBeNull();
+    expect(coerceProfileInput(undefined)).toBeNull();
+  });
+
+  it("returns null when a string field has the wrong type", () => {
+    expect(coerceProfileInput({ ...validRaw, headline: 123 })).toBeNull();
+  });
+
+  it("returns null when an array field contains a non-string item, or isn't an array", () => {
+    expect(coerceProfileInput({ ...validRaw, specialties: ["5k", 7] })).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, languages: "en,fil" })).toBeNull();
+  });
+
+  it("treats a whitespace-only headline as empty, not invalid", () => {
+    expect(coerceProfileInput({ ...validRaw, headline: "   " })?.headline).toBe("");
+  });
+
+  it("requires isAcceptingClients/termsAccepted to be strictly boolean -- 'no' is not true", () => {
+    expect(coerceProfileInput({ ...validRaw, isAcceptingClients: "no" })).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, isAcceptingClients: 1 })).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, termsAccepted: "yes" })).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, termsAccepted: 0 })).toBeNull();
+  });
+
+  it("accepts a null yearsExperience but rejects a non-finite or non-numeric one", () => {
+    expect(coerceProfileInput({ ...validRaw, yearsExperience: null })?.yearsExperience).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, yearsExperience: Number.POSITIVE_INFINITY })).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, yearsExperience: "7" })).toBeNull();
+  });
+
+  it("rejects a non-numeric or non-finite responseDays", () => {
+    expect(coerceProfileInput({ ...validRaw, responseDays: "2" })).toBeNull();
+    expect(coerceProfileInput({ ...validRaw, responseDays: Number.NaN })).toBeNull();
+  });
+
+  it("drops unknown socials keys and tolerates a missing socials object", () => {
+    const { socials, ...rest } = validRaw;
+    void socials;
+    expect(coerceProfileInput(rest)?.socials).toEqual({});
   });
 });

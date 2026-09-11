@@ -13,7 +13,11 @@ export function AcceptInvite({ token }: { token?: string }) {
   return (
     <form action={formAction} className="mt-6 space-y-4">
       {token && <input type="hidden" name="token" value={token} />}
-      {state.message && <p className="text-sm text-red-400">{state.message}</p>}
+      {state.message && (
+        <p role="alert" className="text-sm text-red-400">
+          {state.message}
+        </p>
+      )}
       <button
         type="submit"
         disabled={pending}

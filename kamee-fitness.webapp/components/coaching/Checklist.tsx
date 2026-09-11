@@ -4,7 +4,12 @@ const KEYS = Object.keys(MISSING_LABELS);
 
 export function Checklist({ missing }: { missing: string[] }) {
   const missingSet = new Set(missing);
-  const doneCount = KEYS.filter((k) => !missingSet.has(k)).length;
+  // The RPC's `profile` key is a parent/meta flag (the row itself is
+  // missing or unreadable), not one of the 7 listed items. Treat it as
+  // "everything is missing" rather than letting the absence of the other 6
+  // literal keys read as "7 of 7 complete".
+  const allMissing = missingSet.has("profile");
+  const doneCount = allMissing ? 0 : KEYS.filter((k) => !missingSet.has(k)).length;
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
@@ -13,7 +18,7 @@ export function Checklist({ missing }: { missing: string[] }) {
       </h2>
       <ul className="mt-3 space-y-2">
         {KEYS.map((key) => {
-          const done = !missingSet.has(key);
+          const done = !allMissing && !missingSet.has(key);
           return (
             <li key={key} className="flex items-center gap-2 text-sm">
               {done ? <CheckIcon /> : <CircleIcon />}
