@@ -11,7 +11,7 @@ import {
   MISSING_LABELS,
   type FormState,
 } from "@/lib/coaching/profile";
-import type { CoachStatus } from "@/lib/coaching/states";
+import { HUB_STATES, type CoachStatus } from "@/lib/coaching/states";
 import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -137,11 +137,18 @@ export async function setCoverPath(path: unknown): Promise<FormState> {
  */
 export async function upsertCredential(
   _prev: FormState,
-  formData: FormData,
+  formData: unknown,
 ): Promise<FormState> {
   const gate = await guardEditable();
   if ("blocked" in gate) return { message: gate.message };
   const { user } = gate;
+
+  // Minor (fix round 1): useActionState always supplies a real FormData,
+  // but the action is still a public POST endpoint a caller could hit
+  // directly with any body -- never assume the shape.
+  if (!(formData instanceof FormData)) {
+    return { message: "Could not save the credential." };
+  }
 
   const input = parseCredentialForm(formData);
   const v = validateCredential(input);
@@ -242,15 +249,23 @@ export async function addGalleryPhoto(path: unknown): Promise<FormState> {
   }
 
   const supabase = await createServerSupabase();
-  const { count, error: countError } = await supabase
+  // Minor (fix round 1): position = max(position) + 1, not a row count.
+  // A count-based position collides with an existing row's position (and
+  // so silently reorders it) whenever gaps exist -- e.g. after deletes, or
+  // after a reorder that doesn't renumber every row contiguously.
+  const { data: maxRow, error: maxError } = await supabase
     .from("coaching_gallery")
-    .select("id", { count: "exact", head: true })
-    .eq("coach_id", user.id);
-  if (countError) return { message: "Could not add the photo." };
+    .select("position")
+    .eq("coach_id", user.id)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (maxError) return { message: "Could not add the photo." };
+  const nextPosition = maxRow ? maxRow.position + 1 : 0;
 
   const { data, error } = await supabase
     .from("coaching_gallery")
-    .insert({ coach_id: user.id, image_path: path, position: count ?? 0 })
+    .insert({ coach_id: user.id, image_path: path, position: nextPosition })
     .select("id");
   if (error) {
     // The `gallery_full` trigger fires at 12 rows (spec: at most 12 photos).
@@ -276,14 +291,24 @@ export async function updateGalleryCaption(id: unknown, caption: unknown): Promi
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from("coaching_gallery")
-    .update({ caption: trimmed })
+    // Minor (fix round 1): store null for an emptied caption rather than
+    // an empty string, matching every other optional text column in this
+    // module (headline/about/location_label etc. via `|| null`).
+    .update({ caption: trimmed.length > 0 ? trimmed : null })
     .eq("id", id)
     .eq("coach_id", user.id)
     .select("id");
   if (error || !data || data.length !== 1) {
     return { message: "Could not save the caption." };
   }
-  revalidatePath("/coaching/gallery");
+  // I1 (fix round 1): no revalidatePath here. The gallery grid's local
+  // `photos` state is the source of truth for captions between saves --
+  // revalidating on every keystroke's eventual autosave would otherwise
+  // refresh `initialPhotos` mid-edit and risk clobbering a caption another
+  // tile is still typing (GalleryManager's `mergeGalleryState` guards
+  // against that for the OTHER mutations, which still do revalidate, but
+  // there is no reason for a caption save to trigger a page-wide
+  // revalidation at all -- nothing else on the page depends on it).
   return { savedAt: new Date().toISOString() };
 }
 
@@ -351,7 +376,13 @@ export async function reorderGallery(ids: unknown): Promise<FormState> {
  * is convenience only.
  */
 export async function submitProfile(): Promise<FormState> {
-  const gate = await guardEditable(["onboarding", "changes_requested"]);
+  // Minor (fix round 1): gate with the full HUB_STATES list, not just
+  // onboarding/changes_requested. A coach in some other allowed state
+  // (e.g. approved) who somehow still has a stale Submit button visible
+  // now gets the RPC's mapped `wrong_state` copy below instead of a
+  // jarring redirect to /coaching/not-a-coach -- the RPC, not this gate,
+  // is the real authority on whether a submission is valid.
+  const gate = await guardEditable(HUB_STATES);
   if ("blocked" in gate) return { message: gate.message };
 
   const supabase = await createServerSupabase();

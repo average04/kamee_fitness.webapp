@@ -1,6 +1,10 @@
 import { MISSING_LABELS } from "@/lib/coaching/profile";
 
-const KEYS = Object.keys(MISSING_LABELS);
+// "profile" is a parent/meta key in MISSING_LABELS (see its doc comment),
+// not one of the checklist's own rendered items -- exclude it here so
+// adding a label for it (fix round 1) doesn't change the "N of 7" count or
+// add a stray always-checked row.
+const KEYS = Object.keys(MISSING_LABELS).filter((k) => k !== "profile");
 
 export function Checklist({ missing }: { missing: string[] }) {
   const missingSet = new Set(missing);

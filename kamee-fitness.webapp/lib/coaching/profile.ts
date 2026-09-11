@@ -327,8 +327,17 @@ function trimmedStringArray(v: unknown): string[] | null {
   return out;
 }
 
-/** Copy for the "what's missing" checklist, keyed by what the approval RPC reports. */
+/**
+ * Copy for the "what's missing" checklist, keyed by what the approval RPC
+ * reports. `profile` is a parent/meta key (the RPC returns it when the
+ * `coaching_profiles` row itself is missing or unreadable, not as an
+ * ongoing per-field flag) -- Checklist.tsx excludes it from the 7 rendered
+ * items, but it still needs a label here since `submitProfile`'s
+ * `incomplete:<keys>` mapping falls back to the raw key when one is
+ * missing from this table (fix round 1 minor).
+ */
 export const MISSING_LABELS: Record<string, string> = {
+  profile: "Start your coach profile",
   headline: "Add a headline",
   about: "Write at least 80 characters about yourself",
   avatar: "Set a profile photo in the Kamee app",

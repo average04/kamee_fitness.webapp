@@ -204,9 +204,31 @@ describe("isOwnCredentialDocPath", () => {
     expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}`, uid, credId)).toBe(false);
     expect(isOwnCredentialDocPath(`${uid}/${credId}/${docUuid}.webp`, uid, credId)).toBe(false);
   });
-  it("rejects overlong input", () => {
-    const huge = `${uid}/${credId}/${"1".repeat(400)}.pdf`;
+  it("rejects overlong input via the length guard specifically", () => {
+    // Every segment here is individually well-formed (valid uid, valid
+    // credId, and a run of concatenated valid-looking uuid segments) so
+    // the ONLY thing that can be rejecting this is the length guard, not
+    // an unrelated shape mismatch. A single real uuid segment can never by
+    // itself push the total past MAX_PATH_LENGTH (the fully valid form is
+    // well under 200 chars), so this repeats the doc uuid many times to
+    // reach the limit while keeping every individual chunk uuid-shaped.
+    const longDocSegment = Array(6).fill(docUuid).join("-");
+    const huge = `${uid}/${credId}/${longDocSegment}.pdf`;
+    expect(huge.length).toBeGreaterThan(200);
     expect(isOwnCredentialDocPath(huge, uid, credId)).toBe(false);
+  });
+  it("rejects uppercase hex in the document uuid (no case-insensitive flag -- crypto.randomUUID() is always lowercase)", () => {
+    // docUuid is all-digit (no a-f letters), so it round-trips through
+    // .toUpperCase() unchanged -- use a uuid with actual hex letters so the
+    // case-sensitivity assertion is real.
+    const lowerHexDocUuid = "5a5a5a5a-5a5a-5a5a-5a5a-5a5a5a5a5a5a";
+    const upperHexDocUuid = lowerHexDocUuid.toUpperCase();
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${lowerHexDocUuid}.pdf`, uid, credId)).toBe(
+      true,
+    );
+    expect(isOwnCredentialDocPath(`${uid}/${credId}/${upperHexDocUuid}.pdf`, uid, credId)).toBe(
+      false,
+    );
   });
   it("rejects a non-string path", () => {
     expect(isOwnCredentialDocPath(123, uid, credId)).toBe(false);

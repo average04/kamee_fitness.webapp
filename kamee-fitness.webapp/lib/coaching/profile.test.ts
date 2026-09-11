@@ -116,6 +116,7 @@ describe("credentials", () => {
 describe("MISSING_LABELS", () => {
   it("covers every key the RPC can return", () => {
     for (const k of [
+      "profile",
       "headline",
       "about",
       "avatar",

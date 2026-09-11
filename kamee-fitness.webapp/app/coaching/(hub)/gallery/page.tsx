@@ -11,7 +11,12 @@ export default async function GalleryPage() {
     .from("coaching_gallery")
     .select("id, image_path, caption, position")
     .eq("coach_id", user.id)
-    .order("position", { ascending: true });
+    // Minor (fix round 1): tie-break by created_at, matching the
+    // credentials page and the get_coaching_profile RPC the preview/app
+    // reads from -- position alone doesn't guarantee a stable order for
+    // rows that happen to share a position.
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
 
   // M8-style rule (see loadHub): never silently render an empty grid on a
   // failed read -- app/coaching/error.tsx shows a friendly retry instead.

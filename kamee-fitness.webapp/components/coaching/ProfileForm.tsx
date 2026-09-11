@@ -16,9 +16,7 @@ import {
 import type { CoachingProfileRow } from "@/lib/coaching/queries";
 import { Field } from "./Field";
 import { SaveIndicator } from "./SaveIndicator";
-
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-leaf-600 disabled:opacity-60";
+import { inputClass } from "./ui";
 
 export function ProfileForm({
   profile,

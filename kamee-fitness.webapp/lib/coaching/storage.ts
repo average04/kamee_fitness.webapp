@@ -139,9 +139,12 @@ export function isOwnCredentialDocPath(
   }
   if (!UUID_RE.test(uid)) return false;
   if (typeof credentialId !== "string" || !UUID_RE.test(credentialId)) return false;
+  // Fix round 1: no "i" flag -- crypto.randomUUID() (the only thing that
+  // ever generates this segment) always produces lowercase hex, so an
+  // uppercase-hex match here would only ever accept an object nothing in
+  // this codebase can create.
   const re = new RegExp(
     `^${uid}/${credentialId}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(pdf|jpg|png)$`,
-    "i",
   );
   return re.test(path);
 }

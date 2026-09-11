@@ -1,4 +1,5 @@
 import { buildPublicStorageUrl } from "@/lib/coaching/storage";
+import { Pill } from "./ui";
 
 /**
  * Shape returned by the `get_coaching_profile(p_user, p_preview)` RPC.
@@ -49,6 +50,14 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
   const coverUrl = data.cover_image_path
     ? buildPublicStorageUrl(supabaseUrl, data.cover_image_path)
     : null;
+  // Fix round 1: prefer the uploaded photo (a `social-photos` path, same
+  // bucket/URL shape as cover/gallery) over `avatar_url`, matching the
+  // app's own Avatar component ("uploaded photo path... wins over the
+  // bust"/preset). `avatar_url` is a fallback for a coach who hasn't
+  // uploaded one.
+  const avatarUrl = data.avatar_photo_path
+    ? buildPublicStorageUrl(supabaseUrl, data.avatar_photo_path)
+    : data.avatar_url;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -66,10 +75,10 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            {data.avatar_url && (
+            {avatarUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={data.avatar_url}
+                src={avatarUrl}
                 alt=""
                 className="h-12 w-12 rounded-full border border-white/10 object-cover"
               />
@@ -79,7 +88,12 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
                 <p className="font-display text-lg font-semibold text-mist">
                   {data.display_name || data.username || "Coach"}
                 </p>
-                {data.is_verified && <VerifiedBadge />}
+                {/* Fix round 1: the app's profile-level verified seal is
+                    its dedicated blue `colors.verified` (#1D9BF0) token,
+                    distinct from the leaf/green used for verified
+                    credentials below -- sky-500 is the closest existing
+                    Tailwind shade. */}
+                {data.is_verified && <VerifiedMark tone="blue" />}
               </div>
               {data.location_label && (
                 <p className="text-xs text-muted">{data.location_label}</p>
@@ -115,7 +129,7 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
             <ul className="space-y-1.5">
               {data.credentials.map((c) => (
                 <li key={c.id} className="flex items-center gap-2 text-sm text-mist">
-                  {c.verified && <VerifiedBadge />}
+                  {c.verified && <VerifiedMark tone="leaf" />}
                   <span>
                     {c.title} · {c.issuer}
                     {c.issued_year ? ` (${c.issued_year})` : ""}
@@ -135,7 +149,7 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
                 <img
                   key={g.id}
                   src={buildPublicStorageUrl(supabaseUrl, g.image_path)}
-                  alt={g.caption ?? ""}
+                  alt={g.caption || "Gallery photo"}
                   className="h-24 w-24 shrink-0 rounded-lg object-cover"
                 />
               ))}
@@ -147,12 +161,19 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
   );
 }
 
-function VerifiedBadge() {
+/**
+ * Fix round 1: two tones, one accessible label. `tone="blue"` mirrors the
+ * app's dedicated `colors.verified` (#1D9BF0) profile-identity seal;
+ * `tone="leaf"` is the credential-row check, which per the design
+ * language stays leaf/green (ember is reserved for the home workout CTA).
+ * The check icon itself is decorative (`aria-hidden`); the "Verified"
+ * text is screen-reader-only rather than only a hover `title`, so it's
+ * announced without relying on a mouse.
+ */
+function VerifiedMark({ tone }: { tone: "blue" | "leaf" }) {
+  const bg = tone === "blue" ? "bg-sky-500" : "bg-leaf-600";
   return (
-    <span
-      title="Verified"
-      className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-leaf-600 text-white"
-    >
+    <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full ${bg} text-white`}>
       <svg viewBox="0 0 20 20" fill="none" className="h-2.5 w-2.5" aria-hidden="true">
         <path
           d="M4 10.5l3.5 3.5L16 6"
@@ -162,12 +183,7 @@ function VerifiedBadge() {
           strokeLinejoin="round"
         />
       </svg>
+      <span className="sr-only">Verified</span>
     </span>
-  );
-}
-
-function Pill({ children, className }: { children: React.ReactNode; className: string }) {
-  return (
-    <span className={`rounded-full border px-2.5 py-0.5 text-xs ${className}`}>{children}</span>
   );
 }

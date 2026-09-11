@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useActionState, useId, useRef, useState } from "react";
 import {
   deleteCredential,
   setCredentialDocument,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/coaching/storage";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { Field } from "./Field";
+import { inputClass, Pill } from "./ui";
 
 export type CredentialRow = {
   id: string;
@@ -25,11 +26,39 @@ export type CredentialRow = {
   verified_at: string | null;
 };
 
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-leaf-600 disabled:opacity-60";
+type CredentialFormValues = {
+  title: string;
+  issuer: string;
+  issuedYear: string;
+  expiresOn: string;
+};
+
+function valuesFromRow(row: CredentialRow | null): CredentialFormValues {
+  return {
+    title: row?.title ?? "",
+    issuer: row?.issuer ?? "",
+    issuedYear: row?.issued_year != null ? String(row.issued_year) : "",
+    expiresOn: row?.expires_on ?? "",
+  };
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * I4 (fix round 1): wrap the Server Action itself so a rejected call (a
+ * network failure, not just a FormState carrying `.message`) still
+ * resolves to a friendly FormState instead of leaving useActionState's
+ * `pending` stuck true forever / surfacing as an uncaught rejection (R20:
+ * every client async path must be wrapped in try/catch).
+ */
+async function submitCredential(prev: FormState, formData: FormData): Promise<FormState> {
+  try {
+    return await upsertCredential(prev, formData);
+  } catch {
+    return { message: "Could not save the credential. Please retry." };
+  }
 }
 
 export function CredentialsManager({
@@ -42,38 +71,48 @@ export function CredentialsManager({
   readOnly: boolean;
 }) {
   const [editing, setEditing] = useState<CredentialRow | null>(null);
+  const [values, setValues] = useState<CredentialFormValues>(() => valuesFromRow(null));
   const [state, formAction, pending] = useActionState<FormState, FormData>(
-    upsertCredential,
+    submitCredential,
     {},
   );
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Server Actions driven by useActionState don't reset an uncontrolled
-  // form on their own -- once a save actually lands, drop out of edit mode
-  // so the form goes back to "add" defaults. Adjusted during render (the
-  // React-recommended way to react to a prop/state change) rather than in
-  // an effect, since an effect that only calls setState causes an extra
-  // wasted render pass.
+  // I2 (fix round 1): the form's inputs are controlled (see below) so a
+  // save landing -- whether it succeeds or comes back with field errors --
+  // never wipes out or misattributes typed text. React 19 auto-resets an
+  // uncontrolled <form>'s fields once its action settles regardless of
+  // whether the result carries an error; a purely uncontrolled form would
+  // silently discard the coach's just-typed (invalid) input the instant
+  // the server responded with `{ errors }`. Only on an actual *save*
+  // (state.savedAt changes) do we intentionally clear back to "add"
+  // defaults, adjusted during render (the React-recommended way to react
+  // to a state change) rather than in an effect that only calls setState.
   const [savedAtSeen, setSavedAtSeen] = useState(state.savedAt);
   if (state.savedAt !== savedAtSeen) {
     setSavedAtSeen(state.savedAt);
     setEditing(null);
+    setValues(valuesFromRow(null));
   }
-
-  // The native form reset (an imperative DOM call, not React state) still
-  // belongs in an effect.
-  useEffect(() => {
-    if (state.savedAt) formRef.current?.reset();
-  }, [state.savedAt]);
 
   function startEdit(row: CredentialRow) {
     setEditing(row);
+    setValues(valuesFromRow(row));
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function startAdd() {
     setEditing(null);
-    formRef.current?.reset();
+    setValues(valuesFromRow(null));
+  }
+
+  // I2: deleting the row currently being edited must return the form to
+  // "Add", not keep showing (and risk resubmitting) a now-gone row's id.
+  function handleDeleted(id: string) {
+    if (editing?.id === id) {
+      setEditing(null);
+      setValues(valuesFromRow(null));
+    }
   }
 
   return (
@@ -89,6 +128,7 @@ export function CredentialsManager({
             row={row}
             readOnly={readOnly}
             onEdit={() => startEdit(row)}
+            onDeleted={() => handleDeleted(row.id)}
           />
         ))}
       </div>
@@ -126,7 +166,8 @@ export function CredentialsManager({
             className={inputClass}
             name="title"
             maxLength={120}
-            defaultValue={editing?.title ?? ""}
+            value={values.title}
+            onChange={(e) => setValues((v) => ({ ...v, title: e.target.value }))}
             disabled={readOnly}
             required
           />
@@ -137,7 +178,8 @@ export function CredentialsManager({
             className={inputClass}
             name="issuer"
             maxLength={120}
-            defaultValue={editing?.issuer ?? ""}
+            value={values.issuer}
+            onChange={(e) => setValues((v) => ({ ...v, issuer: e.target.value }))}
             disabled={readOnly}
             required
           />
@@ -150,7 +192,8 @@ export function CredentialsManager({
             name="issued_year"
             min={1950}
             max={2100}
-            defaultValue={editing?.issued_year ?? ""}
+            value={values.issuedYear}
+            onChange={(e) => setValues((v) => ({ ...v, issuedYear: e.target.value }))}
             disabled={readOnly}
           />
         </Field>
@@ -160,7 +203,8 @@ export function CredentialsManager({
             type="date"
             className={inputClass}
             name="expires_on"
-            defaultValue={editing?.expires_on ?? ""}
+            value={values.expiresOn}
+            onChange={(e) => setValues((v) => ({ ...v, expiresOn: e.target.value }))}
             disabled={readOnly}
           />
         </Field>
@@ -188,11 +232,13 @@ function CredentialRowView({
   row,
   readOnly,
   onEdit,
+  onDeleted,
 }: {
   coachId: string;
   row: CredentialRow;
   readOnly: boolean;
   onEdit: () => void;
+  onDeleted: () => void;
 }) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -246,6 +292,14 @@ function CredentialRowView({
     if (!row.document_path) return;
     setError(null);
     setViewing(true);
+    // Minor (fix round 1): open the tab synchronously, inside the click
+    // handler, so browsers that block a post-await window.open() (most of
+    // them) don't swallow this as a popup. Null the opener reference for
+    // safety (equivalent to noopener) while keeping our own handle so we
+    // can navigate it once the signed URL resolves; close it on failure
+    // rather than leaving a blank tab behind.
+    const win = typeof window !== "undefined" ? window.open("", "_blank") : null;
+    if (win) win.opener = null;
     try {
       const supabase = createBrowserSupabase();
       const { data, error: signError } = await supabase.storage
@@ -253,11 +307,17 @@ function CredentialRowView({
         .createSignedUrl(row.document_path, 60);
       if (signError || !data?.signedUrl) {
         setError("Could not open the document. Please retry.");
+        win?.close();
         return;
       }
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      if (win) {
+        win.location.href = data.signedUrl;
+      } else {
+        window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      }
     } catch {
       setError("Could not open the document. Please retry.");
+      win?.close();
     } finally {
       setViewing(false);
     }
@@ -270,7 +330,11 @@ function CredentialRowView({
     setDeleting(true);
     try {
       const result = await deleteCredential(row.id);
-      if (result.message) setError(result.message);
+      if (result.message) {
+        setError(result.message);
+        return;
+      }
+      onDeleted();
     } catch {
       setError("Could not delete. Please retry.");
     } finally {
@@ -334,32 +398,35 @@ function CredentialRowView({
           </button>
         )}
 
-        <label
-          htmlFor={inputId}
-          className={
-            readOnly || uploading
-              ? "pointer-events-none text-xs text-muted/50 underline"
-              : "cursor-pointer text-xs text-leaf-500 underline hover:text-leaf-400"
-          }
-        >
-          {uploading ? "Uploading…" : row.document_path ? "Replace document" : "Attach document"}
-        </label>
+        {/*
+          I3 (fix round 1): the file input is `sr-only` (present, focusable,
+          and keyboard-operable -- Space opens the OS file dialog on a
+          focused <input type=file>) rather than `hidden` (removed from the
+          tab order entirely). It's rendered BEFORE the label so the
+          label's `peer-focus-visible:*` classes can react to the input's
+          own focus state and give keyboard users a visible focus ring.
+        */}
         <input
           id={inputId}
           ref={inputRef}
           type="file"
           accept="application/pdf,image/jpeg,image/png"
-          className="hidden"
+          className="peer sr-only"
           disabled={readOnly || uploading}
           onChange={onFileChange}
         />
+        <label
+          htmlFor={inputId}
+          className={
+            (readOnly || uploading
+              ? "pointer-events-none text-xs text-muted/50 underline"
+              : "cursor-pointer text-xs text-leaf-500 underline hover:text-leaf-400") +
+            " rounded peer-focus-visible:ring-2 peer-focus-visible:ring-leaf-600 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-ink-950"
+          }
+        >
+          {uploading ? "Uploading…" : row.document_path ? "Replace document" : "Attach document"}
+        </label>
       </div>
     </div>
-  );
-}
-
-function Pill({ children, className }: { children: React.ReactNode; className: string }) {
-  return (
-    <span className={`rounded-full border px-2.5 py-0.5 text-xs ${className}`}>{children}</span>
   );
 }
