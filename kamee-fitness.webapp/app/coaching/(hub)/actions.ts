@@ -11,7 +11,7 @@ import {
   type FormState,
 } from "@/lib/coaching/profile";
 import type { CoachStatus } from "@/lib/coaching/states";
-import { isOwnCoverPath, isOwnCredentialDocPath } from "@/lib/coaching/storage";
+import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 const EDITABLE: CoachStatus[] = ["onboarding", "changes_requested", "approved", "suspended"];
@@ -224,6 +224,118 @@ export async function setCredentialDocument(id: unknown, path: unknown): Promise
     return { message: "Could not attach the document." };
   }
   revalidatePath("/coaching/credentials");
+  return { savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// Task 12: gallery manager
+// ---------------------------------------------------------------------------
+
+export async function addGalleryPhoto(path: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (!isOwnGalleryPath(path, user.id)) {
+    return { message: "Could not add the photo." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { count, error: countError } = await supabase
+    .from("coaching_gallery")
+    .select("id", { count: "exact", head: true })
+    .eq("coach_id", user.id);
+  if (countError) return { message: "Could not add the photo." };
+
+  const { data, error } = await supabase
+    .from("coaching_gallery")
+    .insert({ coach_id: user.id, image_path: path, position: count ?? 0 })
+    .select("id");
+  if (error) {
+    // The `gallery_full` trigger fires at 12 rows (spec: at most 12 photos).
+    if (error.message.includes("gallery_full")) {
+      return { message: "You can add up to 12 photos." };
+    }
+    return { message: "Could not add the photo." };
+  }
+  if (!data || data.length !== 1) return { message: "Could not add the photo." };
+  revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString() };
+}
+
+export async function updateGalleryCaption(id: unknown, caption: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string" || !id) return { message: "Could not save the caption." };
+  if (typeof caption !== "string") return { message: "Could not save the caption." };
+  const trimmed = caption.trim().slice(0, 120);
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_gallery")
+    .update({ caption: trimmed })
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not save the caption." };
+  }
+  revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * Deletes the row only -- the caller (browser) then removes the storage
+ * object itself with `createBrowserSupabase().storage.from("social-photos").remove([path])`,
+ * which the existing `social_photos_delete` policy permits through
+ * `can_write_social_photo`. Returns the now-orphaned `image_path` so the
+ * browser knows what to remove; `.select("image_path")` also doubles as
+ * the "did this actually delete a row I own" check.
+ */
+export async function deleteGalleryPhoto(
+  id: unknown,
+): Promise<FormState & { imagePath?: string }> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string" || !id) return { message: "Could not delete the photo." };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_gallery")
+    .delete()
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("image_path");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not delete the photo." };
+  }
+  revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString(), imagePath: data[0].image_path as string };
+}
+
+export async function reorderGallery(ids: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((x) => typeof x === "string" && x)) {
+    return { message: "Could not reorder the gallery." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc("reorder_coaching_gallery", { p_ids: ids });
+  if (error) {
+    const FRIENDLY: Record<string, string> = {
+      not_active: "Your account isn't active right now.",
+      duplicate_ids: "Could not reorder the gallery.",
+      not_owner: "Could not reorder the gallery.",
+    };
+    return { message: FRIENDLY[error.message] ?? "Could not reorder the gallery." };
+  }
+  revalidatePath("/coaching/gallery");
   return { savedAt: new Date().toISOString() };
 }
 
