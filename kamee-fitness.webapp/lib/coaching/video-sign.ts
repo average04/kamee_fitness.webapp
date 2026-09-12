@@ -28,6 +28,7 @@ export async function signVideo(
     cache: "no-store",
   });
   if (!head.ok || !video.etag || head.headers.get("etag") !== video.etag) {
+      console.error("coaching_video_integrity_check_failed", { videoId: id, httpStatus: head.status });
     return Response.json(
       { error: "Video could not be verified" },
       { status: 409 },

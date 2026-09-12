@@ -7,6 +7,8 @@ export const commaValues = (text: string) =>
     .filter(Boolean);
 export function validateDraft(plan: PlanDocument): string[] {
   const issues: string[] = [];
+  if (plan.est_minutes_per_session != null && (!Number.isInteger(plan.est_minutes_per_session) || plan.est_minutes_per_session < 1 || plan.est_minutes_per_session > 1440))
+    issues.push("Estimated session minutes must be a whole number from 1 to 1,440.");
   plan.weeks.forEach((w, wi) =>
     w.days.forEach((d, di) =>
       d.blocks.forEach((b) =>
@@ -121,12 +123,12 @@ export function draftPayload(p: PlanDocument) {
   };
 }
 export function actionError(error: { code?: string; message: string }): string {
-  if (error.code === "40001")
-    return "This plan changed in another tab. Reload and restore your saved local edits.";
+  if (error.code === "40001" || error.code === "PT409")
+    return "This plan changed in another tab. Reload to compare the saved version and your local copy. Restoring keeps conflict protection.";
   if (error.code === "42501")
     return "Your access changed. Sign in again or contact support; your local edits are preserved.";
   if (error.code === "P0001") return error.message;
   if (error.code?.startsWith("22") || error.code?.startsWith("23"))
-    return "Check the highlighted values and required fields before saving.";
+    return "Check the plan values and required fields before saving.";
   return "Could not save. Your local edits are preserved; try again.";
 }

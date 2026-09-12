@@ -37,6 +37,8 @@ import { OutdoorEditor } from "./OutdoorEditor";
 import { MealsEditor } from "./MealsEditor";
 import { PlanPreview } from "./PlanPreview";
 
+type Recovery = PlanDocument & { equipmentText?: string; musclesText?: string; savedAt?: string };
+
 export function PlanEditor({
   initial,
   ownerId,
@@ -50,6 +52,8 @@ export function PlanEditor({
 }) {
   const router = useRouter();
   const [plan, setPlan] = useState(initial);
+  const [equipmentText, setEquipmentText] = useState(initial.required_equipment.join(", "));
+  const [musclesText, setMusclesText] = useState(initial.target_muscles.join(", "));
   const [tab, setTab] = useState("Schedule");
   const [weekIndex, setWeekIndex] = useState(0);
   const [listingStatus, setListingStatus] = useState(
@@ -65,14 +69,14 @@ export function PlanEditor({
   const canEdit = editable(plan) && listingStatus !== "retired";
   const recoveryKey = `coaching-draft:${ownerId}:${initial.id}`;
   const [hydrated, setHydrated] = useState(false);
-  const [recovery, setRecovery] = useState<PlanDocument | null>(null);
+  const [recovery, setRecovery] = useState<Recovery | null>(null);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
     try {
       const raw = sessionStorage.getItem(recoveryKey);
       if (raw && editable(initial)) {
-        const saved = JSON.parse(raw) as PlanDocument;
+        const saved = JSON.parse(raw) as Recovery;
         if (saved.id === initial.id) {
           // Browser storage is read after hydration; restoration requires a click.
           setRecovery(saved);
@@ -119,15 +123,16 @@ export function PlanEditor({
       document.removeEventListener("click", navigation, true);
     };
   }, [dirty]);
-  const update = (patch: Partial<PlanDocument>) => {
+  const update = (patch: Partial<PlanDocument>, equipment = equipmentText, muscles = musclesText) => {
     setMessage("");
     const next = { ...plan, ...patch };
     setPlan(next);
     try {
-      sessionStorage.setItem(recoveryKey, JSON.stringify(next));
+      sessionStorage.setItem(recoveryKey, JSON.stringify({ ...next, equipmentText: equipment, musclesText: muscles, savedAt: new Date().toISOString() }));
     } catch {
+      try { sessionStorage.removeItem(recoveryKey); } catch {}
       setMessage(
-        "Browser recovery is unavailable. Save before leaving this page.",
+        "Browser recovery could not update. Any stored copy may be older; save before leaving.",
       );
     }
     setDirty(true);
@@ -140,7 +145,8 @@ export function PlanEditor({
       days: week.days.map((old, i) => (i === index ? d : old)),
     });
   function save(submit = false) {
-    const problems = validateDraft(plan);
+    const document = { ...plan, required_equipment: commaValues(equipmentText), target_muscles: commaValues(musclesText) };
+    const problems = validateDraft(document);
     if (problems.length) {
       setIssues(problems);
       return;
@@ -149,13 +155,13 @@ export function PlanEditor({
       setMessage("");
       setIssues([]);
       try {
-        const saved = await savePlan(plan);
+        const saved = await savePlan(document);
         if (saved.error) {
           setMessage(saved.error);
           return;
         }
         const revision = saved.revision!;
-        setPlan((p) => ({ ...p, draft_revision: revision }));
+        setPlan({ ...document, draft_revision: revision });
         setDirty(false);
         setRecovery(null);
         try {
@@ -334,8 +340,9 @@ export function PlanEditor({
         <div className="coach-panel plan-stack" role="status">
           <p>
             Unsaved edits are available from this browser tab.
+            {recovery.savedAt ? ` Copy saved ${new Date(recovery.savedAt).toLocaleString()}.` : " This older copy has no timestamp."}
             {recovery.draft_revision !== initial.draft_revision
-              ? " The server version has changed; review carefully before saving."
+              ? " The server version has changed. Restoring will keep conflict protection."
               : ""}
           </p>
           <div className="plan-order">
@@ -343,9 +350,11 @@ export function PlanEditor({
               onClick={() => {
                 setPlan({
                   ...recovery,
-                  draft_revision: initial.draft_revision,
+                  draft_revision: recovery.draft_revision,
                   version_state: initial.version_state,
                 });
+                setEquipmentText(recovery.equipmentText ?? recovery.required_equipment.join(", "));
+                setMusclesText(recovery.musclesText ?? recovery.target_muscles.join(", "));
                 setDirty(true);
                 setRecovery(null);
                 setMessage("Local edits restored. Review before saving.");
@@ -364,6 +373,17 @@ export function PlanEditor({
           </div>
         </div>
       )}
+      {canEdit && plan.draft_revision < initial.draft_revision && (
+        <div className="coach-panel" role="status">
+          <p>These edits are based on an older version. Saving is blocked until you resolve the conflict.</p>
+          <button className="plan-secondary" disabled={pending} onClick={() => {
+            if (confirm("Overwrite the newer saved version with these local edits? Changes saved in the other tab will be replaced when you save.")) {
+              update({ draft_revision: initial.draft_revision });
+              setMessage("Overwrite confirmed. Review your edits, then save.");
+            }
+          }}>Overwrite newer version</button>
+        </div>
+      )}
       <div aria-live="polite">
         {message && <p role="status">{message}</p>}
         {issues.length > 0 && (
@@ -378,7 +398,7 @@ export function PlanEditor({
         )}
       </div>
       {tab === "Preview" || !canEdit ? (
-        <PlanPreview plan={plan} exercises={exercises} />
+        <PlanPreview plan={{ ...plan, required_equipment: commaValues(equipmentText), target_muscles: commaValues(musclesText) }} exercises={exercises} />
       ) : (
         <fieldset
           disabled={!canEdit || pending || uploading}
@@ -436,21 +456,13 @@ export function PlanEditor({
                 </Select>
                 <Field
                   label="Required equipment (comma separated)"
-                  value={plan.required_equipment.join(", ")}
-                  onChange={(v) =>
-                    update({
-                      required_equipment: commaValues(v),
-                    })
-                  }
+                  value={equipmentText}
+                  onChange={(v) => { setEquipmentText(v); update({}, v, musclesText); }}
                 />
                 <Field
                   label="Target muscles (comma separated)"
-                  value={plan.target_muscles.join(", ")}
-                  onChange={(v) =>
-                    update({
-                      target_muscles: commaValues(v),
-                    })
-                  }
+                  value={musclesText}
+                  onChange={(v) => { setMusclesText(v); update({}, equipmentText, v); }}
                 />
               </div>
               <label className="plan-field">
@@ -816,7 +828,7 @@ export function PlanEditor({
                     <select className="coach-input" name="video_id">
                       <option value="">No video</option>
                       {videos
-                        .filter((v) => !v.retired_at)
+                        .filter((v) => v.status === "ready" && !v.retired_at)
                         .map((v) => (
                           <option key={v.id} value={v.id}>
                             {v.title}

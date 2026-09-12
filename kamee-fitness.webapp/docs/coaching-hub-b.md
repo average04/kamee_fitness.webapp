@@ -33,8 +33,12 @@ Review corrections are included in the same PR. Drafts have a per-account,
 per-plan working copy in sessionStorage; Back/Forward and reload offer recovery,
 and plan actions return session errors without redirecting away from edits.
 Recovery is local to the browser tab, not a server autosave. Clear/discard the
-copy explicitly or save successfully to remove it. A changed server revision is
-shown before restoring; restoring is an explicit choice to reconcile local edits.
+copy explicitly, save successfully, or sign out to remove it. Sign-out broadcasts
+cleanup to other open coaching tabs. Backups include a timestamp and raw comma
+inputs; failed backup writes remove the old copy where possible and show a warning.
+Restoring keeps the backup revision. Replacing a newer server version requires a
+separate explicit confirmation; a further concurrent save still produces a conflict.
+Expected stale conflicts use PT409/HTTP 409 to avoid serialization-error retries.
 
 Meal days retain the existing 1,200-6,000 kcal database range. This is a software
 constraint, not nutrition advice; partial meals can be saved against a valid day
@@ -42,3 +46,17 @@ target and must match it at submission. Calories are not inferred from 4/4/9.
 Failed owned video references can remain in drafts for replacement, but cannot
 pass review or be selected as profile intros. Read-only versions show the full
 preview, including every week and meal day.
+
+Second-review regressions: equipment and muscles keep raw text until save/preview;
+whole-number estimated minutes are validated before the RPC; exercise requests
+only offer ready, unretired videos. Signing failures emit structured operator logs.
+Backend migrations through 20260914001700 and revised functions must precede this
+web deployment. Do not merge to main before the backend release gates pass.
+
+Local verification: 363 unit tests, TypeScript, scoped ESLint and production build;
+real browser Back/Forward, two-tab stale recovery and explicit overwrite, typed
+comma lists/persisted arrays, meal limits, expired session and cross-tab sign-out.
+Run `scripts/coaching-editor-regressions.cjs` against local Next on port 3000 with
+an approved local `codex-coaching-b-browser@example.invalid` fixture. The script
+refuses non-local Supabase configuration and creates a named local draft. Set
+PLAYWRIGHT_MODULE and PLAYWRIGHT_CHROMIUM_EXECUTABLE if using external Playwright.

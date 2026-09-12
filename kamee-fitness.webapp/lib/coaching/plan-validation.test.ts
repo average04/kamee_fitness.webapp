@@ -34,6 +34,10 @@ describe("review regressions", () => {
     ];
     expect(validateDraft(p)).toHaveLength(2);
   });
+  it("rejects fractional estimated minutes", () => {
+    const p = plan(); p.est_minutes_per_session = 12.5;
+    expect(validateDraft(p).join()).toContain("Estimated session minutes");
+  });
   it("removes empty comma entries", () =>
     expect(commaValues("band, , mat,")).toEqual(["band", "mat"]));
   it("omits physical row ids and timestamps from schedule payload", () => {
