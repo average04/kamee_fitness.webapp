@@ -86,8 +86,10 @@ export function createAutosaveController<T>(opts: {
     // A requested again must still save A after B).
     if (lastSaved && isEqual(lastSaved.value, next)) {
       // The stored value already equals the latest input (e.g. the user
-      // reverted while a save failed): nothing to send, and what is on
-      // screen is saved.
+      // reverted while a save the server refused was in flight): nothing to
+      // send, and what is on screen is saved. Clear the refused save's field
+      // errors/message too, so they do not sit next to "Saved".
+      opts.onResult?.({});
       opts.onStateChange("saved");
       return;
     }
@@ -114,6 +116,12 @@ export function createAutosaveController<T>(opts: {
       })
       .catch(() => {
         inFlight = false;
+        // A rejected request (network drop, lost response) may still have
+        // committed on the server, so the stored value is unknown: forget it,
+        // so the next input is always sent rather than skipped as "unchanged".
+        // A resolved result carrying errors/message is different -- the server
+        // answered and did not write -- so lastSaved is kept on that path.
+        lastSaved = null;
         opts.onStateChange("error");
         settleQueue();
       });

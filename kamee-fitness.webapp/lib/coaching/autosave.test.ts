@@ -333,7 +333,39 @@ describe("queue before the equality shortcut (PR review finding 2)", () => {
     expect(states.at(-1)).toBe("saved");
   });
 
-  it("after a failed in-flight save, a queued input equal to the last stored value reports saved without a round trip", async () => {
+  it("after the server refuses an in-flight save, a queued input equal to the stored value reports saved without a round trip and clears the refusal", async () => {
+    const pending: Array<ReturnType<typeof deferred<FormState>>> = [];
+    const save = vi.fn<(input: string) => Promise<FormState>>(() => {
+      const d = deferred<FormState>();
+      pending.push(d);
+      return d.promise;
+    });
+    const states: SaveState[] = [];
+    const results: FormState[] = [];
+    const c = createAutosaveController<string>({
+      save,
+      onStateChange: (s) => states.push(s),
+      onResult: (r) => results.push(r),
+    });
+
+    c.saveNow("A");
+    await Promise.resolve();
+    pending[0].resolve({ savedAt: "t1" });
+    await vi.waitFor(() => expect(states.at(-1)).toBe("saved"));
+
+    c.saveNow("B");
+    await Promise.resolve();
+    c.saveNow("A"); // user reverted while B was in flight
+    // The server answered and refused B, so it definitely still holds A.
+    pending[1].resolve({ errors: { headline: "Too long" } });
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)).toBe("saved");
+    // B's field errors are cleared rather than left next to "Saved".
+    expect(results.at(-1)).toEqual({});
+  });
+
+  it("after an in-flight save is rejected, the stored value is unknown, so a queued input equal to the old value is still sent", async () => {
     const pending: Array<ReturnType<typeof deferred<FormState>>> = [];
     const save = vi.fn<(input: string) => Promise<FormState>>(() => {
       const d = deferred<FormState>();
@@ -350,12 +382,13 @@ describe("queue before the equality shortcut (PR review finding 2)", () => {
 
     c.saveNow("B");
     await Promise.resolve();
-    c.saveNow("A"); // user reverted while B was in flight
+    c.saveNow("A");
+    // A lost response: B may or may not have committed.
     pending[1].reject(new Error("network"));
+    await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(3));
+    expect(save.mock.calls.map((call) => call[0])).toEqual(["A", "B", "A"]);
+    pending[2].resolve({ savedAt: "t3" });
     await vi.waitFor(() => expect(c.hasPending()).toBe(false));
-    // B never landed, so the stored value is still A: no third request, and the
-    // indicator reflects that the on-screen value is saved.
-    expect(save).toHaveBeenCalledTimes(2);
     expect(states.at(-1)).toBe("saved");
   });
 });
