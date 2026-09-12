@@ -19,7 +19,9 @@ import type { FormState } from "./profile";
  *   nothing is pending.
  * - A call whose input is `isEqual` to the last *successfully* saved input
  *   is skipped entirely (no network round trip) -- blur/debounce firing on
- *   a field the user didn't actually change is a no-op.
+ *   a field the user didn't actually change is a no-op. While a save is in
+ *   flight the input is queued first and the comparison runs when it is
+ *   dequeued, against the value the finished save left behind.
  * - `hasPending()` reports whether there is unsaved work outstanding (a
  *   debounce timer waiting to fire, a save in flight, or a save queued
  *   behind one in flight) -- fix round 2's I6: this is the single source of
@@ -78,6 +80,17 @@ export function createAutosaveController<T>(opts: {
     if (!queuedInput) return;
     const next = queuedInput.value;
     queuedInput = null;
+    // The equality shortcut applies here, at dequeue time, against what the
+    // server now holds -- never at enqueue time, when an in-flight save was
+    // about to overwrite lastSaved (PR review finding 2: A saved, B in flight,
+    // A requested again must still save A after B).
+    if (lastSaved && isEqual(lastSaved.value, next)) {
+      // The stored value already equals the latest input (e.g. the user
+      // reverted while a save failed): nothing to send, and what is on
+      // screen is saved.
+      opts.onStateChange("saved");
+      return;
+    }
     runSave(next);
   }
 
@@ -107,12 +120,14 @@ export function createAutosaveController<T>(opts: {
   }
 
   function trigger(input: T) {
-    if (lastSaved && isEqual(lastSaved.value, input)) {
-      // Nothing changed since the last successful save -- skip the round trip.
+    if (inFlight) {
+      // Queue first: the in-flight save may replace lastSaved, so comparing
+      // against it now would wrongly drop a save (see settleQueue).
+      queuedInput = { value: input };
       return;
     }
-    if (inFlight) {
-      queuedInput = { value: input };
+    if (lastSaved && isEqual(lastSaved.value, input)) {
+      // Nothing changed since the last successful save -- skip the round trip.
       return;
     }
     runSave(input);

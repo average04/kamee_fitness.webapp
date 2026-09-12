@@ -270,6 +270,96 @@ describe("createAutosaveController", () => {
   });
 });
 
+describe("queue before the equality shortcut (PR review finding 2)", () => {
+  it("save A, start B, request A again while B is pending, resolve B -> saves [A, B, A] and ends saved on A", async () => {
+    const pending: Array<ReturnType<typeof deferred<FormState>>> = [];
+    const save = vi.fn<(input: string) => Promise<FormState>>(() => {
+      const d = deferred<FormState>();
+      pending.push(d);
+      return d.promise;
+    });
+    const states: SaveState[] = [];
+    const c = createAutosaveController<string>({ save, onStateChange: (s) => states.push(s) });
+
+    c.saveNow("A");
+    await Promise.resolve();
+    pending[0].resolve({ savedAt: "t1" });
+    await vi.waitFor(() => expect(states.at(-1)).toBe("saved"));
+
+    c.saveNow("B");
+    await Promise.resolve();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(c.hasPending()).toBe(true);
+
+    // A equals the last successful save, but B is in flight and will overwrite it:
+    // A must be queued, not skipped.
+    c.saveNow("A");
+    expect(c.hasPending()).toBe(true);
+
+    pending[1].resolve({ savedAt: "t2" });
+    await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(3));
+    expect(save.mock.calls.map((call) => call[0])).toEqual(["A", "B", "A"]);
+    expect(c.hasPending()).toBe(true);
+
+    pending[2].resolve({ savedAt: "t3" });
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+    expect(states.at(-1)).toBe("saved");
+
+    // The final saved value is A: repeating A is now a no-op, B is not.
+    c.saveNow("A");
+    expect(save).toHaveBeenCalledTimes(3);
+    c.saveNow("B");
+    await Promise.resolve();
+    expect(save).toHaveBeenCalledTimes(4);
+    expect(save).toHaveBeenLastCalledWith("B");
+  });
+
+  it("a queued input equal to what the in-flight save just stored is dropped, not re-sent", async () => {
+    const pending: Array<ReturnType<typeof deferred<FormState>>> = [];
+    const save = vi.fn<(input: string) => Promise<FormState>>(() => {
+      const d = deferred<FormState>();
+      pending.push(d);
+      return d.promise;
+    });
+    const states: SaveState[] = [];
+    const c = createAutosaveController<string>({ save, onStateChange: (s) => states.push(s) });
+
+    c.saveNow("B");
+    await Promise.resolve();
+    c.saveNow("B"); // queued behind the identical in-flight save
+    pending[0].resolve({ savedAt: "t" });
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(states.at(-1)).toBe("saved");
+  });
+
+  it("after a failed in-flight save, a queued input equal to the last stored value reports saved without a round trip", async () => {
+    const pending: Array<ReturnType<typeof deferred<FormState>>> = [];
+    const save = vi.fn<(input: string) => Promise<FormState>>(() => {
+      const d = deferred<FormState>();
+      pending.push(d);
+      return d.promise;
+    });
+    const states: SaveState[] = [];
+    const c = createAutosaveController<string>({ save, onStateChange: (s) => states.push(s) });
+
+    c.saveNow("A");
+    await Promise.resolve();
+    pending[0].resolve({ savedAt: "t1" });
+    await vi.waitFor(() => expect(states.at(-1)).toBe("saved"));
+
+    c.saveNow("B");
+    await Promise.resolve();
+    c.saveNow("A"); // user reverted while B was in flight
+    pending[1].reject(new Error("network"));
+    await vi.waitFor(() => expect(c.hasPending()).toBe(false));
+    // B never landed, so the stored value is still A: no third request, and the
+    // indicator reflects that the on-screen value is saved.
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(states.at(-1)).toBe("saved");
+  });
+});
+
 describe("hasPending()", () => {
   it("is false before anything has happened", () => {
     const save = vi.fn<(input: string) => Promise<FormState>>(async () => ({ savedAt: "t" }));
