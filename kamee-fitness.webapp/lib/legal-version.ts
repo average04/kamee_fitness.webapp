@@ -2,7 +2,8 @@
 // Bump both whenever the prose of either MDX changes materially.
 
 export const TERMS_VERSION = "2026-06-06";
-export const PRIVACY_VERSION = "2026-06-06";
+export const PRIVACY_VERSION = "2026-09-12";
+export const PRIVACY_LAST_UPDATED = "September 12, 2026";
 
 // Human-readable "Last updated" date shown on each page banner.
 export const LAST_UPDATED = "June 6, 2026";
@@ -20,9 +21,9 @@ export const LAST_UPDATED = "June 6, 2026";
 //   2. then run admin_publish_coaching_terms(<version>, 'https://kamee.fit/coaching/terms').
 // While COACH_TERMS_DRAFT is true the page carries a draft banner and nobody
 // can accept.
-export const COACH_TERMS_VERSION = "2026-09-15";
-export const COACH_TERMS_LAST_UPDATED = "September 15, 2026";
-const COACH_TERMS_TEXT_IS_DRAFT = true; // flip to false once legal approves the text
+export const COACH_TERMS_VERSION = "2026-09-12";
+export const COACH_TERMS_LAST_UPDATED = "September 12, 2026";
+const COACH_TERMS_TEXT_IS_DRAFT = false; // published release authorized by the operator
 
 // Local manual testing only: `next dev` with COACH_TERMS_LOCAL_PREVIEW=1
 // (set in .env.development.local) treats the draft as final so acceptance can
