@@ -14,6 +14,8 @@ import {
 import { buildReviewReadyEmail } from "@/lib/coaching/review-email";
 import { sendReviewReadyEmail } from "@/lib/coaching/review-send";
 import { HUB_STATES, type CoachStatus } from "@/lib/coaching/states";
+import { acceptTermsErrorMessage, isTermsVersion } from "@/lib/coaching/terms";
+import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
 import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -61,20 +63,10 @@ export async function saveProfile(raw: unknown): Promise<FormState> {
   const v = validateProfile(input);
   if (!v.ok) return { errors: v.errors };
 
+  // Coach terms are not part of the profile autosave: acceptance is stamped
+  // server-side by acceptCoachTerms (migration 20260913100600 revoked the
+  // client UPDATE grant on terms_accepted_at, so writing it here would fail).
   const supabase = await createServerSupabase(); // anon + cookies: RLS owner-update policy applies
-  const { data: current, error: currentError } = await supabase
-    .from("coaching_profiles")
-    .select("terms_accepted_at")
-    .eq("user_id", user.id)
-    .single();
-  // I5 (fix round 1): never derive termsAcceptedAt from a failed read --
-  // that could silently reset an already-accepted timestamp to "now".
-  if (currentError) return { message: "Could not save. Please retry." };
-
-  // Keep the original acceptance time; only change it when the box changes state.
-  const termsAcceptedAt = v.value.termsAccepted
-    ? (current?.terms_accepted_at ?? new Date().toISOString())
-    : null;
   const { data, error } = await supabase
     .from("coaching_profiles")
     .update({
@@ -87,7 +79,6 @@ export async function saveProfile(raw: unknown): Promise<FormState> {
       socials: v.value.socials,
       is_accepting_clients: v.value.isAcceptingClients,
       response_days: v.value.responseDays,
-      terms_accepted_at: termsAcceptedAt,
     })
     .eq("user_id", user.id)
     .select("user_id");
@@ -98,6 +89,33 @@ export async function saveProfile(raw: unknown): Promise<FormState> {
     return { message: "Could not save. Please retry." };
   }
   revalidatePath("/coaching/onboarding");
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * Records the coach's acceptance of the current Coach Terms. The database
+ * stamps the time and version (accept_coaching_terms, migration
+ * 20260913100600); this action only forwards the version the coach was shown,
+ * so a publish between page load and click fails as terms_outdated instead of
+ * silently accepting text the coach never saw. Public endpoint: the version
+ * is untrusted input and is shape-checked first.
+ */
+export async function acceptCoachTerms(version: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+
+  if (!isTermsVersion(version)) return { message: acceptTermsErrorMessage(null) };
+  // The deployed text must be the version being accepted, and not a draft.
+  if (COACH_TERMS_DRAFT || version !== COACH_TERMS_VERSION) {
+    return { message: acceptTermsErrorMessage("terms_unavailable") };
+  }
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc("accept_coaching_terms", { p_version: version });
+  if (error || !data) return { message: acceptTermsErrorMessage(error?.message) };
+
+  revalidatePath("/coaching/onboarding");
+  revalidatePath("/coaching/profile");
   return { savedAt: new Date().toISOString() };
 }
 

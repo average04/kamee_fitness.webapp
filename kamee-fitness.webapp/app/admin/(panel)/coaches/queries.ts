@@ -160,6 +160,8 @@ export type CoachingProfileDetail = {
   is_accepting_clients: boolean;
   response_days: number;
   terms_accepted_at: string | null;
+  /** Coach Terms version accepted (server-stamped, migration 20260913100600). */
+  terms_version: string | null;
 };
 
 export type CoachCredentialRow = {

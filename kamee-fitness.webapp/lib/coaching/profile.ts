@@ -14,7 +14,6 @@ export type ProfileInput = {
   socials: { instagram?: string; website?: string };
   isAcceptingClients: boolean;
   responseDays: number;
-  termsAccepted: boolean;
 };
 
 export type CredentialInput = {
@@ -76,7 +75,6 @@ export function parseProfileForm(fd: FormData): ProfileInput {
     socials,
     isAcceptingClients: checkbox(fd, "is_accepting_clients"),
     responseDays: num(fd, "response_days") ?? 3,
-    termsAccepted: checkbox(fd, "terms_accepted"),
   };
 }
 
@@ -172,7 +170,6 @@ export type ProfileFormState = {
   website: string;
   responseDays: number;
   isAcceptingClients: boolean;
-  termsAccepted: boolean;
 };
 
 /** Structural subset of `CoachingProfileRow` (lib/coaching/queries.ts) so this module doesn't need to import it. */
@@ -186,7 +183,6 @@ type ProfileRowLike = {
   socials: Record<string, string>;
   is_accepting_clients: boolean;
   response_days: number;
-  terms_accepted_at: string | null;
 };
 
 export function profileFormStateFromRow(row: ProfileRowLike): ProfileFormState {
@@ -201,7 +197,6 @@ export function profileFormStateFromRow(row: ProfileRowLike): ProfileFormState {
     website: row.socials?.website ?? "",
     responseDays: row.response_days,
     isAcceptingClients: row.is_accepting_clients,
-    termsAccepted: !!row.terms_accepted_at,
   };
 }
 
@@ -235,7 +230,6 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
     socials,
     isAcceptingClients: s.isAcceptingClients,
     responseDays: s.responseDays,
-    termsAccepted: s.termsAccepted,
   };
 }
 
@@ -247,7 +241,9 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
  * finite numbers or exactly `null`, booleans strictly `true`/`false`),
  * strings are trimmed (array items are trimmed and empties dropped), and
  * `socials` is rebuilt from only `instagram`/`website` so an attacker can't
- * smuggle extra keys into the jsonb column. Returns `null` on any mismatch;
+ * smuggle extra keys into the jsonb column. Unknown keys are dropped: in
+ * particular a `termsAccepted` field is ignored, because coach terms are
+ * accepted only through acceptCoachTerms (server-stamped, versioned). Returns `null` on any mismatch;
  * `saveProfile` treats that as "could not save" without touching the DB.
  */
 export function coerceProfileInput(raw: unknown): ProfileInput | null {
@@ -280,7 +276,6 @@ export function coerceProfileInput(raw: unknown): ProfileInput | null {
 
   if (!isFiniteNumber(r.responseDays)) return null;
   if (typeof r.isAcceptingClients !== "boolean") return null;
-  if (typeof r.termsAccepted !== "boolean") return null;
 
   const socialsRaw =
     typeof r.socials === "object" && r.socials !== null
@@ -302,7 +297,6 @@ export function coerceProfileInput(raw: unknown): ProfileInput | null {
     socials,
     isAcceptingClients: r.isAcceptingClients,
     responseDays: r.responseDays,
-    termsAccepted: r.termsAccepted,
   };
 }
 

@@ -6,3 +6,21 @@ export const PRIVACY_VERSION = "2026-06-06";
 
 // Human-readable "Last updated" date shown on each page banner.
 export const LAST_UPDATED = "June 6, 2026";
+
+// Coach Terms (Coaching Hub). Separate from TERMS_VERSION: only invited
+// coaches accept them, through the accept_coaching_terms RPC, which records
+// the server time and the version (Supabase migration 20260913100600).
+//
+// The version a coach accepts is the database's current version
+// (coaching_terms_versions.is_current). The hub only offers acceptance when
+// that equals COACH_TERMS_VERSION below, so the text this deploy renders at
+// COACH_TERMS_PATH is the text being accepted. To publish new terms:
+//   1. change content/legal/coach-terms.mdx, set the new version and date here,
+//      set COACH_TERMS_DRAFT = false, and deploy;
+//   2. then run admin_publish_coaching_terms(<version>, 'https://kamee.fit/coaching/terms').
+// While COACH_TERMS_DRAFT is true the page carries a draft banner and nobody
+// can accept.
+export const COACH_TERMS_VERSION = "2026-09-15";
+export const COACH_TERMS_LAST_UPDATED = "September 15, 2026";
+export const COACH_TERMS_DRAFT = true;
+export const COACH_TERMS_PATH = "/coaching/terms";

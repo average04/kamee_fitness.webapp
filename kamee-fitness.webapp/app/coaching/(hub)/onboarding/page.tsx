@@ -5,6 +5,9 @@ import { Checklist } from "@/components/coaching/Checklist";
 import { CoverUpload } from "@/components/coaching/CoverUpload";
 import { ProfileForm } from "@/components/coaching/ProfileForm";
 import { SubmitBlock } from "@/components/coaching/SubmitBlock";
+import { CoachTermsAcceptance } from "@/components/coaching/CoachTermsAcceptance";
+import { coachTermsState } from "@/lib/coaching/terms";
+import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
 
 export const metadata = { title: "Coach onboarding" };
 
@@ -12,6 +15,10 @@ export default async function OnboardingPage() {
   const { user, status } = await requireCoach();
   const hub = await loadHub(user.id);
   const readOnly = status === "in_review";
+  const terms = coachTermsState(hub.profile, hub.currentTerms, {
+    version: COACH_TERMS_VERSION,
+    draft: COACH_TERMS_DRAFT,
+  });
 
   return (
     <div className="space-y-6">
@@ -35,6 +42,7 @@ export default async function OnboardingPage() {
       <Checklist missing={hub.missing} />
       <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
+      <CoachTermsAcceptance state={terms} readOnly={readOnly} />
       <SubmitBlock missing={hub.missing} status={status} />
 
       <div className="flex gap-4 text-sm">

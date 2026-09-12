@@ -30,7 +30,6 @@ describe("parseProfileForm", () => {
         website: "https://jo.run",
         is_accepting_clients: "on",
         response_days: "2",
-        terms_accepted: "on",
       }),
     );
     expect(i.headline).toBe("Run coach");
@@ -40,7 +39,7 @@ describe("parseProfileForm", () => {
     expect(i.socials).toEqual({ instagram: "@jo", website: "https://jo.run" });
     expect(i.isAcceptingClients).toBe(true);
     expect(i.responseDays).toBe(2);
-    expect(i.termsAccepted).toBe(true);
+    expect(i).not.toHaveProperty("termsAccepted");
   });
   it("defaults missing fields", () => {
     const i = parseProfileForm(fd({}));
@@ -139,7 +138,6 @@ const row = {
   socials: { instagram: "@jo", website: "https://jo.run" },
   is_accepting_clients: true,
   response_days: 2,
-  terms_accepted_at: "2026-09-01T00:00:00Z",
 };
 
 describe("profileFormStateFromRow", () => {
@@ -155,7 +153,6 @@ describe("profileFormStateFromRow", () => {
       website: "https://jo.run",
       responseDays: 2,
       isAcceptingClients: true,
-      termsAccepted: true,
     });
   });
 
@@ -170,7 +167,6 @@ describe("profileFormStateFromRow", () => {
       socials: {},
       is_accepting_clients: false,
       response_days: 3,
-      terms_accepted_at: null,
     });
     expect(s.headline).toBe("");
     expect(s.about).toBe("");
@@ -178,7 +174,6 @@ describe("profileFormStateFromRow", () => {
     expect(s.yearsExperience).toBe("");
     expect(s.instagram).toBe("");
     expect(s.website).toBe("");
-    expect(s.termsAccepted).toBe(false);
   });
 });
 
@@ -195,7 +190,6 @@ describe("profileInputFromFormState", () => {
       socials: { instagram: "@jo", website: "https://jo.run" },
       isAcceptingClients: true,
       responseDays: 2,
-      termsAccepted: true,
     });
   });
 
@@ -242,7 +236,6 @@ describe("coerceProfileInput", () => {
     socials: { instagram: "@jo", website: "https://jo.run", extra: "nope" },
     isAcceptingClients: true,
     responseDays: 2,
-    termsAccepted: true,
   };
 
   it("accepts a well-formed shape: trims strings, drops empty array items, rebuilds socials from only instagram/website", () => {
@@ -256,8 +249,13 @@ describe("coerceProfileInput", () => {
       socials: { instagram: "@jo", website: "https://jo.run" },
       isAcceptingClients: true,
       responseDays: 2,
-      termsAccepted: true,
     });
+  });
+
+  it("drops a termsAccepted field -- terms are accepted only through acceptCoachTerms", () => {
+    const out = coerceProfileInput({ ...validRaw, termsAccepted: true });
+    expect(out).not.toBeNull();
+    expect(out).not.toHaveProperty("termsAccepted");
   });
 
   it("returns null for non-object input", () => {
@@ -280,11 +278,9 @@ describe("coerceProfileInput", () => {
     expect(coerceProfileInput({ ...validRaw, headline: "   " })?.headline).toBe("");
   });
 
-  it("requires isAcceptingClients/termsAccepted to be strictly boolean -- 'no' is not true", () => {
+  it("requires isAcceptingClients to be strictly boolean -- 'no' is not true", () => {
     expect(coerceProfileInput({ ...validRaw, isAcceptingClients: "no" })).toBeNull();
     expect(coerceProfileInput({ ...validRaw, isAcceptingClients: 1 })).toBeNull();
-    expect(coerceProfileInput({ ...validRaw, termsAccepted: "yes" })).toBeNull();
-    expect(coerceProfileInput({ ...validRaw, termsAccepted: 0 })).toBeNull();
   });
 
   it("accepts a null yearsExperience but rejects a non-finite or non-numeric one", () => {

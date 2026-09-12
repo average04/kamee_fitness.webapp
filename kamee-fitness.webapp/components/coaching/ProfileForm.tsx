@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { saveProfile } from "@/app/coaching/(hub)/actions";
 import {
@@ -219,18 +218,6 @@ export function ProfileForm({
         Currently accepting clients
       </label>
 
-      <label className="flex items-center gap-2 text-sm text-mist">
-        <input
-          type="checkbox"
-          checked={form.termsAccepted}
-          disabled={readOnly}
-          onChange={(e) => updateAndSaveNow("termsAccepted", e.target.checked)}
-        />
-        I accept the{" "}
-        <Link href="/terms" className="text-leaf-500 underline hover:text-leaf-400">
-          coach terms
-        </Link>
-      </label>
     </div>
   );
 }

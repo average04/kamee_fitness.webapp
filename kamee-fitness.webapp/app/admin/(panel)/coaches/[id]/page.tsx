@@ -221,7 +221,11 @@ export default async function CoachDetailPage({
             </div>
             <div>
               <dt className="text-zinc-500">Terms accepted</dt>
-              <dd className="text-zinc-200">{fmtDateTime(coaching.terms_accepted_at)}</dd>
+              <dd className="text-zinc-200">
+                {coaching.terms_accepted_at
+                  ? `${fmtDateTime(coaching.terms_accepted_at)} · version ${coaching.terms_version ?? "unversioned (re-acceptance needed)"}`
+                  : fmtDateTime(coaching.terms_accepted_at)}
+              </dd>
             </div>
             <div>
               <dt className="text-zinc-500">Instagram</dt>

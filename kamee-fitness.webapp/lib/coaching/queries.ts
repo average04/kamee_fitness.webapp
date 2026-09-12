@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/supabase/server";
+import type { CurrentCoachTerms } from "@/lib/coaching/terms";
 
 export type CoachingProfileRow = {
   user_id: string;
@@ -13,6 +14,8 @@ export type CoachingProfileRow = {
   is_accepting_clients: boolean;
   response_days: number;
   terms_accepted_at: string | null;
+  /** Coach Terms version accepted at terms_accepted_at (migration 20260913100600). */
+  terms_version: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -31,7 +34,7 @@ export type ReviewRow = {
  */
 export async function loadHub(userId: string) {
   const supabase = await createServerSupabase();
-  const [profileRes, missingRes, reviewsRes] = await Promise.all([
+  const [profileRes, missingRes, reviewsRes, termsRes] = await Promise.all([
     supabase.from("coaching_profiles").select("*").eq("user_id", userId).single(),
     supabase.rpc("get_coaching_profile_missing"),
     supabase
@@ -41,6 +44,11 @@ export async function loadHub(userId: string) {
       .eq("subject_id", userId)
       .order("created_at", { ascending: false })
       .limit(1),
+    supabase
+      .from("coaching_terms_versions")
+      .select("version, url, published_at")
+      .eq("is_current", true)
+      .maybeSingle(),
   ]);
   // M8 (fix round 1): a swallowed error here would otherwise render the hub
   // with a phantom empty profile. Throw and let app/coaching/error.tsx show
@@ -58,8 +66,19 @@ export async function loadHub(userId: string) {
       `loadHub: failed to load coaching_reviews for ${userId}: ${reviewsRes.error.message}`,
     );
   }
+  if (termsRes.error) {
+    throw new Error(`loadHub: failed to load coaching_terms_versions: ${termsRes.error.message}`);
+  }
+  const currentTerms: CurrentCoachTerms | null = termsRes.data
+    ? {
+        version: termsRes.data.version as string,
+        url: termsRes.data.url as string,
+        publishedAt: termsRes.data.published_at as string,
+      }
+    : null;
   return {
     profile: profileRes.data as CoachingProfileRow,
+    currentTerms,
     missing: (missingRes.data as string[]) ?? [],
     latestReview: (reviewsRes.data?.[0] as ReviewRow) ?? null,
   };
