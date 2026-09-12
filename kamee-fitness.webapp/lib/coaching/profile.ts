@@ -322,6 +322,14 @@ function trimmedStringArray(v: unknown): string[] | null {
 }
 
 /**
+ * The items the coach checklist shows, in order. Credentials are optional
+ * (migration 20260913100900), so "credential" is not one of them; its label
+ * stays in MISSING_LABELS below only so a database without that migration
+ * still produces readable copy.
+ */
+export const CHECKLIST_KEYS = ["headline", "about", "avatar", "cover", "gallery", "terms"] as const;
+
+/**
  * Copy for the "what's missing" checklist, keyed by what the approval RPC
  * reports. `profile` is a parent/meta key (the RPC returns it when the
  * `coaching_profiles` row itself is missing or unreadable, not as an

@@ -1,8 +1,10 @@
 /**
  * Pure gallery-state helpers for the Coaching Hub's GalleryManager. No I/O —
  * the component calls Server Actions and Storage itself; this module only
- * knows how to merge state.
+ * knows how to merge state and plan uploads.
  */
+
+import { checkImageFile, extensionForMimeType } from "./storage";
 
 export type GalleryRow = {
   id: string;
@@ -42,4 +44,47 @@ export function mergeGalleryState(
     const localRow = localById.get(row.id);
     return localRow ? { ...row, caption: localRow.caption } : row;
   });
+}
+
+/** One file the gallery will upload, with its storage path already chosen. */
+export type PlannedUpload<F> = { file: F; path: string };
+
+/**
+ * Turns a multi-file selection into an upload plan: skips files that aren't
+ * a JPEG/PNG/WEBP under 5 MB, stops at the gallery cap, and gives each file
+ * its own path (`coaching/<uid>/gallery/<digits>.<ext>`, the shape
+ * isOwnGalleryPath and the database accept -- digits only, so a per-file
+ * two-digit suffix keeps paths unique within one selection). `problems` is
+ * coach-facing copy for everything that was left out.
+ */
+export function planGalleryUploads<F extends { name: string; type: string; size: number }>(
+  files: readonly F[],
+  coachId: string,
+  currentCount: number,
+  max: number,
+  now: number = Date.now(),
+): { uploads: PlannedUpload<F>[]; problems: string[] } {
+  const slots = Math.max(0, max - currentCount);
+  const uploads: PlannedUpload<F>[] = [];
+  const problems: string[] = [];
+  let overCap = 0;
+  files.forEach((file, i) => {
+    const check = checkImageFile(file);
+    const ext = extensionForMimeType(file.type);
+    if (!check.ok || !ext) {
+      problems.push(`${file.name}: ${check.ok ? "Please choose a JPEG, PNG, or WEBP image." : check.message}`);
+      return;
+    }
+    if (uploads.length >= slots) {
+      overCap++;
+      return;
+    }
+    uploads.push({ file, path: `coaching/${coachId}/gallery/${now}${String(i).padStart(2, "0")}.${ext}` });
+  });
+  if (overCap > 0) {
+    problems.push(
+      `The gallery holds ${max} photos, so ${overCap} ${overCap === 1 ? "photo was" : "photos were"} not added.`,
+    );
+  }
+  return { uploads, problems };
 }

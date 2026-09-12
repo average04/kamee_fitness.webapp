@@ -1,15 +1,14 @@
-import { MISSING_LABELS } from "@/lib/coaching/profile";
+import { CHECKLIST_KEYS, MISSING_LABELS } from "@/lib/coaching/profile";
 
-// "profile" is a parent/meta key in MISSING_LABELS (see its doc comment),
-// not one of the checklist's own rendered items -- exclude it here so
-// adding a label for it (fix round 1) doesn't change the "N of 7" count or
-// add a stray always-checked row.
-const KEYS = Object.keys(MISSING_LABELS).filter((k) => k !== "profile");
+// The explicit required-item list (credentials are optional). "profile" is a
+// parent/meta key the RPC returns when the row itself is missing -- handled
+// below as "everything is missing", never rendered as its own row.
+const KEYS: readonly string[] = CHECKLIST_KEYS;
 
 export function Checklist({ missing }: { missing: string[] }) {
   const missingSet = new Set(missing);
   // The RPC's `profile` key is a parent/meta flag (the row itself is
-  // missing or unreadable), not one of the 7 listed items. Treat it as
+  // missing or unreadable), not one of the listed items. Treat it as
   // "everything is missing" rather than letting the absence of the other 6
   // literal keys read as "7 of 7 complete".
   const allMissing = missingSet.has("profile");

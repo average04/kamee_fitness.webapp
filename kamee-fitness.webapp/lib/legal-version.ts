@@ -22,5 +22,13 @@ export const LAST_UPDATED = "June 6, 2026";
 // can accept.
 export const COACH_TERMS_VERSION = "2026-09-15";
 export const COACH_TERMS_LAST_UPDATED = "September 15, 2026";
-export const COACH_TERMS_DRAFT = true;
+const COACH_TERMS_TEXT_IS_DRAFT = true; // flip to false once legal approves the text
+
+// Local manual testing only: `next dev` with COACH_TERMS_LOCAL_PREVIEW=1
+// (set in .env.development.local) treats the draft as final so acceptance can
+// be exercised against the local database. Production builds run with
+// NODE_ENV=production and ignore the variable entirely.
+export const COACH_TERMS_DRAFT =
+  COACH_TERMS_TEXT_IS_DRAFT &&
+  !(process.env.NODE_ENV === "development" && process.env.COACH_TERMS_LOCAL_PREVIEW === "1");
 export const COACH_TERMS_PATH = "/coaching/terms";

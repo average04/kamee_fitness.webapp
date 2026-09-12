@@ -47,7 +47,7 @@ export default async function OnboardingPage() {
 
       <div className="flex gap-4 text-sm">
         <Link href="/coaching/credentials" className="text-leaf-500 hover:text-leaf-400">
-          Add credentials
+          Add credentials (optional)
         </Link>
         <Link href="/coaching/gallery" className="text-leaf-500 hover:text-leaf-400">
           Add gallery photos

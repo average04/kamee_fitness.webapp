@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeGalleryState, type GalleryRow } from "./gallery";
+import { mergeGalleryState, planGalleryUploads, type GalleryRow } from "./gallery";
+import { isOwnGalleryPath } from "./storage";
 
 function row(over: Partial<GalleryRow> = {}): GalleryRow {
   return {
@@ -53,5 +54,42 @@ describe("mergeGalleryState", () => {
 
   it("handles an empty dirty set and an empty row list", () => {
     expect(mergeGalleryState([], [], new Set())).toEqual([]);
+  });
+});
+
+describe("planGalleryUploads", () => {
+  const uid = "11111111-1111-4111-8111-111111111111";
+  const img = (name: string, type = "image/jpeg", size = 1000) => ({ name, type, size });
+
+  it("plans every valid file with a unique path the server accepts", () => {
+    const { uploads, problems } = planGalleryUploads([img("a.jpg"), img("b.png", "image/png"), img("c.webp", "image/webp")], uid, 0, 12, 1700000000000);
+    expect(problems).toEqual([]);
+    expect(uploads.map((u) => u.path)).toEqual([
+      `coaching/${uid}/gallery/170000000000000.jpg`,
+      `coaching/${uid}/gallery/170000000000001.png`,
+      `coaching/${uid}/gallery/170000000000002.webp`,
+    ]);
+    for (const u of uploads) expect(isOwnGalleryPath(u.path, uid)).toBe(true);
+  });
+
+  it("skips wrong types and oversize files, and says which", () => {
+    const { uploads, problems } = planGalleryUploads([img("doc.pdf", "application/pdf"), img("big.jpg", "image/jpeg", 6 * 1024 * 1024), img("ok.jpg")], uid, 0, 12);
+    expect(uploads.map((u) => u.file.name)).toEqual(["ok.jpg"]);
+    expect(problems).toHaveLength(2);
+    expect(problems[0]).toMatch(/^doc\.pdf: /);
+    expect(problems[1]).toMatch(/^big\.jpg: .*5 MB/);
+  });
+
+  it("stops at the gallery cap and reports how many were left out", () => {
+    const files = [img("1.jpg"), img("2.jpg"), img("3.jpg"), img("4.jpg")];
+    const { uploads, problems } = planGalleryUploads(files, uid, 10, 12);
+    expect(uploads.map((u) => u.file.name)).toEqual(["1.jpg", "2.jpg"]);
+    expect(problems).toEqual(["The gallery holds 12 photos, so 2 photos were not added."]);
+  });
+
+  it("plans nothing when the gallery is already full", () => {
+    const { uploads, problems } = planGalleryUploads([img("1.jpg")], uid, 12, 12);
+    expect(uploads).toEqual([]);
+    expect(problems).toEqual(["The gallery holds 12 photos, so 1 photo was not added."]);
   });
 });

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { isInvitable, isInviteStage, isUuid } from "@/lib/coaching/admin";
 import { avatarImageUrl, avatarInitial } from "@/lib/coaching/avatar";
-import { MISSING_LABELS } from "@/lib/coaching/profile";
+import { CHECKLIST_KEYS, MISSING_LABELS } from "@/lib/coaching/profile";
 import { buildPublicStorageUrl } from "@/lib/coaching/storage";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { DecisionForm } from "@/components/admin/coaching/DecisionForm";
@@ -13,7 +13,7 @@ import { StatusActionButton } from "@/components/admin/coaching/StatusActionButt
 import { VerifyCredentialButton } from "@/components/admin/coaching/VerifyCredentialButton";
 import { loadCoachDetail } from "../queries";
 
-const CHECKLIST_KEYS = Object.keys(MISSING_LABELS).filter((k) => k !== "profile");
+
 const DOCUMENT_SIGNED_URL_TTL_SECONDS = 300;
 
 export default async function CoachDetailPage({

@@ -1,6 +1,7 @@
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { GalleryManager, type GalleryRow } from "@/components/coaching/GalleryManager";
+import { BackLink } from "@/components/coaching/BackLink";
 
 export const metadata = { title: "Coach gallery" };
 
@@ -28,6 +29,7 @@ export default async function GalleryPage() {
 
   return (
     <div className="space-y-6">
+      <BackLink status={status} />
       <h1 className="font-display text-2xl font-semibold">Gallery</h1>
       <p className="text-sm text-muted">
         Photos of you coaching, training, or with clients. Members see these on your profile.

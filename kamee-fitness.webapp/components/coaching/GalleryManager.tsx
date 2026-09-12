@@ -12,12 +12,8 @@ import {
   type AutosaveController,
   type SaveState,
 } from "@/lib/coaching/autosave";
-import { mergeGalleryState, type GalleryRow } from "@/lib/coaching/gallery";
-import {
-  buildPublicStorageUrl,
-  checkImageFile,
-  extensionForMimeType,
-} from "@/lib/coaching/storage";
+import { mergeGalleryState, planGalleryUploads, type GalleryRow } from "@/lib/coaching/gallery";
+import { buildPublicStorageUrl } from "@/lib/coaching/storage";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { Field } from "./Field";
 import { SaveIndicator } from "./SaveIndicator";
@@ -44,6 +40,8 @@ export function GalleryManager({
   const [photos, setPhotos] = useState<GalleryRow[]>(initialPhotos);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // "2 of 5" while a multi-photo selection uploads; null otherwise.
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [captionStates, setCaptionStates] = useState<Record<string, SaveState>>({});
   const [captionMessages, setCaptionMessages] = useState<Record<string, string | null>>({});
@@ -162,62 +160,70 @@ export function GalleryManager({
     if (!readOnly) controllerFor(id).saveNow(value);
   }
 
+  /**
+   * Uploads every photo in the selection, one at a time (the database caps
+   * the gallery and serializes inserts per coach). Files that aren't images,
+   * are too big, or don't fit under the cap are skipped with a message; a
+   * failed upload doesn't stop the rest.
+   */
   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     if (inputRef.current) inputRef.current.value = "";
-    if (!file || readOnly || photos.length >= MAX_PHOTOS) return;
+    if (files.length === 0 || readOnly || photos.length >= MAX_PHOTOS) return;
 
-    const check = checkImageFile(file);
-    if (!check.ok) {
-      setError(check.message);
-      return;
-    }
-    const ext = extensionForMimeType(file.type);
-    if (!ext) {
-      setError("Please choose a JPEG, PNG, or WEBP image.");
-      return;
-    }
+    const plan = planGalleryUploads(files, coachId, photos.length, MAX_PHOTOS);
+    const problems = [...plan.problems];
+    setError(problems.length > 0 ? problems.join(" ") : null);
+    if (plan.uploads.length === 0) return;
 
-    setError(null);
     setUploading(true);
+    setProgress({ done: 0, total: plan.uploads.length });
+    const supabase = createBrowserSupabase();
     try {
-      const path = `coaching/${coachId}/gallery/${Date.now()}.${ext}`;
-      const supabase = createBrowserSupabase();
+      for (const [i, { file, path }] of plan.uploads.entries()) {
+        const failure = await uploadOne(supabase, file, path);
+        if (failure) problems.push(`${file.name}: ${failure}`);
+        setProgress({ done: i + 1, total: plan.uploads.length });
+      }
+    } finally {
+      setUploading(false);
+      setProgress(null);
+      setError(problems.length > 0 ? problems.join(" ") : null);
+    }
+    // On success the router refresh from addGalleryPhoto's revalidatePath
+    // updates `initialPhotos`, which the render-time sync above merges into
+    // `photos`.
+  }
+
+  /** Uploads one file and records it. Returns coach-facing failure copy, or null. */
+  async function uploadOne(
+    supabase: ReturnType<typeof createBrowserSupabase>,
+    file: File,
+    path: string,
+  ): Promise<string | null> {
+    try {
       const { error: uploadError } = await supabase.storage
         .from("social-photos")
         .upload(path, file, { upsert: false, contentType: file.type });
-      if (uploadError) {
-        setError("Could not upload the photo. Please retry.");
-        return;
-      }
+      if (uploadError) return "Could not upload the photo. Please retry.";
       const result = await addGalleryPhoto(path);
-      if (result.message) {
-        // The object is already in storage but no row references it --
-        // best-effort cleanup so it doesn't linger as an orphan. Minor
-        // (fix round 1): surface it if even that fails, but keep the real
-        // (add) failure as the primary message rather than replacing it.
-        let cleanupFailed = false;
-        try {
-          const { error: removeError } = await supabase.storage
-            .from("social-photos")
-            .remove([path]);
-          cleanupFailed = !!removeError;
-        } catch {
-          cleanupFailed = true;
-        }
-        setError(
-          cleanupFailed
-            ? `${result.message} (the uploaded file could not be cleaned up either.)`
-            : result.message,
-        );
+      if (!result.message) return null;
+      // The object is already in storage but no row references it --
+      // best-effort cleanup so it doesn't linger as an orphan. Minor
+      // (fix round 1): surface it if even that fails, but keep the real
+      // (add) failure as the primary message rather than replacing it.
+      let cleanupFailed = false;
+      try {
+        const { error: removeError } = await supabase.storage.from("social-photos").remove([path]);
+        cleanupFailed = !!removeError;
+      } catch {
+        cleanupFailed = true;
       }
-      // On success the router refresh from addGalleryPhoto's
-      // revalidatePath updates `initialPhotos`, which the render-time sync
-      // above merges into `photos`.
+      return cleanupFailed
+        ? `${result.message} (the uploaded file could not be cleaned up either.)`
+        : result.message;
     } catch {
-      setError("Could not upload the photo. Please retry.");
-    } finally {
-      setUploading(false);
+      return "Could not upload the photo. Please retry.";
     }
   }
 
@@ -368,6 +374,7 @@ export function GalleryManager({
           ref={inputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          multiple
           className="peer sr-only"
           disabled={addDisabled}
           onChange={onFileChange}
@@ -381,7 +388,13 @@ export function GalleryManager({
             " peer-focus-visible:ring-2 peer-focus-visible:ring-leaf-600 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-ink-950"
           }
         >
-          {uploading ? "Uploading…" : photos.length >= MAX_PHOTOS ? "12 of 12" : "+ Add photo"}
+          {uploading
+            ? progress && progress.total > 1
+              ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…`
+              : "Uploading…"
+            : photos.length >= MAX_PHOTOS
+              ? "12 of 12"
+              : "+ Add photos"}
         </label>
       </div>
     </div>
