@@ -21,16 +21,16 @@ const UNSHIPPED =
   /\b(on-device|coming soon|beta|replay video export|share to clubs)\b/i;
 
 describe("FEATURES", () => {
-  it("has the six real features with unique keys", () => {
-    expect(FEATURES).toHaveLength(6);
-    expect(new Set(FEATURES.map((f) => f.key)).size).toBe(6);
+  it("has the seven real features with unique keys", () => {
+    expect(FEATURES).toHaveLength(7);
+    expect(new Set(FEATURES.map((f) => f.key)).size).toBe(7);
   });
 
   it("every feature is fully populated and slop-free", () => {
     for (const f of FEATURES) {
       expect(f.title.length).toBeGreaterThan(0);
       expect(f.body.length).toBeGreaterThan(20);
-      expect(["leaf", "teal"]).toContain(f.accent);
+      expect(["leaf", "teal", "fuel"]).toContain(f.accent);
       expect(f.title).not.toMatch(PLACEHOLDER);
       expect(f.body).not.toMatch(PLACEHOLDER);
       expect(f.body).not.toMatch(UNSHIPPED);
@@ -48,7 +48,7 @@ describe("TICKER", () => {
     for (const chip of TICKER) {
       expect(chip.label.length).toBeGreaterThan(0);
       expect(chip.label.length).toBeLessThanOrEqual(16);
-      expect(["leaf", "teal"]).toContain(chip.accent);
+      expect(["leaf", "teal", "fuel"]).toContain(chip.accent);
     }
   });
 });
@@ -97,8 +97,8 @@ describe("BADGES", () => {
 });
 
 describe("FAQ", () => {
-  it("has five questions, each a real Q/A", () => {
-    expect(FAQ).toHaveLength(5);
+  it("has seven questions, each a real Q/A", () => {
+    expect(FAQ).toHaveLength(7);
     for (const item of FAQ) {
       expect(item.q.endsWith("?")).toBe(true);
       expect(item.a.length).toBeGreaterThan(10);

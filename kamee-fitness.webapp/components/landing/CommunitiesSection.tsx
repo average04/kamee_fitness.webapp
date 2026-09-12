@@ -151,8 +151,8 @@ export function PricingBand() {
             Kamee Premium
           </h2>
           <p className="mt-3 text-[0.9375rem] leading-relaxed text-mist/70">
-            Removes ads and unlocks custom plans plus advanced weekly and monthly
-            stats &mdash; when you&rsquo;re ready.
+            Unlocks the Fuel Log, meal estimates, and meal plans that follow your
+            training, plus custom training plans and advanced weekly and monthly stats.
           </p>
         </div>
       </div>

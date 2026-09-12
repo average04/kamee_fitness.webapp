@@ -1,4 +1,4 @@
-export type FeatureAccent = "leaf" | "teal";
+export type FeatureAccent = "leaf" | "teal" | "fuel";
 
 export interface Feature {
   /** Stable key; also the screenshot filename stem (public/screens/<key>.png). */
@@ -50,6 +50,12 @@ export const FEATURES: Feature[] = [
     accent: "leaf",
   },
   {
+    key: "fuel",
+    title: "Fuel log",
+    body: "Snap or describe a meal, review Kamy’s estimates, and follow meal plans shaped around your training. Included with Premium.",
+    accent: "fuel",
+  },
+  {
     key: "schedule",
     title: "Calendar sync",
     body: "Your training week on a drag-and-drop calendar that syncs to the calendar you already use.",
@@ -69,6 +75,7 @@ export const TICKER: { key: string; label: string; accent: FeatureAccent }[] = [
   { key: "plans", label: "Training plans", accent: "leaf" },
   { key: "track", label: "GPS tracking", accent: "teal" },
   { key: "log", label: "Workout log", accent: "leaf" },
+  { key: "fuel", label: "Fuel log", accent: "fuel" },
   { key: "schedule", label: "Calendar sync", accent: "teal" },
   { key: "communities", label: "Communities", accent: "teal" },
 ];
@@ -180,7 +187,15 @@ export const BADGE_TOTAL = 35;
 export const FAQ: FaqItem[] = [
   {
     q: "Is Kamee free?",
-    a: "Yes — free to start. Kamee Premium removes ads and adds custom plans plus advanced weekly and monthly stats.",
+    a: "Yes — free to start. Kamee Premium adds the Fuel Log, meal plans, custom training plans, and advanced weekly and monthly stats.",
+  },
+  {
+    q: "How does the Fuel Log work?",
+    a: "In the mobile app, open Record → FUEL. Snap a meal, upload a photo, or describe what you ate. Kamy estimates calories and protein, carbs, and fat; review the items and adjust portions before saving. You can edit portions later, too. The Fuel Log and meal plans are included with Kamee Premium.",
+  },
+  {
+    q: "Do meal plans follow my training?",
+    a: "Yes. Eat to the Plan gives food guidance for run, strength, rest, and long-run days, including the day before a long run. Calorie and macro targets are optional and set by you. Kamy’s meal nutrition numbers are estimates.",
   },
   {
     q: "Where can I download Kamee?",
