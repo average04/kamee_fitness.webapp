@@ -62,8 +62,9 @@ export async function proxy(request: NextRequest) {
 
   // Coaching Hub: any authenticated user; unauthenticated -> /login?next=<path>.
   // Coach-status gating happens server-side in requireCoach(); this proxy is
-  // the first, not the only, line of defense.
-  if (pathname.startsWith("/coaching") && !user) {
+  // the first, not the only, line of defense. The Coach Terms page is the one
+  // public exception, so anyone can read the terms before signing in.
+  if (pathname.startsWith("/coaching") && pathname !== "/coaching/terms" && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
