@@ -303,11 +303,11 @@ export function GalleryManager({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {photos.map((p, idx) => (
           <div
             key={p.id}
-            className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+            className="space-y-2 coach-panel !p-4"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -317,7 +317,7 @@ export function GalleryManager({
             />
             <Field label="Caption" error={captionMessages[p.id] ?? undefined}>
               <input
-                className="w-full rounded-md border border-white/10 bg-ink-900 px-2 py-1 text-xs outline-none focus:border-leaf-600 disabled:opacity-60"
+                className="coach-input"
                 maxLength={120}
                 value={p.caption ?? ""}
                 disabled={readOnly}
@@ -325,7 +325,7 @@ export function GalleryManager({
                 onBlur={(e) => onCaptionBlur(p.id, e.target.value)}
               />
             </Field>
-            <div className="flex items-center justify-between gap-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <SaveIndicator
                 state={captionStates[p.id] ?? "idle"}
                 onRetry={() => controllerFor(p.id).saveNow(p.caption ?? "")}
@@ -336,7 +336,7 @@ export function GalleryManager({
                   onClick={() => move(p.id, -1)}
                   disabled={readOnly || idx === 0}
                   aria-label={`Move photo ${idx + 1} up`}
-                  className="rounded border border-white/10 px-1.5 py-0.5 text-xs text-muted hover:text-mist disabled:opacity-30"
+                  className="rounded-lg border border-white/10 min-w-11 px-2 py-2 text-xs text-muted hover:text-mist disabled:opacity-30"
                 >
                   ↑
                 </button>
@@ -345,7 +345,7 @@ export function GalleryManager({
                   onClick={() => move(p.id, 1)}
                   disabled={readOnly || idx === photos.length - 1}
                   aria-label={`Move photo ${idx + 1} down`}
-                  className="rounded border border-white/10 px-1.5 py-0.5 text-xs text-muted hover:text-mist disabled:opacity-30"
+                  className="rounded-lg border border-white/10 min-w-11 px-2 py-2 text-xs text-muted hover:text-mist disabled:opacity-30"
                 >
                   ↓
                 </button>
@@ -354,7 +354,7 @@ export function GalleryManager({
                   onClick={() => onDelete(p.id)}
                   disabled={readOnly || deletingId === p.id}
                   aria-label={`Delete photo ${idx + 1}`}
-                  className="rounded border border-white/10 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                  className="rounded-lg border border-white/10 min-w-11 px-2 py-2 text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
                 >
                   {deletingId === p.id ? "…" : "Delete"}
                 </button>
@@ -384,10 +384,12 @@ export function GalleryManager({
           className={
             (addDisabled
               ? "flex aspect-square cursor-not-allowed items-center justify-center rounded-2xl border border-dashed border-white/10 text-center text-xs text-muted/50"
-              : "flex aspect-square cursor-pointer items-center justify-center rounded-2xl border border-dashed border-white/20 text-center text-xs text-muted hover:border-leaf-600 hover:text-mist") +
+              : "flex aspect-square cursor-pointer items-center justify-center rounded-2xl border border-dashed border-white/20 text-center text-sm text-muted bg-white hover:border-leaf-600 hover:text-mist") +
+            (photos.length === 0 ? " col-span-full !aspect-auto min-h-64 flex-col gap-3 bg-white" : "") +
             " peer-focus-visible:ring-2 peer-focus-visible:ring-leaf-600 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-ink-950"
           }
         >
+          {photos.length === 0 && <svg className="h-9 w-9 text-leaf-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>}
           {uploading
             ? progress && progress.total > 1
               ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…`
@@ -395,6 +397,7 @@ export function GalleryManager({
             : photos.length >= MAX_PHOTOS
               ? "12 of 12"
               : "+ Add photos"}
+          {photos.length === 0 && <span className="max-w-xs px-4 text-xs leading-relaxed text-muted">Choose a few favourites to start your gallery. You can select multiple photos at once.<br />JPEG, PNG or WebP &middot; up to 5 MB each.</span>}
         </label>
       </div>
     </div>

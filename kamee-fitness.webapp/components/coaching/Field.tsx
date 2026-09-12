@@ -34,8 +34,8 @@ export function Field({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <label htmlFor={id} className="block text-sm text-mist">
+      <div className="coach-field-label">
+        <label htmlFor={id} className="block text-sm font-medium text-mist">
           {label}
         </label>
         {hint && (

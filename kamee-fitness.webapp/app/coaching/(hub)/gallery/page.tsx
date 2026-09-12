@@ -1,3 +1,4 @@
+import { PageIntro } from "@/components/coaching/PageIntro";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { GalleryManager, type GalleryRow } from "@/components/coaching/GalleryManager";
@@ -30,10 +31,7 @@ export default async function GalleryPage() {
   return (
     <div className="space-y-6">
       <BackLink status={status} />
-      <h1 className="font-display text-2xl font-semibold">Gallery</h1>
-      <p className="text-sm text-muted">
-        Photos of you coaching, training, or with clients. Members see these on your profile.
-      </p>
+      <PageIntro title="Show your coaching in action." description="From a great session to your favourite trail, give people a glimpse of the way you coach." />
       <GalleryManager
         coachId={user.id}
         photos={(data ?? []) as GalleryRow[]}

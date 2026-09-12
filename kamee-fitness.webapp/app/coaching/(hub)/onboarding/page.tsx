@@ -1,3 +1,4 @@
+import { PageIntro } from "@/components/coaching/PageIntro";
 import Link from "next/link";
 import { requireCoach } from "@/lib/coaching/auth";
 import { loadHub } from "@/lib/coaching/queries";
@@ -22,7 +23,7 @@ export default async function OnboardingPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-2xl font-semibold">Set up your coach profile</h1>
+      <PageIntro eyebrow="LET'S GET YOU STARTED" title="Your next chapter starts here." description="Bring your experience, personality and coaching style together. We'll help you turn them into a profile that feels like you." />
 
       {hub.latestReview?.decision === "changes_requested" && status === "changes_requested" && (
         <div className="rounded-2xl border border-ember-600/40 bg-ember-600/10 p-5">
@@ -35,23 +36,26 @@ export default async function OnboardingPage() {
 
       {status === "in_review" && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <p className="text-sm text-mist">Submitted — we&apos;ll review it soon.</p>
+          <p className="text-sm text-mist">Submitted â€” we&apos;ll review it soon.</p>
         </div>
       )}
 
-      <Checklist missing={hub.missing} />
-      <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
-      <ProfileForm profile={hub.profile} readOnly={readOnly} />
-      <CoachTermsAcceptance state={terms} />
-      <SubmitBlock missing={hub.missing} status={status} />
-
-      <div className="flex gap-4 text-sm">
-        <Link href="/coaching/credentials" className="text-leaf-500 hover:text-leaf-400">
-          Add credentials (optional)
-        </Link>
-        <Link href="/coaching/gallery" className="text-leaf-500 hover:text-leaf-400">
-          Add gallery photos
-        </Link>
+      <div className="coach-onboarding-grid">
+        <div className="space-y-6">
+          <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
+          <ProfileForm profile={hub.profile} readOnly={readOnly} />
+          <CoachTermsAcceptance state={terms} />
+          <SubmitBlock missing={hub.missing} status={status} />
+        </div>
+        <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
+          <Checklist missing={hub.missing} />
+          <div className="coach-panel">
+            <h2>The details tell your story.</h2>
+            <Link href="/coaching/gallery" className="coach-resource"><strong>Build your photo gallery <span aria-hidden="true">&#8599;</span></strong><span>Add at least three photos of you coaching, training or doing what you love.</span></Link>
+            <Link href="/coaching/credentials" className="coach-resource"><strong>Add credentials <span aria-hidden="true">&#8599;</span></strong><span>Optional. Share your qualifications; supporting documents stay private.</span></Link>
+            <Link href="/coaching/preview" className="coach-resource"><strong>See your profile preview <span aria-hidden="true">&#8599;</span></strong><span>Take a look through a future client&apos;s eyes.</span></Link>
+          </div>
+        </aside>
       </div>
     </div>
   );

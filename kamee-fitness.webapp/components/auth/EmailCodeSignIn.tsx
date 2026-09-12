@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { safeNextPath } from "@/lib/safe-next";
 import { signInErrorMessage } from "@/lib/auth/sign-in-errors";
@@ -39,16 +39,20 @@ export function EmailCodeSignIn({
   next,
   fallbackNext = "/me",
   sendLabel = "Send magic link / code",
+  theme = "dark",
 }: {
   next: string | null;
   fallbackNext?: string;
   sendLabel?: string;
+  theme?: "light" | "dark";
 }) {
   // Resolved lazily (not at render time) because it needs window.location.origin,
   // which is unavailable during this client component's server-side render pass.
   function resolveNext(): string {
     return safeNextPath(next, window.location.origin, fallbackNext);
   }
+  const emailId = useId();
+  const codeId = useId();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -64,7 +68,7 @@ export function EmailCodeSignIn({
       widgetId.current = window.turnstile.render(widgetEl.current, {
         sitekey: TURNSTILE_SITE_KEY,
         appearance: "interaction-only",
-        theme: "dark",
+        theme,
         callback: (token) => setCaptchaToken(token),
         "error-callback": () => setCaptchaToken(null),
         "expired-callback": () => setCaptchaToken(null),
@@ -84,7 +88,7 @@ export function EmailCodeSignIn({
     }
     script.addEventListener("load", render);
     return () => script?.removeEventListener("load", render);
-  }, []);
+  }, [theme]);
 
   async function onSend(e: React.FormEvent) {
     e.preventDefault();
@@ -136,7 +140,9 @@ export function EmailCodeSignIn({
   return (
     <>
       <form onSubmit={onSend} className="mt-6 space-y-3">
+        <label htmlFor={emailId} className="block text-sm font-medium">Email address</label>
         <input
+          id={emailId}
           type="email"
           required
           value={email}
@@ -162,9 +168,10 @@ export function EmailCodeSignIn({
       )}
 
       <form onSubmit={onVerify} className="mt-4 space-y-2">
-        <label className="block text-xs text-muted">Have a code from your email?</label>
+        <label htmlFor={codeId} className="block text-xs text-muted">Have a code from your email?</label>
         <div className="flex gap-2">
           <input
+            id={codeId}
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}

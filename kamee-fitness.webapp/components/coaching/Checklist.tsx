@@ -15,10 +15,11 @@ export function Checklist({ missing }: { missing: string[] }) {
   const doneCount = allMissing ? 0 : KEYS.filter((k) => !missingSet.has(k)).length;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-      <h2 className="text-sm font-semibold text-mist">
-        {doneCount} of {KEYS.length} complete
-      </h2>
+    <div className="coach-panel coach-checklist">
+      <p className="coach-eyebrow">YOUR NEXT CHAPTER</p>
+      <h2 className="mt-2">Make it yours</h2>
+      <p className="coach-panel-description">{doneCount} of {KEYS.length} essentials complete</p>
+      <div className="coach-progress" role="progressbar" aria-label="Profile completion" aria-valuenow={doneCount} aria-valuemin={0} aria-valuemax={KEYS.length}><div style={{ width: `${doneCount / KEYS.length * 100}%` }} /></div>
       <ul className="mt-3 space-y-2">
         {KEYS.map((key) => {
           const done = !allMissing && !missingSet.has(key);

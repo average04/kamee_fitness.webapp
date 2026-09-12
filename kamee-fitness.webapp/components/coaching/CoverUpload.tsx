@@ -158,10 +158,10 @@ export function CoverUpload({
   }
 
   return (
-    <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className="space-y-2 coach-panel">
       <div className="flex items-center justify-between">
         <label htmlFor={inputId} className="block text-sm font-semibold text-mist">
-          Cover photo
+          Your cover photo
         </label>
         <SaveIndicator state={state} onRetry={retry} />
       </div>
@@ -170,9 +170,14 @@ export function CoverUpload({
         <img
           src={preview}
           alt="Cover preview"
-          className="h-40 w-full rounded-lg border border-white/10 object-cover"
+          className="coach-cover-preview"
         />
       )}
+      {!preview && <div className="coach-cover-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>
+        <p>Set the scene for your coaching</p><span>A wide photo of you in your element works beautifully.</span>
+      </div>}
+      <p className="coach-panel-description">Appears at the top of your profile. JPEG, PNG or WebP, up to 5 MB.</p>
       <input
         id={inputId}
         ref={inputRef}
@@ -180,7 +185,7 @@ export function CoverUpload({
         accept="image/jpeg,image/png,image/webp"
         disabled={readOnly || state === "saving"}
         onChange={onChange}
-        className="block text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-ink-900 file:px-3 file:py-1.5 file:text-mist disabled:opacity-60"
+        className="coach-file"
       />
       {error && (
         <p role="alert" className="text-sm text-red-400">

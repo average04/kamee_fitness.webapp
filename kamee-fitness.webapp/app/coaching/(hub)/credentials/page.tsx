@@ -1,3 +1,4 @@
+import { PageIntro } from "@/components/coaching/PageIntro";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { CredentialsManager, type CredentialRow } from "@/components/coaching/CredentialsManager";
@@ -26,11 +27,7 @@ export default async function CredentialsPage() {
   return (
     <div className="space-y-6">
       <BackLink status={status} />
-      <h1 className="font-display text-2xl font-semibold">Credentials</h1>
-      <p className="text-sm text-muted">
-        Optional. Add certifications, licenses, or other evidence members can trust, if you have
-        them. Documents are private and reviewed by Kamee staff -- never shown publicly.
-      </p>
+      <PageIntro title="Experience worth sharing." description="Your qualifications are part of your story. Add them here if you have them; credentials are optional and documents stay private." />
       <CredentialsManager
         coachId={user.id}
         credentials={(data ?? []) as CredentialRow[]}

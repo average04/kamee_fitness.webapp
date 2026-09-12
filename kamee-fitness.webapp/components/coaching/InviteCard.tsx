@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCoachSession } from "@/lib/coaching/auth";
 import { isHubState } from "@/lib/coaching/states";
@@ -22,9 +23,16 @@ export async function InviteCard({ token }: { token?: string }) {
   const path = token ? `/coaching/invite/${encodeURIComponent(token)}` : "/coaching/invite";
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-ink-950 px-4 text-mist">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
-        <h1 className="font-display text-xl font-semibold">
+    <main className="coach-invite">
+      <section className="coach-invite-story" aria-label="Welcome to Kamee coaching">
+        <Link href="/" className="coach-brand" aria-label="Kamee home"><span className="coach-brand-mark" aria-hidden="true">k</span><span>kamee<small>COACHING</small></span></Link>
+        <div><h2>Your experience.<br />Their <em>next chapter.</em></h2><p>A space to share what you know, show who you are, and help people move forward.</p></div>
+        <footer>STRONGER TOGETHER. ONE STEP AT A TIME.</footer>
+      </section>
+      <section className="coach-invite-form">
+      <div className="w-full">
+        <p className="coach-eyebrow">WELCOME TO YOUR COACHING SPACE</p>
+        <h1>
           You&apos;re invited to coach on Kamee
         </h1>
 
@@ -44,14 +52,15 @@ export async function InviteCard({ token }: { token?: string }) {
           </>
         ) : (
           <div className="text-left">
-            <p className="mt-2 text-center text-sm text-muted">
+            <p className="mt-2 text-sm leading-relaxed text-muted">
               Sign in with the email this invite was sent to, the same one you use in the Kamee
               app. You&apos;ll accept the invite right after.
             </p>
-            <EmailCodeSignIn next={path} fallbackNext={path} sendLabel="Email me a sign-in code" />
+            <EmailCodeSignIn theme="light" next={path} fallbackNext={path} sendLabel="Email me a sign-in code" />
           </div>
         )}
       </div>
+      </section>
     </main>
   );
 }

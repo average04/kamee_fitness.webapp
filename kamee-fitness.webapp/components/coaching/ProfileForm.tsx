@@ -93,9 +93,9 @@ export function ProfileForm({
   }
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className="space-y-5 coach-panel">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-mist">Profile</h2>
+        <div><h2>Introduce yourself</h2><p className="coach-panel-description">Give future clients a feel for you and your approach.</p></div>
         <SaveIndicator state={saveState} onRetry={saveNow} />
       </div>
       {message && (
@@ -104,9 +104,11 @@ export function ProfileForm({
         </p>
       )}
 
+      <div className="coach-form-grid">
       <Field label="Headline" error={errors.headline} hint={`${form.headline.length}/80`}>
         <input
           className={inputClass}
+          placeholder="Strength coach. Outdoor enthusiast. Here for your progress."
           maxLength={80}
           value={form.headline}
           disabled={readOnly}
@@ -122,6 +124,7 @@ export function ProfileForm({
       >
         <textarea
           className={`${inputClass} min-h-32`}
+          placeholder="Share your approach, what you love about coaching, and who you help."
           maxLength={2000}
           value={form.about}
           disabled={readOnly}
@@ -130,7 +133,7 @@ export function ProfileForm({
         />
       </Field>
 
-      <Field label="Specialties" error={errors.specialties} hint="Up to 8">
+      <Field label="Specialties" error={errors.specialties} hint="Comma-separated, up to 8">
         <input
           className={inputClass}
           value={form.specialties}
@@ -218,6 +221,7 @@ export function ProfileForm({
         Currently accepting clients
       </label>
 
+      </div>
     </div>
   );
 }

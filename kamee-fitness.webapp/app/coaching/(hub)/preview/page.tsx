@@ -1,3 +1,4 @@
+import { PageIntro } from "@/components/coaching/PageIntro";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { CoachProfileView, type CoachingProfileJson } from "@/components/coaching/CoachProfileView";
@@ -19,8 +20,8 @@ export default async function PreviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-semibold">Preview</h1>
-        <p className="mt-1 text-sm text-muted">This is how members will see you.</p>
+        <PageIntro title="Meet your future first impression." description="Preview the information members will see on your coach profile." />
+
       </div>
       {data ? (
         <CoachProfileView data={data as CoachingProfileJson} />

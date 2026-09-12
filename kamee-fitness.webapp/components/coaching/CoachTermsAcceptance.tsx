@@ -31,7 +31,7 @@ export function CoachTermsAcceptance({ state }: { state: CoachTermsState }) {
 
   if (state.kind === "unavailable") {
     return (
-      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <section className="coach-panel">
         <h2 className="text-sm font-semibold">Coach terms</h2>
         <p className="mt-1 text-sm text-muted">
           The {termsLink}{" "}are being finalised. You can keep building your profile; you&apos;ll be
@@ -43,7 +43,7 @@ export function CoachTermsAcceptance({ state }: { state: CoachTermsState }) {
 
   if (state.kind === "accepted") {
     return (
-      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <section className="coach-panel">
         <h2 className="text-sm font-semibold">Coach terms</h2>
         <p className="mt-1 text-sm text-muted">
           You accepted the {termsLink}{" "}(version {state.version}) on {fmt(state.acceptedAt)}.
@@ -67,7 +67,7 @@ export function CoachTermsAcceptance({ state }: { state: CoachTermsState }) {
   }
 
   return (
-    <section className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <section className="space-y-3 coach-panel">
       <div>
         <h2 className="text-sm font-semibold">Coach terms</h2>
         {state.previous ? (

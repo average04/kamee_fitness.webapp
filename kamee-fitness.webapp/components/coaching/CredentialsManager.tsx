@@ -116,10 +116,10 @@ export function CredentialsManager({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-3xl">
       <div className="space-y-3">
         {credentials.length === 0 && (
-          <p className="text-sm text-muted">No credentials yet.</p>
+          <p className="text-sm text-muted">Your experience matters. Add a qualification below, or return to your profile whenever you are ready.</p>
         )}
         {credentials.map((row) => (
           <CredentialRowView
@@ -136,7 +136,7 @@ export function CredentialsManager({
       <form
         ref={formRef}
         action={formAction}
-        className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+        className="space-y-4 coach-panel"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-mist">
@@ -161,10 +161,12 @@ export function CredentialsManager({
           </p>
         )}
 
+        <div className="coach-credential-fields">
         <Field label="Title" error={state.errors?.title} hint="Up to 120 characters">
           <input
             className={inputClass}
             name="title"
+            placeholder="e.g. Certified Personal Trainer"
             maxLength={120}
             value={values.title}
             onChange={(e) => setValues((v) => ({ ...v, title: e.target.value }))}
@@ -177,6 +179,7 @@ export function CredentialsManager({
           <input
             className={inputClass}
             name="issuer"
+            placeholder="Issuing organisation"
             maxLength={120}
             value={values.issuer}
             onChange={(e) => setValues((v) => ({ ...v, issuer: e.target.value }))}
@@ -215,6 +218,7 @@ export function CredentialsManager({
           </p>
         )}
 
+        </div>
         <button
           type="submit"
           disabled={readOnly || pending}
@@ -343,7 +347,7 @@ function CredentialRowView({
   }
 
   return (
-    <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="space-y-2 rounded-2xl border border-white/10 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-mist">{row.title}</p>

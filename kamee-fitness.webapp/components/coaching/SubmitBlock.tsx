@@ -42,7 +42,9 @@ export function SubmitBlock({
   }
 
   return (
-    <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className="space-y-2 coach-panel">
+      <h2>Ready to meet your clients?</h2>
+      <p className="coach-panel-description !mb-4">Once the essentials are complete, send your profile to the Kamee team for review.</p>
       <button
         type="button"
         onClick={onSubmit}
