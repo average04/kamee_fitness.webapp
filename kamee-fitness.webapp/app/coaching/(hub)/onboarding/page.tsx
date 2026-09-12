@@ -42,7 +42,7 @@ export default async function OnboardingPage() {
       <Checklist missing={hub.missing} />
       <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
-      <CoachTermsAcceptance state={terms} readOnly={readOnly} />
+      <CoachTermsAcceptance state={terms} />
       <SubmitBlock missing={hub.missing} status={status} />
 
       <div className="flex gap-4 text-sm">

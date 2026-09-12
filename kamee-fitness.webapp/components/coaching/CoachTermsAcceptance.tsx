@@ -15,14 +15,10 @@ const fmt = (iso: string) => `${dateFmt.format(new Date(iso))} (UTC)`;
  * an explicit action: the coach ticks the box and presses Accept, and the
  * database records the time and the version (acceptCoachTerms ->
  * accept_coaching_terms). Nothing here writes the acceptance columns.
+ * Stays usable while the profile is in review: accepting terms does not
+ * change the content under review.
  */
-export function CoachTermsAcceptance({
-  state,
-  readOnly,
-}: {
-  state: CoachTermsState;
-  readOnly: boolean;
-}) {
+export function CoachTermsAcceptance({ state }: { state: CoachTermsState }) {
   const [agreed, setAgreed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -92,7 +88,7 @@ export function CoachTermsAcceptance({
           type="checkbox"
           className="mt-0.5"
           checked={agreed}
-          disabled={readOnly || pending}
+          disabled={pending}
           onChange={(e) => setAgreed(e.target.checked)}
         />
         <span>I have read and agree to the Coach Terms, version {state.version}.</span>
@@ -100,7 +96,7 @@ export function CoachTermsAcceptance({
       <button
         type="button"
         onClick={onAccept}
-        disabled={!agreed || readOnly || pending}
+        disabled={!agreed || pending}
         className="rounded-lg bg-leaf-600 px-4 py-2 text-sm font-medium text-white hover:bg-leaf-500 disabled:opacity-50"
       >
         {pending ? "Saving…" : "Accept coach terms"}

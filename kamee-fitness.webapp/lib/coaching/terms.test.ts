@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { acceptTermsErrorMessage, coachTermsState, isTermsVersion } from "./terms";
+import { acceptTermsErrorMessage, acceptVersionError, coachTermsState, isTermsVersion } from "./terms";
 
 const current = { version: "2026-09-15", url: "https://kamee.fit/coaching/terms", publishedAt: "2026-09-15T00:00:00Z" };
 const deployed = { version: "2026-09-15", draft: false };
@@ -72,8 +72,25 @@ describe("acceptTermsErrorMessage", () => {
   it("maps each database error to coach-facing copy", () => {
     expect(acceptTermsErrorMessage("terms_outdated")).toMatch(/updated/);
     expect(acceptTermsErrorMessage("terms_unavailable")).toMatch(/not open/);
-    expect(acceptTermsErrorMessage("not_editable")).toMatch(/paused/);
+    expect(acceptTermsErrorMessage("not_a_coach")).toMatch(/Only coaches/);
     expect(acceptTermsErrorMessage("profile_missing")).toMatch(/retry/);
     expect(acceptTermsErrorMessage(undefined)).toMatch(/retry/);
+  });
+});
+
+describe("acceptVersionError", () => {
+  const live = { version: "2026-09-15", draft: false };
+  it("lets the deployed, published-shape version through", () => {
+    expect(acceptVersionError("2026-09-15", live)).toBeNull();
+  });
+  it("refuses a malformed or non-string version before asking the database", () => {
+    expect(acceptVersionError({ v: 1 }, live)).toBe("bad_version");
+    expect(acceptVersionError("latest", live)).toBe("bad_version");
+  });
+  it("refuses everything while the deployed text is a draft", () => {
+    expect(acceptVersionError("2026-09-15", { ...live, draft: true })).toBe("terms_unavailable");
+  });
+  it("refuses a version other than the deployed text", () => {
+    expect(acceptVersionError("2026-10-01", live)).toBe("terms_unavailable");
   });
 });

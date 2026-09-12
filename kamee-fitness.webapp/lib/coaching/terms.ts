@@ -47,6 +47,22 @@ export function coachTermsState(
   };
 }
 
+/**
+ * The acceptCoachTerms gate that runs before the database is asked: the
+ * posted version must be well-formed, the deployed text must not be a draft,
+ * and the posted version must be the deployed one. Returns the database-style
+ * error code to report, or null to proceed. The database still decides
+ * whether that version is the current one.
+ */
+export function acceptVersionError(
+  version: unknown,
+  deployed: { version: string; draft: boolean },
+): "bad_version" | "terms_unavailable" | null {
+  if (!isTermsVersion(version)) return "bad_version";
+  if (deployed.draft || version !== deployed.version) return "terms_unavailable";
+  return null;
+}
+
 /** Maps the RPC's raised error text to coach-facing copy. */
 export function acceptTermsErrorMessage(dbMessage: string | null | undefined): string {
   const m = dbMessage ?? "";
@@ -56,8 +72,8 @@ export function acceptTermsErrorMessage(dbMessage: string | null | undefined): s
   if (m.includes("terms_unavailable")) {
     return "The coach terms are not open for acceptance yet.";
   }
-  if (m.includes("not_editable")) {
-    return "Your profile is in review, so changes are paused.";
+  if (m.includes("not_a_coach")) {
+    return "Only coaches in the Coaching Hub can accept the coach terms.";
   }
   return "Could not record your acceptance. Please retry.";
 }

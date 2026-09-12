@@ -14,7 +14,7 @@ import {
 import { buildReviewReadyEmail } from "@/lib/coaching/review-email";
 import { sendReviewReadyEmail } from "@/lib/coaching/review-send";
 import { HUB_STATES, type CoachStatus } from "@/lib/coaching/states";
-import { acceptTermsErrorMessage, isTermsVersion } from "@/lib/coaching/terms";
+import { acceptTermsErrorMessage, acceptVersionError } from "@/lib/coaching/terms";
 import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
 import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -99,16 +99,20 @@ export async function saveProfile(raw: unknown): Promise<FormState> {
  * so a publish between page load and click fails as terms_outdated instead of
  * silently accepting text the coach never saw. Public endpoint: the version
  * is untrusted input and is shape-checked first.
+ *
+ * Allowed for every hub state, in_review included (not guardEditable):
+ * accepting terms does not change the content under review, and approval
+ * re-runs the checklist, so a coach in review must be able to accept a newly
+ * published version.
  */
 export async function acceptCoachTerms(version: unknown): Promise<FormState> {
-  const gate = await guardEditable();
-  if ("blocked" in gate) return { message: gate.message };
+  await requireCoach(HUB_STATES);
 
-  if (!isTermsVersion(version)) return { message: acceptTermsErrorMessage(null) };
-  // The deployed text must be the version being accepted, and not a draft.
-  if (COACH_TERMS_DRAFT || version !== COACH_TERMS_VERSION) {
-    return { message: acceptTermsErrorMessage("terms_unavailable") };
-  }
+  const refused = acceptVersionError(version, {
+    version: COACH_TERMS_VERSION,
+    draft: COACH_TERMS_DRAFT,
+  });
+  if (refused) return { message: acceptTermsErrorMessage(refused) };
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.rpc("accept_coaching_terms", { p_version: version });

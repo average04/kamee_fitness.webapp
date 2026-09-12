@@ -22,7 +22,7 @@ export default async function CoachProfilePage() {
       <h1 className="font-display text-2xl font-semibold">Your coach profile</h1>
       <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
-      <CoachTermsAcceptance state={terms} readOnly={readOnly} />
+      <CoachTermsAcceptance state={terms} />
     </div>
   );
 }
