@@ -19,9 +19,13 @@ This policy covers personal data we process through the Kamee Fitness mobile app
 | **Heart rate** | values read from Apple Health or a Bluetooth heart-rate strap during sessions | Show in-session metrics and post-session analysis | Performance of contract; explicit consent at the HealthKit / Bluetooth prompt |
 | **Location** | precise GPS during active outdoor walk/run sessions, AND during active buddy live-tracking sessions | Track route and distance; show buddies your live position | Performance of contract; explicit consent at the location prompt |
 | **Buddy relationships** | who you've added as a buddy, accepted invites | Power buddy features (presence, live tracking) | Performance of contract |
+| **Coach profile** (invited coaches only) | headline, bio, specialties, years of experience, languages, location, social links, typical response time, cover and gallery photos | Build your coach profile and, once approved, show it to Kamee users | Performance of contract |
+| **Coach credentials & review records** (invited coaches only) | credential title, issuer, year and expiry; the supporting documents you upload; a fingerprint (SHA-256 hash) of each document we verify; our review decisions and notes; the date, time and version of the Coach Terms you accepted | Check coaches' qualifications, show which credentials we verified, and keep a record of reviews and terms acceptance | Legitimate interest (protecting users from false qualifications); performance of contract |
 | **Device & diagnostics** | device model, OS version, app version, crash logs | Debug and improve the Service; security | Legitimate interest |
 | **Subscription receipts** | receipts and entitlement status from Apple/Google, verified via RevenueCat | Unlock Premium features you bought | Performance of contract |
 | **Ad-tier only — ad identifiers** | IDFA (iOS, only if you granted App Tracking Transparency) or Google Advertising ID (Android); otherwise an on-device anonymous ID | Show ads on the free tier via AdMob | Consent (the ATT prompt on iOS / your Google Play ad settings on Android) |
+
+**Coach photos are public files.** Cover and gallery photos you upload in the Coaching Hub are stored as public images: anyone who has an image's web address can view it, including before your profile is approved. Only upload photos you're happy to have seen publicly.
 
 ## 4. What we don't collect — our privacy promises
 
@@ -31,6 +35,7 @@ We try to be specific about what we **don't** do, because vague privacy policies
 - **Kamy AI insights run entirely on your device** using a local language model (llama.rn). Your workout data is **never** sent to a third-party AI provider like OpenAI, Anthropic, or Google.
 - **We never sell or share your personal data** with advertisers, data brokers, or any third party for their own purposes.
 - **Buddy location is only visible to users you explicitly added as a buddy**, and only while you're sharing a live session.
+- **Coach credential documents are never public.** Only the coach who uploaded them and the Kamee staff who review coach profiles can open them.
 
 ## 5. How we use your data
 
@@ -40,6 +45,7 @@ We use the data above to:
 - Personalize plans and recommendations (on-device, via Kamy)
 - Process subscriptions via Apple and Google
 - Send service notifications you've opted into (session reminders, buddy invites)
+- Review coach applications, verify coaches' credentials, and show approved coach profiles (coaches only)
 - Detect abuse, debug crashes, and improve reliability
 - Comply with legal obligations
 
@@ -54,6 +60,7 @@ These companies process data on our behalf. They're under contract to use your d
 | **Google LLC** | Google Play distribution, Google Sign-In, Firebase Cloud Messaging, AdMob (free tier only) | Global | policies.google.com/privacy |
 | **RevenueCat** | Subscription receipt validation and entitlement | US | revenuecat.com/privacy |
 | **Netlify** | Hosting for the kamee.fit website | US | netlify.com/privacy |
+| **Resend** | Sending and receiving email for kamee.fit addresses, including Coaching Hub invitations and review notifications | US | resend.com/legal/privacy-policy |
 
 **Embedded YouTube videos.** Exercise demonstration videos play through YouTube's embedded player (the YouTube IFrame Player), and only after you tap "Watch demo." Unlike the processors above, Google does **not** act on our behalf here — when a video loads, YouTube (Google) may set cookies and collect device and usage data as an independent controller, subject to Google's Privacy Policy (policies.google.com/privacy). We don't receive or control that data.
 
@@ -65,6 +72,11 @@ Your data may be processed outside the Philippines, including in the United Stat
 
 - **Active accounts:** retained as long as your account is active so the Service can keep working.
 - **Account deletion:** when you delete your account in Settings, we delete your personal data within **30 days**. Backups may retain copies for up to **90 days** before they roll off.
+- **Coach data:**
+  - Your coach profile details, credentials, the list of your gallery photos, review records and terms-acceptance record are kept while your account exists, and are deleted with your account.
+  - When you replace a credential document, delete it, or delete the credential, the old document is permanently deleted within **9 days**. A document you upload but never attach to a credential is deleted within 9 days of upload. We wait 8 days so that a document still being attached is never lost; a daily job then deletes it.
+  - Cover and gallery photo files: removing a photo, or deleting your account, takes it off your coach profile, but the image file itself is not yet deleted automatically and stays viewable at its web address. Email **support@kamee.fit** and we will delete those files.
+  - When your account is deleted, your credential documents are deleted by the next daily job after the rest of your account data.
 - **Anonymized aggregates** (e.g. total number of sessions per region) may be retained longer for product analytics.
 - **Legal holds:** we may retain data longer if required by law (e.g. tax records for paid subscribers).
 

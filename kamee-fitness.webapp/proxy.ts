@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isAllowed, parseAllowlist } from "@/lib/admin/allowlist";
+import { isPublicCoachingPath } from "@/lib/coaching/public-paths";
 
 /**
  * Next 16 Proxy (formerly middleware). Refreshes the Supabase session on every
@@ -60,9 +61,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Coaching Hub: any authenticated user; unauthenticated -> /login?next=<path>.
+  // Coach-status gating happens server-side in requireCoach(); this proxy is
+  // the first, not the only, line of defense. Public exceptions: the Coach
+  // Terms and invite links (which carry their own sign-in form).
+  if (pathname.startsWith("/coaching") && !isPublicCoachingPath(pathname) && !user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/me/:path*", "/login"],
+  matcher: ["/admin/:path*", "/me/:path*", "/login", "/coaching/:path*"],
 };

@@ -6,9 +6,15 @@ type Props = {
   title: string;
   sections: Section[];
   children: React.ReactNode;
+  /** Overrides the shared LAST_UPDATED (Coach Terms carry their own date). */
+  lastUpdated?: string;
+  /** Extra line under the date, e.g. a version number. */
+  subtitle?: React.ReactNode;
+  /** Banner under the header, e.g. a draft notice. */
+  notice?: React.ReactNode;
 };
 
-export function LegalDocLayout({ title, sections, children }: Props) {
+export function LegalDocLayout({ title, sections, children, lastUpdated, subtitle, notice }: Props) {
   return (
     <main className="min-h-screen bg-ink-950 text-ink-100">
       <div className="max-w-5xl mx-auto px-6 py-12 lg:py-16">
@@ -22,7 +28,9 @@ export function LegalDocLayout({ title, sections, children }: Props) {
           <h1 className="text-4xl lg:text-5xl font-bold text-leaf-300 mt-4">
             {title}
           </h1>
-          <p className="text-sm text-ink-400 mt-3">Last updated: {LAST_UPDATED}</p>
+          <p className="text-sm text-ink-400 mt-3">Last updated: {lastUpdated ?? LAST_UPDATED}</p>
+          {subtitle && <p className="text-sm text-ink-400 mt-1">{subtitle}</p>}
+          {notice}
         </header>
 
         <div className="lg:flex lg:gap-12">

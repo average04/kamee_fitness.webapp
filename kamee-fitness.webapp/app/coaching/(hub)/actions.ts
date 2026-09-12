@@ -1,0 +1,454 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { getCoachSession, requireCoach } from "@/lib/coaching/auth";
+import {
+  coerceProfileInput,
+  parseCredentialForm,
+  validateCredential,
+  validateProfile,
+  MISSING_LABELS,
+  type FormState,
+} from "@/lib/coaching/profile";
+import { buildReviewReadyEmail } from "@/lib/coaching/review-email";
+import { sendReviewReadyEmail } from "@/lib/coaching/review-send";
+import { HUB_STATES, type CoachStatus } from "@/lib/coaching/states";
+import { acceptTermsErrorMessage, acceptVersionError } from "@/lib/coaching/terms";
+import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
+import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
+import { createServerSupabase } from "@/lib/supabase/server";
+
+const EDITABLE: CoachStatus[] = ["onboarding", "changes_requested", "approved", "suspended"];
+
+const PAUSED_MESSAGE = "Your profile is in review, so changes are paused.";
+
+/**
+ * M11 (fix round 1): `requireCoach([...EDITABLE])` redirects anyone outside
+ * that allow-list to /coaching/not-a-coach -- correct for a signed-out
+ * visitor or a non-coach role, but wrong for a legitimate coach who is
+ * simply `in_review` (e.g. they submitted from another tab and this tab's
+ * autosave fires afterwards). Check the session status first and hand back
+ * a friendly paused message for that one case; every other disallowed
+ * state still goes through requireCoach's redirects.
+ *
+ * R20(e): every new Server Action in this module (credentials, gallery,
+ * submit) reuses this same gate rather than re-deriving the in_review
+ * short-circuit. `allowed` lets a caller narrow the final `requireCoach`
+ * allow-list (e.g. `submitProfile` only wants onboarding/changes_requested)
+ * while still getting the friendly in_review message first.
+ */
+async function guardEditable(
+  allowed: CoachStatus[] = EDITABLE,
+): Promise<{ user: { id: string } } | { blocked: true; message: string }> {
+  const session = await getCoachSession();
+  if (session.user && session.role === "coach" && session.status === "in_review") {
+    return { blocked: true, message: PAUSED_MESSAGE };
+  }
+  const { user } = await requireCoach(allowed);
+  return { user };
+}
+
+export async function saveProfile(raw: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  // I4 (fix round 1): Server Actions are public POST endpoints -- the
+  // caller can send any JSON shape, not just what our own ProfileForm
+  // sends. Type-check and rebuild the whole thing before it ever reaches
+  // validateProfile or the database.
+  const input = coerceProfileInput(raw);
+  if (!input) return { message: "Could not save. Please retry." };
+  const v = validateProfile(input);
+  if (!v.ok) return { errors: v.errors };
+
+  // Coach terms are not part of the profile autosave: acceptance is stamped
+  // server-side by acceptCoachTerms (migration 20260913100600 revoked the
+  // client UPDATE grant on terms_accepted_at, so writing it here would fail).
+  const supabase = await createServerSupabase(); // anon + cookies: RLS owner-update policy applies
+  const { data, error } = await supabase
+    .from("coaching_profiles")
+    .update({
+      headline: v.value.headline || null,
+      about: v.value.about || null,
+      specialties: v.value.specialties,
+      years_experience: v.value.yearsExperience,
+      languages: v.value.languages,
+      location_label: v.value.locationLabel || null,
+      socials: v.value.socials,
+      is_accepting_clients: v.value.isAcceptingClients,
+      response_days: v.value.responseDays,
+    })
+    .eq("user_id", user.id)
+    .select("user_id");
+  // I5: "saved" is only true once we can see exactly one row came back --
+  // an RLS mismatch or a since-deleted row would otherwise return no error
+  // and zero rows, which previously read as success.
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not save. Please retry." };
+  }
+  revalidatePath("/coaching/onboarding");
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * Records the coach's acceptance of the current Coach Terms. The database
+ * stamps the time and version (accept_coaching_terms, migration
+ * 20260913100600); this action only forwards the version the coach was shown,
+ * so a publish between page load and click fails as terms_outdated instead of
+ * silently accepting text the coach never saw. Public endpoint: the version
+ * is untrusted input and is shape-checked first.
+ *
+ * Allowed for every hub state, in_review included (not guardEditable):
+ * accepting terms does not change the content under review, and approval
+ * re-runs the checklist, so a coach in review must be able to accept a newly
+ * published version.
+ */
+export async function acceptCoachTerms(version: unknown): Promise<FormState> {
+  await requireCoach(HUB_STATES);
+
+  const refused = acceptVersionError(version, {
+    version: COACH_TERMS_VERSION,
+    draft: COACH_TERMS_DRAFT,
+  });
+  if (refused) return { message: acceptTermsErrorMessage(refused) };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.rpc("accept_coaching_terms", { p_version: version });
+  if (error || !data) return { message: acceptTermsErrorMessage(error?.message) };
+
+  revalidatePath("/coaching/onboarding");
+  revalidatePath("/coaching/profile");
+  return { savedAt: new Date().toISOString() };
+}
+
+export async function setCoverPath(path: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  // I3 (fix round 1): require the exact own-cover-path shape
+  // (coaching/<own uid>/cover/<digits>.(jpg|png|webp)) instead of a loose
+  // startsWith check, which a crafted path could defeat with `../`.
+  if (!isOwnCoverPath(path, user.id)) {
+    return { message: "Could not save the cover. Please try again." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_profiles")
+    .update({ cover_image_path: path })
+    .eq("user_id", user.id)
+    .select("user_id");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not save the cover. Please try again." };
+  }
+  revalidatePath("/coaching/onboarding");
+  return { savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// Task 11: credentials manager
+// ---------------------------------------------------------------------------
+
+/**
+ * Hidden `id` present -> UPDATE (own row only); absent -> INSERT with a
+ * server-generated uuid. Never upsert: PostgREST's ON CONFLICT DO UPDATE
+ * writes id and coach_id, which have no UPDATE grant, so every upsert
+ * would fail (partial-upsert trap). The document is attached afterward via
+ * `setCredentialDocument` once the row (and its id) exists.
+ */
+export async function upsertCredential(
+  _prev: FormState,
+  formData: unknown,
+): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  // Minor (fix round 1): useActionState always supplies a real FormData,
+  // but the action is still a public POST endpoint a caller could hit
+  // directly with any body -- never assume the shape.
+  if (!(formData instanceof FormData)) {
+    return { message: "Could not save the credential." };
+  }
+
+  const input = parseCredentialForm(formData);
+  const v = validateCredential(input);
+  if (!v.ok) return { errors: v.errors };
+
+  const existingId = formData.get("id");
+  const fields = {
+    title: v.value.title,
+    issuer: v.value.issuer,
+    issued_year: v.value.issuedYear,
+    expires_on: v.value.expiresOn,
+  };
+  const supabase = await createServerSupabase();
+
+  const { data, error } =
+    typeof existingId === "string" && existingId
+      ? await supabase
+          .from("coaching_credentials")
+          .update(fields)
+          .eq("id", existingId)
+          .eq("coach_id", user.id)
+          .select("id")
+      : await supabase
+          .from("coaching_credentials")
+          .insert({ id: crypto.randomUUID(), coach_id: user.id, ...fields })
+          .select("id");
+
+  // I5-style rule (matches saveProfile/setCoverPath): "saved" is only true
+  // once exactly one row comes back, not merely the absence of an error.
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not save the credential." };
+  }
+  revalidatePath("/coaching/credentials");
+  return { savedAt: new Date().toISOString() };
+}
+
+export async function deleteCredential(id: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string" || !id) return { message: "Could not delete." };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_credentials")
+    .delete()
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+  if (error || !data || data.length !== 1) return { message: "Could not delete." };
+  revalidatePath("/coaching/credentials");
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * Attaches a document already uploaded (browser-side, insert-only) to the
+ * private `coaching-documents` bucket. `isOwnCredentialDocPath` requires
+ * the exact `<uid>/<credentialId>/<uuid>.(pdf|jpg|png)` shape -- a crafted
+ * path pointing at another coach's folder or another credential id is
+ * rejected before it ever reaches the database.
+ */
+export async function setCredentialDocument(id: unknown, path: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string") return { message: "Could not attach the document." };
+  if (!isOwnCredentialDocPath(path, user.id, id)) {
+    return { message: "Could not attach the document." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_credentials")
+    .update({ document_path: path })
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not attach the document." };
+  }
+  revalidatePath("/coaching/credentials");
+  return { savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// Task 12: gallery manager
+// ---------------------------------------------------------------------------
+
+export async function addGalleryPhoto(path: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (!isOwnGalleryPath(path, user.id)) {
+    return { message: "Could not add the photo." };
+  }
+
+  const supabase = await createServerSupabase();
+  // Minor (fix round 1): position = max(position) + 1, not a row count.
+  // A count-based position collides with an existing row's position (and
+  // so silently reorders it) whenever gaps exist -- e.g. after deletes, or
+  // after a reorder that doesn't renumber every row contiguously.
+  const { data: maxRow, error: maxError } = await supabase
+    .from("coaching_gallery")
+    .select("position")
+    .eq("coach_id", user.id)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (maxError) return { message: "Could not add the photo." };
+  const nextPosition = maxRow ? maxRow.position + 1 : 0;
+
+  const { data, error } = await supabase
+    .from("coaching_gallery")
+    .insert({ coach_id: user.id, image_path: path, position: nextPosition })
+    .select("id");
+  if (error) {
+    // The `gallery_full` trigger fires at 12 rows (spec: at most 12 photos).
+    if (error.message.includes("gallery_full")) {
+      return { message: "You can add up to 12 photos." };
+    }
+    return { message: "Could not add the photo." };
+  }
+  if (!data || data.length !== 1) return { message: "Could not add the photo." };
+  revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString() };
+}
+
+export async function updateGalleryCaption(id: unknown, caption: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string" || !id) return { message: "Could not save the caption." };
+  if (typeof caption !== "string") return { message: "Could not save the caption." };
+  const trimmed = caption.trim().slice(0, 120);
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_gallery")
+    // Minor (fix round 1): store null for an emptied caption rather than
+    // an empty string, matching every other optional text column in this
+    // module (headline/about/location_label etc. via `|| null`).
+    .update({ caption: trimmed.length > 0 ? trimmed : null })
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("id");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not save the caption." };
+  }
+  // I1 (fix round 1): no revalidatePath here. The gallery grid's local
+  // `photos` state is the source of truth for captions between saves --
+  // revalidating on every keystroke's eventual autosave would otherwise
+  // refresh `initialPhotos` mid-edit and risk clobbering a caption another
+  // tile is still typing (GalleryManager's `mergeGalleryState` guards
+  // against that for the OTHER mutations, which still do revalidate, but
+  // there is no reason for a caption save to trigger a page-wide
+  // revalidation at all -- nothing else on the page depends on it).
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * Deletes the row only -- the caller (browser) then removes the storage
+ * object itself with `createBrowserSupabase().storage.from("social-photos").remove([path])`,
+ * which the existing `social_photos_delete` policy permits through
+ * `can_write_social_photo`. Returns the now-orphaned `image_path` so the
+ * browser knows what to remove; `.select("image_path")` also doubles as
+ * the "did this actually delete a row I own" check.
+ */
+export async function deleteGalleryPhoto(
+  id: unknown,
+): Promise<FormState & { imagePath?: string }> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  if (typeof id !== "string" || !id) return { message: "Could not delete the photo." };
+
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("coaching_gallery")
+    .delete()
+    .eq("id", id)
+    .eq("coach_id", user.id)
+    .select("image_path");
+  if (error || !data || data.length !== 1) {
+    return { message: "Could not delete the photo." };
+  }
+  revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString(), imagePath: data[0].image_path as string };
+}
+
+export async function reorderGallery(ids: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((x) => typeof x === "string" && x)) {
+    return { message: "Could not reorder the gallery." };
+  }
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc("reorder_coaching_gallery", { p_ids: ids });
+  if (error) {
+    const FRIENDLY: Record<string, string> = {
+      // 20260913100500: the database refuses reorders while the profile is in review.
+      not_editable: "Changes to your profile are paused right now.",
+      not_active: "Your account isn't active right now.",
+      duplicate_ids: "Could not reorder the gallery.",
+      not_owner: "Could not reorder the gallery.",
+    };
+    return { message: FRIENDLY[error.message] ?? "Could not reorder the gallery." };
+  }
+  revalidatePath("/coaching/gallery");
+  return { savedAt: new Date().toISOString() };
+}
+
+// ---------------------------------------------------------------------------
+// Task 13: submit for review
+// ---------------------------------------------------------------------------
+
+/**
+ * R7: imports MISSING_LABELS to translate the RPC's `incomplete:<keys>`
+ * error into the same copy the onboarding Checklist already uses.
+ * Server-side enforcement is the RPC itself; SubmitBlock's disabled state
+ * is convenience only.
+ */
+export async function submitProfile(): Promise<FormState> {
+  // Minor (fix round 1): gate with the full HUB_STATES list, not just
+  // onboarding/changes_requested. A coach in some other allowed state
+  // (e.g. approved) who somehow still has a stale Submit button visible
+  // now gets the RPC's mapped `wrong_state` copy below instead of a
+  // jarring redirect to /coaching/not-a-coach -- the RPC, not this gate,
+  // is the real authority on whether a submission is valid.
+  const gate = await guardEditable(HUB_STATES);
+  if ("blocked" in gate) return { message: gate.message };
+  const { user } = gate;
+
+  const supabase = await createServerSupabase();
+  const { error } = await supabase.rpc("submit_coaching_profile");
+  if (error) {
+    if (error.message.startsWith("incomplete:")) {
+      const keys = error.message.slice("incomplete:".length).split(",");
+      return { message: "Not ready yet: " + keys.map((k) => MISSING_LABELS[k] ?? k).join("; ") };
+    }
+    if (error.message === "wrong_state") {
+      return { message: "Your profile can't be submitted right now." };
+    }
+    return { message: "Could not submit. Please retry." };
+  }
+
+  // Spec 4.3 / R27: tell the operators a profile is waiting. Best-effort --
+  // the submit already succeeded, so a failed name read, a missing
+  // RESEND_API_KEY or a Resend error must never turn it into a failure.
+  try {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    await sendReviewReadyEmail(buildReviewReadyEmail(me?.display_name ?? null, user.id));
+  } catch {
+    // Swallowed on purpose: see above.
+  }
+
+  revalidatePath("/coaching/onboarding");
+  return { savedAt: new Date().toISOString() };
+}
+
+/**
+ * R18: the hub's own sign-out, distinct from app/admin/actions.ts (which
+ * redirects to /admin/login). Signed-out coaches land on the public /login.
+ */
+export async function signOutCoach() {
+  const supabase = await createServerSupabase();
+  await supabase.auth.signOut();
+  redirect("/login");
+}
