@@ -28,15 +28,6 @@ export async function signVideo(
     cache: "no-store",
   });
   if (!head.ok || !video.etag || head.headers.get("etag") !== video.etag) {
-    if (head.ok)
-      await db
-        .from("coaching_videos")
-        .update({
-          status: "failed",
-          failure_reason: "Stored video changed; operator review required.",
-        })
-        .eq("id", id)
-        .eq("status", "ready");
     return Response.json(
       { error: "Video could not be verified" },
       { status: 409 },

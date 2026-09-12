@@ -10,6 +10,8 @@ export function Field({
   min,
   max,
   multiline = false,
+  maxLength,
+  step,
 }: {
   label: string;
   value: string | number | null;
@@ -18,6 +20,8 @@ export function Field({
   min?: number;
   max?: number;
   multiline?: boolean;
+  maxLength?: number;
+  step?: number | "any";
 }) {
   return (
     <label className="plan-field">
@@ -26,6 +30,7 @@ export function Field({
         <textarea
           className="coach-input"
           rows={3}
+          maxLength={maxLength}
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -33,6 +38,8 @@ export function Field({
         <input
           className="coach-input"
           type={type}
+          maxLength={maxLength}
+          step={step}
           min={min}
           max={max}
           value={value ?? ""}
@@ -60,7 +67,7 @@ export function Select({
       <select
         id={id}
         className="coach-input"
-        value={value}
+        value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
       >
         {children}
@@ -84,11 +91,19 @@ export function VideoSelect({
       onChange={(v) => onChange(v || null)}
     >
       <option value="">No video</option>
+      {value && !videos.some((v) => v.id === value) && (
+        <option value={value} disabled>
+          Unavailable video - replace or remove
+        </option>
+      )}
       {videos
-        .filter((v) => !v.retired_at || v.id === value)
+        .filter(
+          (v) => (v.status === "ready" && !v.retired_at) || v.id === value,
+        )
         .map((v) => (
-          <option key={v.id} value={v.id}>
+          <option key={v.id} value={v.id} disabled={v.status !== "ready"}>
             {v.title}
+            {v.status !== "ready" ? " (unavailable - replace or remove)" : ""}
             {v.retired_at ? " (removed from library)" : ""}
           </option>
         ))}

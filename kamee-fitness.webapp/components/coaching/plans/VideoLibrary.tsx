@@ -22,6 +22,7 @@ export function VideoLibrary({
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
   const upload = useRef<Upload | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
   const [hasUpload, setHasUpload] = useState(false);
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
   const db = createBrowserSupabase();
@@ -31,6 +32,48 @@ export function VideoLibrary({
     },
     [],
   );
+  useEffect(() => {
+    if (!hasUpload && !busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const click = (e: MouseEvent) => {
+      const a = e.target instanceof Element ? e.target.closest("a") : null;
+      if (
+        a &&
+        a.target !== "_blank" &&
+        a.href !== location.href &&
+        !confirm(
+          "Leave this upload? You can resume from Videos with the same file.",
+        )
+      ) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    };
+    // Navigation API covers browser history where supported; TUS fingerprint
+    // remains available to resume if the browser cannot cancel traversal.
+    const navigation = (window as Window & { navigation?: EventTarget })
+      .navigation;
+    const traverse = (e: Event) => {
+      if (
+        (e as Event & { navigationType?: string }).navigationType ===
+          "traverse" &&
+        e.cancelable &&
+        !confirm("Leave this upload? Resume later with the same file.")
+      )
+        e.preventDefault();
+    };
+    navigation?.addEventListener("navigate", traverse);
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", click, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", click, true);
+      navigation?.removeEventListener("navigate", traverse);
+    };
+  }, [hasUpload, busy]);
   async function refresh() {
     const { data, error } = await db
       .from("coaching_videos")
@@ -127,6 +170,7 @@ export function VideoLibrary({
           setHasUpload(false);
           setActiveUploadId(null);
           setFile(null);
+          if (fileInput.current) fileInput.current.value = "";
           setTitle("");
           setCaption("");
           void finalize(video.id);
@@ -178,7 +222,10 @@ export function VideoLibrary({
     }
     const { error } = await db.rpc("retire_coaching_video", { p_video_id: id });
     if (error) setMessage(error.message);
-    else await refresh();
+    else {
+      if (introId === id) setIntroId(null);
+      await refresh();
+    }
   }
   return (
     <div className="plan-stack">
@@ -225,6 +272,7 @@ export function VideoLibrary({
           />
         </label>
         <input
+          ref={fileInput}
           aria-label="Choose MP4 video"
           type="file"
           accept="video/mp4"
@@ -323,7 +371,7 @@ export function VideoLibrary({
               )}
               <button
                 className="plan-secondary"
-                disabled={busy}
+                disabled={busy || v.id === activeUploadId}
                 onClick={() => finalize(v.id)}
               >
                 Retry validation

@@ -28,3 +28,17 @@ Local browser tests use `.env.development.local` with a local Supabase URL. Keep
 production `.env.local` separate. New B content and deployments have not been
 released to production. Native intro playback requires the new 1.0.9 binary;
 buyer access and purchases remain the next phase.
+
+Review corrections are included in the same PR. Drafts have a per-account,
+per-plan working copy in sessionStorage; Back/Forward and reload offer recovery,
+and plan actions return session errors without redirecting away from edits.
+Recovery is local to the browser tab, not a server autosave. Clear/discard the
+copy explicitly or save successfully to remove it. A changed server revision is
+shown before restoring; restoring is an explicit choice to reconcile local edits.
+
+Meal days retain the existing 1,200-6,000 kcal database range. This is a software
+constraint, not nutrition advice; partial meals can be saved against a valid day
+target and must match it at submission. Calories are not inferred from 4/4/9.
+Failed owned video references can remain in drafts for replacement, but cannot
+pass review or be selected as profile intros. Read-only versions show the full
+preview, including every week and meal day.

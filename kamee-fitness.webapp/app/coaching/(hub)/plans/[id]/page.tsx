@@ -11,7 +11,7 @@ export default async function PlanPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireCoach(["approved"]);
+  const { user } = await requireCoach(["approved"]);
   const { id } = await params;
   const db = await createServerSupabase();
   const [
@@ -24,7 +24,7 @@ export default async function PlanPage({
     db
       .from("coaching_videos")
       .select("*")
-      .eq("status", "ready")
+      .in("status", ["ready", "failed"])
       .order("created_at", { ascending: false }),
   ]);
   if (error || !plan) notFound();
@@ -32,6 +32,7 @@ export default async function PlanPage({
     throw new Error("Could not load the exercise or video library.");
   return (
     <PlanEditor
+      ownerId={user.id}
       key={id}
       initial={plan as PlanDocument}
       exercises={exercises ?? []}

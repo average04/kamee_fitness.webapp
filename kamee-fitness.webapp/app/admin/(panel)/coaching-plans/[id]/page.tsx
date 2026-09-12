@@ -1,3 +1,4 @@
+import { loadCoachingCatalog } from "@/lib/coaching/catalog";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -15,7 +16,7 @@ export default async function ReviewPage({
   const db = createAdminSupabase();
   const [result, exercises, reviews] = await Promise.all([
     db.rpc("admin_get_coaching_plan", { p_plan_id: id }),
-    db.from("exercises").select("id,name").order("name").limit(2000),
+    loadCoachingCatalog(db),
     db
       .from("coaching_plan_reviews")
       .select("*")
@@ -23,7 +24,7 @@ export default async function ReviewPage({
       .order("created_at", { ascending: false }),
   ]);
   if (result.error || !result.data) notFound();
-  if (exercises.error || reviews.error)
+  if (reviews.error)
     throw new Error("Could not load review details.");
   const plan = result.data as PlanDocument;
   return (
@@ -38,7 +39,7 @@ export default async function ReviewPage({
           <p>{plan.change_note}</p>
         </div>
       )}
-      <PlanPreview plan={plan} exercises={exercises.data ?? []} admin />
+      <PlanPreview plan={plan} exercises={exercises} admin />
       {plan.version_state === "in_review" && (
         <div className="coach-panel">
           <ReviewForm id={id} />

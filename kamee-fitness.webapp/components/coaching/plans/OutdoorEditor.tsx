@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Cardio } from "@/lib/coaching/plans";
 import {
   buildRunDayCardio,
+  parseRunDayCardio,
   type RunDayKind,
   type RunDayParams,
 } from "@/lib/coaching/outdoor/runDayForm";
@@ -31,14 +32,53 @@ export function OutdoorEditor({
   onChange,
 }: {
   value: Cardio | null;
-  onChange: (v: Cardio) => void;
+  onChange: (v: Cardio | null) => void;
 }) {
-  const [kind, setKind] = useState<RunDayKind>("easy");
-  const [minutes, setMinutes] = useState(20);
-  const [reps, setReps] = useState(6);
-  const [work, setWork] = useState(60);
-  const [recover, setRecover] = useState(90);
+  const parsed = value
+    ? parseRunDayCardio({
+        sessionType: value.session_type,
+        segments: value.segments,
+      })
+    : null;
+  const [kind, setKind] = useState<RunDayKind>(parsed?.kind ?? "easy");
+  const [minutes, setMinutes] = useState(
+    parsed && "minutes" in parsed
+      ? parsed.minutes
+      : parsed && "steadyMin" in parsed
+        ? parsed.steadyMin
+        : parsed && "baseMin" in parsed
+          ? parsed.baseMin
+          : 20,
+  );
+  const [reps, setReps] = useState(
+    parsed && "reps" in parsed ? parsed.reps : 6,
+  );
+  const [work, setWork] = useState(
+    parsed && "runSec" in parsed
+      ? parsed.runSec
+      : parsed && "workSec" in parsed
+        ? parsed.workSec
+        : parsed && "fastSec" in parsed
+          ? parsed.fastSec
+          : 60,
+  );
+  const [recover, setRecover] = useState(
+    parsed && "walkSec" in parsed
+      ? parsed.walkSec
+      : parsed && "recoverSec" in parsed
+        ? parsed.recoverSec
+        : parsed && "easySec" in parsed
+          ? parsed.easySec
+          : 90,
+  );
   function apply() {
+    if (
+      value &&
+      !confirm(
+        "Replace the current session with these settings? Custom segment edits will be removed.",
+      )
+    )
+      return;
     let params: RunDayParams;
     switch (kind) {
       case "run_walk":
@@ -185,6 +225,17 @@ export function OutdoorEditor({
       <button type="button" className="plan-secondary" onClick={apply}>
         {value ? "Replace session" : "Add session"}
       </button>
+      {value && (
+        <button
+          type="button"
+          className="plan-secondary"
+          onClick={() => {
+            if (confirm("Remove this run / walk session?")) onChange(null);
+          }}
+        >
+          Remove session
+        </button>
+      )}
       {value && (
         <>
           <p className="coach-panel-description">

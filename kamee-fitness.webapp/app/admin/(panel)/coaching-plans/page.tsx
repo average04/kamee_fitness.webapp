@@ -1,3 +1,4 @@
+import { loadCoachingCatalog } from "@/lib/coaching/catalog";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
@@ -17,9 +18,9 @@ export default async function ReviewQueue() {
       .select("*")
       .eq("status", "pending")
       .order("created_at"),
-    db.from("exercises").select("id,name").order("name").limit(2000),
+    loadCoachingCatalog(db),
   ]);
-  if (plans.error || requests.error || exercises.error)
+  if (plans.error || requests.error)
     throw new Error("Could not load coaching review queue.");
   return (
     <>
@@ -48,7 +49,7 @@ export default async function ReviewQueue() {
               {r.primary_muscle} · {r.equipment.join(", ")}
             </p>
             <Link href="/admin/exercises/new">Add exercise to catalog ↗</Link>
-            <ExerciseReviewForm id={r.id} exercises={exercises.data ?? []} />
+            <ExerciseReviewForm id={r.id} exercises={exercises} />
           </div>
         </details>
       ))}

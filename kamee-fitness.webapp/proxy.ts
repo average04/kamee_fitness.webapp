@@ -65,7 +65,18 @@ export async function proxy(request: NextRequest) {
   // Coach-status gating happens server-side in requireCoach(); this proxy is
   // the first, not the only, line of defense. Public exceptions: the Coach
   // Terms and invite links (which carry their own sign-in form).
-  if (pathname.startsWith("/coaching") && !isPublicCoachingPath(pathname) && !user) {
+  // Plan Server Actions return a structured session-expiry error and preserve
+  // the editor. Every action independently checks the authenticated coach.
+  const planAction =
+    request.method === "POST" &&
+    request.headers.has("next-action") &&
+    (pathname === "/coaching/plans" || pathname.startsWith("/coaching/plans/"));
+  if (
+    pathname.startsWith("/coaching") &&
+    !isPublicCoachingPath(pathname) &&
+    !user &&
+    !planAction
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

@@ -19,7 +19,9 @@ const macros: [keyof Nutrition, string][] = [
 function NutritionFields({
   value,
   onChange,
+  dayTotals = false,
 }: {
+  dayTotals?: boolean;
   value: Nutrition;
   onChange: (n: Nutrition) => void;
 }) {
@@ -30,7 +32,17 @@ function NutritionFields({
           key={key}
           label={label}
           type="number"
-          min={0}
+          min={dayTotals && key === "kcal" ? 1200 : 0}
+          max={
+            dayTotals
+              ? key === "kcal"
+                ? 6000
+                : key === "carbs_g"
+                  ? 1000
+                  : 500
+              : undefined
+          }
+          step={key === "kcal" ? 1 : 0.1}
           value={value[key]}
           onChange={(v) => onChange({ ...value, [key]: Number(v) })}
         />
@@ -48,6 +60,7 @@ export function MealsEditor({
   onChange: (v: Meals | null) => void;
 }) {
   const [selected, setSelected] = useState(0);
+  const [error, setError] = useState("");
   if (!value)
     return (
       <div className="coach-panel plan-stack">
@@ -89,6 +102,7 @@ export function MealsEditor({
       </div>
       <Field
         label="Title"
+        maxLength={80}
         value={value.title}
         onChange={(title) => onChange({ ...value, title })}
       />
@@ -136,6 +150,7 @@ export function MealsEditor({
       <div className="plan-grid">
         <Field
           label="Day label"
+          maxLength={40}
           value={day.label}
           onChange={(label) => updateDay({ label })}
         />
@@ -151,11 +166,12 @@ export function MealsEditor({
       </div>
       <Field
         label="Day note"
+        maxLength={240}
         value={day.note}
         onChange={(note) => updateDay({ note })}
       />
       <h3>Day totals</h3>
-      <NutritionFields value={day} onChange={updateDay} />
+      <NutritionFields dayTotals value={day} onChange={updateDay} />
       {day.meals.map((meal, mi) => {
         const set = (patch: Partial<typeof meal>) =>
           updateDay({
@@ -228,6 +244,7 @@ export function MealsEditor({
                       label="Quantity"
                       type="number"
                       min={0}
+                      step="any"
                       value={ingredient.quantity}
                       onChange={(v) => update({ quantity: Number(v) })}
                     />
@@ -350,6 +367,7 @@ export function MealsEditor({
           </div>
         );
       })}
+      {error && <p role="alert">{error}</p>}
       <div className="plan-card">
         <button
           type="button"
@@ -378,19 +396,32 @@ export function MealsEditor({
         <button
           type="button"
           className="plan-secondary"
-          onClick={() =>
-            updateDay(
-              day.meals.reduce(
-                (n, m) => ({
-                  kcal: n.kcal + m.kcal,
-                  protein_g: n.protein_g + m.protein_g,
-                  carbs_g: n.carbs_g + m.carbs_g,
-                  fat_g: n.fat_g + m.fat_g,
-                }),
-                emptyNutrition(),
-              ),
-            )
-          }
+          onClick={() => {
+            const totals = day.meals.reduce(
+              (n, m) => ({
+                kcal: n.kcal + m.kcal,
+                protein_g: n.protein_g + m.protein_g,
+                carbs_g: n.carbs_g + m.carbs_g,
+                fat_g: n.fat_g + m.fat_g,
+              }),
+              emptyNutrition(),
+            );
+            if (
+              !Number.isInteger(totals.kcal) ||
+              totals.kcal < 1200 ||
+              totals.kcal > 6000 ||
+              totals.protein_g > 500 ||
+              totals.fat_g > 500 ||
+              totals.carbs_g > 1000
+            ) {
+              setError(
+                "Day totals need 1,200-6,000 whole calories, protein/fat up to 500 g and carbs up to 1,000 g. Add the remaining meals first.",
+              );
+              return;
+            }
+            setError("");
+            updateDay(totals);
+          }}
         >
           Use meal totals for day
         </button>

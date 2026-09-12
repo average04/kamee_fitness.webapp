@@ -1,4 +1,5 @@
 "use client";
+import { commaValues, validateDraft } from "@/lib/coaching/plan-validation";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
@@ -38,10 +39,12 @@ import { PlanPreview } from "./PlanPreview";
 
 export function PlanEditor({
   initial,
+  ownerId,
   exercises,
   videos,
 }: {
   initial: PlanDocument;
+  ownerId: string;
   exercises: ExerciseOption[];
   videos: Video[];
 }) {
@@ -59,12 +62,31 @@ export function PlanEditor({
   const [uploading, setUploading] = useState(false);
   const [progression, setProgression] = useState<Week | null>(null);
   const [deltas, setDeltas] = useState({ sets: 0, reps: 1, rest: 0 });
-  const canEdit = editable(plan);
+  const canEdit = editable(plan) && listingStatus !== "retired";
+  const recoveryKey = `coaching-draft:${ownerId}:${initial.id}`;
+  const [hydrated, setHydrated] = useState(false);
+  const [recovery, setRecovery] = useState<PlanDocument | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(true);
+    try {
+      const raw = sessionStorage.getItem(recoveryKey);
+      if (raw && editable(initial)) {
+        const saved = JSON.parse(raw) as PlanDocument;
+        if (saved.id === initial.id) {
+          // Browser storage is read after hydration; restoration requires a click.
+          setRecovery(saved);
+        }
+      }
+    } catch {
+      /* The server copy is still available when storage is blocked. */
+    }
+  }, [recoveryKey, initial]);
   const week = plan.weeks[weekIndex] ?? plan.weeks[0];
   useEffect(() => {
     let leaving = false;
     const warn = (e: BeforeUnloadEvent) => {
-      if (dirty && !leaving) e.preventDefault();
+      if (dirty && !leaving) { e.preventDefault(); e.returnValue = ""; }
     };
     const navigation = (e: MouseEvent) => {
       if (
@@ -98,9 +120,17 @@ export function PlanEditor({
     };
   }, [dirty]);
   const update = (patch: Partial<PlanDocument>) => {
-    setPlan((p) => ({ ...p, ...patch }));
-    setDirty(true);
     setMessage("");
+    const next = { ...plan, ...patch };
+    setPlan(next);
+    try {
+      sessionStorage.setItem(recoveryKey, JSON.stringify(next));
+    } catch {
+      setMessage(
+        "Browser recovery is unavailable. Save before leaving this page.",
+      );
+    }
+    setDirty(true);
   };
   const setWeek = (w: Week) =>
     update({ weeks: plan.weeks.map((old, i) => (i === weekIndex ? w : old)) });
@@ -110,6 +140,11 @@ export function PlanEditor({
       days: week.days.map((old, i) => (i === index ? d : old)),
     });
   function save(submit = false) {
+    const problems = validateDraft(plan);
+    if (problems.length) {
+      setIssues(problems);
+      return;
+    }
     start(async () => {
       setMessage("");
       setIssues([]);
@@ -122,6 +157,10 @@ export function PlanEditor({
         const revision = saved.revision!;
         setPlan((p) => ({ ...p, draft_revision: revision }));
         setDirty(false);
+        setRecovery(null);
+        try {
+          sessionStorage.removeItem(recoveryKey);
+        } catch {}
         if (submit) {
           const result = await submitPlan(plan.id, revision);
           if (result.error) setMessage(result.error);
@@ -164,7 +203,10 @@ export function PlanEditor({
       <Link className="text-sm text-muted" href="/coaching/plans">
         ← Plans
       </Link>
-      <header className="plan-card">
+      <header
+        className="plan-card"
+        data-coaching-hydrated={hydrated ? "true" : undefined}
+      >
         <div>
           <h1 className="text-3xl font-semibold">{plan.title}</h1>
           <p className="coach-panel-description">
@@ -183,11 +225,11 @@ export function PlanEditor({
       )}
       <div className="plan-toolbar">
         <nav className="plan-tabs" aria-label="Plan sections">
-          {["Details", "Schedule", "Meals", "Preview"].map((t) => (
+          {(canEdit ? ["Details", "Schedule", "Meals", "Preview"] : ["Preview"]).map((t) => (
             <button
               type="button"
               key={t}
-              aria-pressed={tab === t}
+              aria-pressed={!canEdit || tab === t}
               onClick={() => setTab(t)}
             >
               {t}
@@ -234,30 +276,33 @@ export function PlanEditor({
           )}
         </div>
       </div>
-      {plan.version_state === "approved" && (
+      {listingStatus !== "retired" && (
         <div className="plan-order">
-          <button
-            className="plan-secondary"
-            disabled={pending}
-            onClick={() =>
-              start(async () => {
-                const status = listingStatus === "paused" ? "active" : "paused";
-                const result = await changeListingStatus(
-                  plan.listing_id,
-                  status,
-                );
-                if (result.error) setMessage(result.error);
-                else {
-                  setListingStatus(status);
-                  setMessage(
-                    status === "paused" ? "Plan paused." : "Plan resumed.",
+          {plan.version_state === "approved" && (
+            <button
+              className="plan-secondary"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const status =
+                    listingStatus === "paused" ? "active" : "paused";
+                  const result = await changeListingStatus(
+                    plan.listing_id,
+                    status,
                   );
-                }
-              })
-            }
-          >
-            {listingStatus === "paused" ? "Resume plan" : "Pause plan"}
-          </button>
+                  if (result.error) setMessage(result.error);
+                  else {
+                    setListingStatus(status);
+                    setMessage(
+                      status === "paused" ? "Plan paused." : "Plan resumed.",
+                    );
+                  }
+                })
+              }
+            >
+              {listingStatus === "paused" ? "Resume plan" : "Pause plan"}
+            </button>
+          )}
           <button
             className="plan-secondary"
             disabled={pending}
@@ -285,6 +330,40 @@ export function PlanEditor({
           </button>
         </div>
       )}
+      {recovery && canEdit && (
+        <div className="coach-panel plan-stack" role="status">
+          <p>
+            Unsaved edits are available from this browser tab.
+            {recovery.draft_revision !== initial.draft_revision
+              ? " The server version has changed; review carefully before saving."
+              : ""}
+          </p>
+          <div className="plan-order">
+            <button
+              onClick={() => {
+                setPlan({
+                  ...recovery,
+                  draft_revision: initial.draft_revision,
+                  version_state: initial.version_state,
+                });
+                setDirty(true);
+                setRecovery(null);
+                setMessage("Local edits restored. Review before saving.");
+              }}
+            >
+              Restore local edits
+            </button>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem(recoveryKey);
+                setRecovery(null);
+              }}
+            >
+              Discard local edits
+            </button>
+          </div>
+        </div>
+      )}
       <div aria-live="polite">
         {message && <p role="status">{message}</p>}
         {issues.length > 0 && (
@@ -298,7 +377,7 @@ export function PlanEditor({
           </div>
         )}
       </div>
-      {tab === "Preview" ? (
+      {tab === "Preview" || !canEdit ? (
         <PlanPreview plan={plan} exercises={exercises} />
       ) : (
         <fieldset
@@ -360,7 +439,7 @@ export function PlanEditor({
                   value={plan.required_equipment.join(", ")}
                   onChange={(v) =>
                     update({
-                      required_equipment: v.split(",").map((s) => s.trim()),
+                      required_equipment: commaValues(v),
                     })
                   }
                 />
@@ -369,7 +448,7 @@ export function PlanEditor({
                   value={plan.target_muscles.join(", ")}
                   onChange={(v) =>
                     update({
-                      target_muscles: v.split(",").map((s) => s.trim()),
+                      target_muscles: commaValues(v),
                     })
                   }
                 />
@@ -532,12 +611,26 @@ export function PlanEditor({
                         <Select
                           label="Day type"
                           value={day.day_kind}
-                          onChange={(v) =>
+                          onChange={(v) => {
+                            const dropBlocks =
+                              ["run", "rest"].includes(v) &&
+                              day.blocks.length > 0;
+                            const dropCardio =
+                              ["workout", "rest"].includes(v) && !!day.cardio;
+                            if (
+                              (dropBlocks || dropCardio) &&
+                              !confirm(
+                                `Changing day type removes ${[dropBlocks && "exercises", dropCardio && "cardio"].filter(Boolean).join(" and ")}. Continue?`,
+                              )
+                            )
+                              return;
                             setDay(di, {
                               ...day,
                               day_kind: v as Day["day_kind"],
-                            })
-                          }
+                              blocks: dropBlocks ? [] : day.blocks,
+                              cardio: dropCardio ? null : day.cardio,
+                            });
+                          }}
                         >
                           {[
                             ["workout", "Workout"],
