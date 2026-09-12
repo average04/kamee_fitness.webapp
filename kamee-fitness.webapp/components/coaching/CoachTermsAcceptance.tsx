@@ -38,7 +38,7 @@ export function CoachTermsAcceptance({
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="text-sm font-semibold">Coach terms</h2>
         <p className="mt-1 text-sm text-muted">
-          The {termsLink} are being finalised. You can keep building your profile; you&apos;ll be
+          The {termsLink}{" "}are being finalised. You can keep building your profile; you&apos;ll be
           asked to accept them before you submit.
         </p>
       </section>
@@ -50,7 +50,7 @@ export function CoachTermsAcceptance({
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
         <h2 className="text-sm font-semibold">Coach terms</h2>
         <p className="mt-1 text-sm text-muted">
-          You accepted the {termsLink} (version {state.version}) on {fmt(state.acceptedAt)}.
+          You accepted the {termsLink}{" "}(version {state.version}) on {fmt(state.acceptedAt)}.
         </p>
       </section>
     );
@@ -76,13 +76,13 @@ export function CoachTermsAcceptance({
         <h2 className="text-sm font-semibold">Coach terms</h2>
         {state.previous ? (
           <p className="mt-1 text-sm text-muted">
-            The {termsLink} have been updated to version {state.version}. Please read and accept
+            The {termsLink}{" "}have been updated to version {state.version}. Please read and accept
             them again
             {state.previous.version ? ` (you accepted version ${state.previous.version})` : ""}.
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted">
-            Read the {termsLink} (version {state.version}) and accept them before you submit your
+            Read the {termsLink}{" "}(version {state.version}) and accept them before you submit your
             profile.
           </p>
         )}
