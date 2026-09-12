@@ -6,11 +6,13 @@ import { isHubState } from "@/lib/coaching/states";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/coaching/profile";
 
-/** Invite tokens are hex; anything else is not ours to put in a redirect. */
-function invitePath(token: FormDataEntryValue | null): string | null {
+/** Back to the invite page the visitor came from. Tokens are hex; anything
+ *  else is not ours to put in a redirect, so it falls back to the token-less
+ *  page (the in-app notification's entry point). */
+function invitePath(token: FormDataEntryValue | null): string {
   return typeof token === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(token)
     ? `/coaching/invite/${token}`
-    : null;
+    : "/coaching/invite";
 }
 
 const MESSAGES: Record<string, string> = {
@@ -27,7 +29,7 @@ export async function acceptInvite(
   const session = await getCoachSession();
   // Signed out (e.g. the session expired with the page open): back to the
   // invite link, which shows its own sign-in form.
-  if (!session.user) redirect(invitePath(formData.get("token")) ?? "/login?next=/coaching");
+  if (!session.user) redirect(invitePath(formData.get("token")));
   // M12 (fix round 1): a coach who already accepted (e.g. this form was
   // still open in a stale tab) should just land back in the hub instead of
   // re-submitting to the RPC.
@@ -48,5 +50,5 @@ export async function acceptInvite(
 export async function signOutFromInvite(formData: FormData): Promise<void> {
   const supabase = await createServerSupabase();
   await supabase.auth.signOut();
-  redirect(invitePath(formData.get("token")) ?? "/login?next=/coaching");
+  redirect(invitePath(formData.get("token")));
 }
