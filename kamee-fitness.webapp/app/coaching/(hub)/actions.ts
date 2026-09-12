@@ -357,6 +357,8 @@ export async function reorderGallery(ids: unknown): Promise<FormState> {
   const { error } = await supabase.rpc("reorder_coaching_gallery", { p_ids: ids });
   if (error) {
     const FRIENDLY: Record<string, string> = {
+      // 20260913100500: the database refuses reorders while the profile is in review.
+      not_editable: "Your profile is in review, so changes are paused.",
       not_active: "Your account isn't active right now.",
       duplicate_ids: "Could not reorder the gallery.",
       not_owner: "Could not reorder the gallery.",

@@ -89,7 +89,7 @@ export type CredentialEvidenceRow = {
   expires_on: string | null;
 };
 
-/** Maps a fresh coaching_credentials read onto the CredentialEvidence shape `credentialEvidenceMatches` compares -- used for both the pre-download and the post-download re-read in verifyCredential. */
+/** Maps a fresh coaching_credentials read onto the CredentialEvidence shape `credentialEvidenceMatches` compares -- used by the pre-download early-exit check in runCredentialVerification. */
 export function credentialRowToEvidence(row: CredentialEvidenceRow): CredentialEvidence {
   return {
     documentPath: row.document_path,
@@ -107,14 +107,14 @@ function normalizeDateOnly(value: string | null): string | null {
 }
 
 /**
- * I1: narrows the TOCTOU window between an admin loading the
- * coach detail page and clicking Verify. `expected` is the evidence the
- * page rendered (sent back by the client); `actual` is a fresh service-role
- * read (taken both before and after the document download). True only
+ * Early-exit check before the document download: `expected` is the
+ * evidence the page rendered (sent back by the client); `actual` is a fresh
+ * service-role read. The authoritative comparison happens in the database,
+ * under a row lock, inside admin_verify_coaching_credential. True only
  * when every field the admin actually looked at -- `document_path` (including its absence),
  * `title`, `issuer`, `issued_year`, and `expires_on` (compared as a date,
- * not a raw string) -- is still identical. `verifyCredential` refuses to
- * attest anything when this returns false.
+ * not a raw string) -- is still identical. runCredentialVerification stops
+ * before downloading anything when this returns false.
  */
 export function credentialEvidenceMatches(
   expected: CredentialEvidence,
@@ -168,7 +168,7 @@ export function coerceCredentialEvidence(raw: unknown): CredentialEvidence | nul
   return { documentPath, title: r.title, issuer: r.issuer, issuedYear, expiresOn };
 }
 
-/** Shown to the admin whenever a fresh re-read of a credential's evidence no longer matches what the page rendered -- both the pre-download check and the post-download full-evidence recheck use this exact copy. */
+/** Shown to the admin whenever a credential's evidence no longer matches what the page rendered -- the pre-download early exit and the database's evidence_changed error both use this exact copy. */
 export const CREDENTIAL_EVIDENCE_CHANGED_MESSAGE =
   "This credential changed since you opened the page. Reload and review it again.";
 
@@ -206,6 +206,12 @@ export function describeRpcError(message: string, context?: RpcErrorContext): st
       return "Invalid status change.";
     case "not_found":
       return "That credential could not be found.";
+    // admin_verify_coaching_credential (20260913100400) compares the reviewed
+    // evidence with the locked row and refuses when anything changed.
+    case "evidence_changed":
+      return CREDENTIAL_EVIDENCE_CHANGED_MESSAGE;
+    case "bad_digest":
+      return "The document could not be checked. Reload and try again.";
     default:
       return "Something went wrong. Please try again.";
   }

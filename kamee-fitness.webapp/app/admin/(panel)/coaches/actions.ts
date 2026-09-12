@@ -5,9 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import {
   coerceCredentialEvidence,
-  credentialEvidenceMatches,
   credentialRowToEvidence,
-  CREDENTIAL_EVIDENCE_CHANGED_MESSAGE,
   describeRpcError,
   isCoachStatusAction,
   isReviewDecision,
@@ -16,6 +14,7 @@ import {
 } from "@/lib/coaching/admin";
 import { buildInviteEmail, inviteUrl } from "@/lib/coaching/invite";
 import { sendInviteEmail } from "@/lib/coaching/invite-send";
+import { runCredentialVerification } from "@/lib/coaching/verify";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { findUserForInvite, type InviteCandidate } from "./queries";
 
@@ -161,20 +160,15 @@ export async function setCoachStatus(
 }
 
 /**
- * I1: narrows the TOCTOU window between an admin loading the coach detail
- * page and clicking Verify. `expected` is the evidence the page actually
- * rendered (document_path, title, issuer, issued_year, expires_on). The row
- * is read fresh with the service role and compared against `expected`
- * BEFORE the document download, then read and compared IN FULL again AFTER
- * the download -- the download can take seconds, and a coach could edit
- * any evidence field (not only the document) while it is in flight. Any
- * mismatch refuses with the reload message.
- *
- * What remains is the gap between that final re-read and the RPC call (one
- * round trip, no download in between). admin_verify_coaching_credential
- * computes the evidence hash from the row it sees at that moment, so an
- * edit landing inside that gap would be attested unseen; closing it needs
- * the RPC to take an expected evidence hash (deferred DB change, R24).
+ * Verifies a credential exactly as the admin reviewed it. `expected` is the
+ * evidence the page rendered (document_path, title, issuer, issued_year,
+ * expires_on), shape-checked here. admin_verify_coaching_credential
+ * (migration 20260913100400) receives that evidence and the digest of the
+ * document downloaded in this request, locks the credential row, compares,
+ * and verifies in one transaction, so an edit at any moment after the page
+ * loaded -- before the click, during the download, or just before the call
+ * -- is refused with the reload message. The pre-download comparison in
+ * runCredentialVerification is only an early exit.
  */
 export async function verifyCredential(
   credentialId: unknown,
@@ -186,52 +180,39 @@ export async function verifyCredential(
   if (!expectedEvidence) return { ok: false, error: "Invalid credential data." };
 
   const db = createAdminSupabase();
-  const { data: row, error: fetchError } = await db
-    .from("coaching_credentials")
-    .select("document_path, title, issuer, issued_year, expires_on, coach_id")
-    .eq("id", credentialId)
-    .single();
-  if (fetchError || !row) return { ok: false, error: "That credential could not be found." };
+  // The flow lives in lib/coaching/verify.ts so it can be unit tested. The
+  // database function (20260913100400) receives the evidence the admin
+  // reviewed plus the digest of the document downloaded here, locks the row,
+  // compares, and verifies in one transaction: a coach edit at any moment
+  // after the page loaded is refused with evidence_changed.
+  const outcome = await runCredentialVerification(
+    {
+      async readEvidence(id) {
+        const { data, error } = await db
+          .from("coaching_credentials")
+          .select("document_path, title, issuer, issued_year, expires_on, coach_id")
+          .eq("id", id)
+          .single();
+        if (error || !data) return null;
+        return { evidence: credentialRowToEvidence(data), coachId: data.coach_id as string };
+      },
+      async downloadDocument(path) {
+        const { data: blob, error } = await db.storage.from("coaching-documents").download(path);
+        if (error || !blob) return null;
+        return new Uint8Array(await blob.arrayBuffer());
+      },
+      sha256(bytes) {
+        return createHash("sha256").update(bytes).digest("hex");
+      },
+      async callVerifyRpc(args) {
+        const { error } = await db.rpc("admin_verify_coaching_credential", args);
+        return { errorMessage: error ? error.message : null };
+      },
+    },
+    { credentialId, actorId: admin.id, expected: expectedEvidence },
+  );
+  if (!outcome.ok) return { ok: false, error: outcome.error };
 
-  const actualEvidence = credentialRowToEvidence(row);
-  if (!credentialEvidenceMatches(expectedEvidence, actualEvidence)) {
-    return { ok: false, error: CREDENTIAL_EVIDENCE_CHANGED_MESSAGE };
-  }
-
-  let sha: string | null = null;
-  if (actualEvidence.documentPath) {
-    const { data: blob, error: dlError } = await db.storage
-      .from("coaching-documents")
-      .download(actualEvidence.documentPath);
-    if (dlError || !blob) return { ok: false, error: "Document download failed." };
-    const buf = Buffer.from(await blob.arrayBuffer());
-    sha = createHash("sha256").update(buf).digest("hex");
-
-    // Re-read the FULL evidence once more after the download completes --
-    // the (slow, network-bound) download is a window of seconds in which a
-    // coach could replace the document or edit title/issuer/dates, which
-    // would otherwise let evidence the admin never saw be attested.
-    const { data: recheck, error: recheckError } = await db
-      .from("coaching_credentials")
-      .select("document_path, title, issuer, issued_year, expires_on")
-      .eq("id", credentialId)
-      .single();
-    if (
-      recheckError ||
-      !recheck ||
-      !credentialEvidenceMatches(expectedEvidence, credentialRowToEvidence(recheck))
-    ) {
-      return { ok: false, error: CREDENTIAL_EVIDENCE_CHANGED_MESSAGE };
-    }
-  }
-
-  const { error } = await db.rpc("admin_verify_coaching_credential", {
-    p_id: credentialId,
-    p_actor: admin.id,
-    p_document_sha256: sha,
-  });
-  if (error) return { ok: false, error: describeRpcError(error.message, "verify") };
-
-  revalidatePath(`/admin/coaches/${row.coach_id}`);
+  revalidatePath(`/admin/coaches/${outcome.coachId}`);
   return { ok: true };
 }
