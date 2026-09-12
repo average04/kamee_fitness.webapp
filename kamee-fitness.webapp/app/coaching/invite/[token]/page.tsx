@@ -2,9 +2,19 @@ import { redirect } from "next/navigation";
 import { getCoachSession } from "@/lib/coaching/auth";
 import { isHubState } from "@/lib/coaching/states";
 import { AcceptInvite } from "@/components/coaching/AcceptInvite";
+import { EmailCodeSignIn } from "@/components/auth/EmailCodeSignIn";
+import { signOutFromInvite } from "@/app/coaching/invite/actions";
 
-export const metadata = { title: "Coach invite" };
+export const metadata = { title: "Coach invite", robots: { index: false, follow: false } };
 
+/**
+ * The link in the invite email. Coaches tap it straight from their inbox,
+ * usually signed out, so the page signs them in itself (proxy exception in
+ * lib/coaching/public-paths.ts) instead of bouncing them to the generic
+ * /login page, then shows Accept. Nothing about the invite (who it is for)
+ * is revealed before sign-in; accept_coaching_invite checks the token
+ * belongs to the signed-in account.
+ */
 export default async function InviteTokenPage({
   params,
 }: {
@@ -12,12 +22,9 @@ export default async function InviteTokenPage({
 }) {
   const { token } = await params;
   const s = await getCoachSession();
+  if (s.user && isHubState(s.status)) redirect("/coaching/onboarding");
 
-  if (!s.user) {
-    const path = `/coaching/invite/${encodeURIComponent(token)}`;
-    redirect(`/login?next=${encodeURIComponent(path)}`);
-  }
-  if (isHubState(s.status)) redirect("/coaching/onboarding");
+  const path = `/coaching/invite/${encodeURIComponent(token)}`;
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-ink-950 px-4 text-mist">
@@ -25,10 +32,30 @@ export default async function InviteTokenPage({
         <h1 className="font-display text-xl font-semibold">
           You&apos;re invited to coach on Kamee
         </h1>
-        <p className="mt-2 text-sm text-muted">
-          Accept the invite to set up your coach profile.
-        </p>
-        <AcceptInvite token={token} />
+
+        {s.user ? (
+          <>
+            <p className="mt-2 text-sm text-muted">
+              Accept the invite to set up your coach profile.
+            </p>
+            <AcceptInvite token={token} />
+            <form action={signOutFromInvite} className="mt-4 text-xs text-muted">
+              <input type="hidden" name="token" value={token} />
+              Signed in as {s.user.email ?? "your Kamee account"}.{" "}
+              <button type="submit" className="text-leaf-500 underline hover:text-leaf-400">
+                Not you? Sign out
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="text-left">
+            <p className="mt-2 text-center text-sm text-muted">
+              Sign in with the email this invite was sent to, the same one you use in the Kamee
+              app. You&apos;ll accept the invite right after.
+            </p>
+            <EmailCodeSignIn next={path} fallbackNext={path} sendLabel="Email me a sign-in code" />
+          </div>
+        )}
       </div>
     </main>
   );

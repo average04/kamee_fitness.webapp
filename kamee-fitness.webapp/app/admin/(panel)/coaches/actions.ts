@@ -12,7 +12,7 @@ import {
   isUuid,
   validateNote,
 } from "@/lib/coaching/admin";
-import { buildInviteEmail, inviteUrl } from "@/lib/coaching/invite";
+import { buildInviteEmail, inviteUrl, siteOrigin } from "@/lib/coaching/invite";
 import { sendInviteEmail } from "@/lib/coaching/invite-send";
 import { runCredentialVerification } from "@/lib/coaching/verify";
 import { createAdminSupabase } from "@/lib/supabase/admin";
@@ -42,7 +42,7 @@ export async function inviteCoach(userId: unknown): Promise<InviteResult> {
   });
   if (error) return { ok: false, error: describeRpcError(error.message, "invite") };
 
-  const url = inviteUrl(token as string);
+  const url = inviteUrl(token as string, siteOrigin(process.env.SITE_URL));
 
   const [{ data: u }, { data: p }] = await Promise.all([
     db.auth.admin.getUserById(userId),

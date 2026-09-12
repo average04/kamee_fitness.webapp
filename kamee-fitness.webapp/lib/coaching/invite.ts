@@ -6,8 +6,28 @@
  * `./invite-send` (`sendInviteEmail`), which does carry `import "server-only"`.
  */
 
-export function inviteUrl(token: string): string {
-  return `https://kamee.fit/coaching/invite/${token}`;
+export const PRODUCTION_ORIGIN = "https://kamee.fit";
+
+/**
+ * Origin for links we hand out. SITE_URL lets a local dev server hand out
+ * localhost links (set in .env.development.local); anything missing or not a
+ * bare http(s) origin falls back to production, so a typo can never produce
+ * a broken or foreign link.
+ */
+export function siteOrigin(raw: string | undefined): string {
+  if (!raw) return PRODUCTION_ORIGIN;
+  try {
+    const u = new URL(raw);
+    const bare = u.pathname === "/" && !u.search && !u.hash && !u.username && !u.password;
+    if ((u.protocol === "https:" || u.protocol === "http:") && bare) return u.origin;
+  } catch {
+    /* fall through */
+  }
+  return PRODUCTION_ORIGIN;
+}
+
+export function inviteUrl(token: string, origin: string = PRODUCTION_ORIGIN): string {
+  return `${origin}/coaching/invite/${token}`;
 }
 
 export type InviteEmail = { subject: string; text: string; html: string };

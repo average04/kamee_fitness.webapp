@@ -1,9 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { buildInviteEmail, inviteUrl } from "./invite";
+import { buildInviteEmail, inviteUrl, siteOrigin } from "./invite";
 
 describe("inviteUrl", () => {
   it("builds the public invite link", () => {
     expect(inviteUrl("abc")).toBe("https://kamee.fit/coaching/invite/abc");
+  });
+  it("uses the given origin, e.g. a local dev server", () => {
+    expect(inviteUrl("abc", "http://localhost:3000")).toBe("http://localhost:3000/coaching/invite/abc");
+  });
+});
+
+describe("siteOrigin", () => {
+  it("defaults to production", () => {
+    expect(siteOrigin(undefined)).toBe("https://kamee.fit");
+    expect(siteOrigin("")).toBe("https://kamee.fit");
+  });
+  it("accepts a bare http(s) origin, trailing slash included", () => {
+    expect(siteOrigin("http://localhost:3000")).toBe("http://localhost:3000");
+    expect(siteOrigin("https://kamee.fit/")).toBe("https://kamee.fit");
+  });
+  it("falls back to production for anything else", () => {
+    for (const v of ["localhost:3000", "javascript:alert(1)", "https://kamee.fit/x", "https://a@b.c", "ftp://x.y"]) {
+      expect(siteOrigin(v)).toBe("https://kamee.fit");
+    }
   });
 });
 
