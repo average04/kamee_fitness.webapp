@@ -20,7 +20,7 @@ export default async function CoachProfilePage() {
 
   return (
     <div className="space-y-6">
-      <PageIntro title="A profile that feels like you." description="Tell your story, share your approach, and help people get to know their future coach." />
+      <PageIntro title="Coach profile" />
       <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
       <ProfileForm profile={hub.profile} readOnly={readOnly} />
       <CoachTermsAcceptance state={terms} />

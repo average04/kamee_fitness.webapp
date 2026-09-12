@@ -119,7 +119,7 @@ export function CredentialsManager({
     <div className="space-y-6 max-w-3xl">
       <div className="space-y-3">
         {credentials.length === 0 && (
-          <p className="text-sm text-muted">Your experience matters. Add a qualification below, or return to your profile whenever you are ready.</p>
+          <p className="text-sm text-muted">No credentials added.</p>
         )}
         {credentials.map((row) => (
           <CredentialRowView
@@ -347,7 +347,7 @@ function CredentialRowView({
   }
 
   return (
-    <div className="space-y-2 rounded-2xl border border-white/10 bg-white p-4">
+    <div className="space-y-2 rounded-2xl border border-white/10 bg-ink-900 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-mist">{row.title}</p>

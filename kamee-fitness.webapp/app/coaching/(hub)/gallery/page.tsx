@@ -31,7 +31,7 @@ export default async function GalleryPage() {
   return (
     <div className="space-y-6">
       <BackLink status={status} />
-      <PageIntro title="Show your coaching in action." description="From a great session to your favourite trail, give people a glimpse of the way you coach." />
+      <PageIntro title="Gallery" description="Add 3 to 12 photos." />
       <GalleryManager
         coachId={user.id}
         photos={(data ?? []) as GalleryRow[]}

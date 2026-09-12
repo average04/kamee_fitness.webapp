@@ -175,9 +175,9 @@ export function CoverUpload({
       )}
       {!preview && <div className="coach-cover-empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>
-        <p>Set the scene for your coaching</p><span>A wide photo of you in your element works beautifully.</span>
+        <p>Add a cover photo</p>
       </div>}
-      <p className="coach-panel-description">Appears at the top of your profile. JPEG, PNG or WebP, up to 5 MB.</p>
+      <p className="coach-panel-description">JPEG, PNG or WebP. Up to 5 MB.</p>
       <input
         id={inputId}
         ref={inputRef}

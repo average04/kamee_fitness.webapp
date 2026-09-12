@@ -384,8 +384,8 @@ export function GalleryManager({
           className={
             (addDisabled
               ? "flex aspect-square cursor-not-allowed items-center justify-center rounded-2xl border border-dashed border-white/10 text-center text-xs text-muted/50"
-              : "flex aspect-square cursor-pointer items-center justify-center rounded-2xl border border-dashed border-white/20 text-center text-sm text-muted bg-white hover:border-leaf-600 hover:text-mist") +
-            (photos.length === 0 ? " col-span-full !aspect-auto min-h-64 flex-col gap-3 bg-white" : "") +
+              : "flex aspect-square cursor-pointer items-center justify-center rounded-2xl border border-dashed border-white/20 text-center text-sm text-muted bg-ink-900 hover:border-leaf-600 hover:text-mist") +
+            (photos.length === 0 ? " col-span-full !aspect-auto min-h-64 flex-col gap-3 bg-ink-900" : "") +
             " peer-focus-visible:ring-2 peer-focus-visible:ring-leaf-600 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-ink-950"
           }
         >
@@ -397,7 +397,7 @@ export function GalleryManager({
             : photos.length >= MAX_PHOTOS
               ? "12 of 12"
               : "+ Add photos"}
-          {photos.length === 0 && <span className="max-w-xs px-4 text-xs leading-relaxed text-muted">Choose a few favourites to start your gallery. You can select multiple photos at once.<br />JPEG, PNG or WebP &middot; up to 5 MB each.</span>}
+          {photos.length === 0 && <span className="max-w-xs px-4 text-xs leading-relaxed text-muted">JPEG, PNG or WebP &middot; up to 5 MB each.</span>}
         </label>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getCoachSession } from "@/lib/coaching/auth";
 import { isHubState } from "@/lib/coaching/states";
@@ -24,14 +25,9 @@ export async function InviteCard({ token }: { token?: string }) {
 
   return (
     <main className="coach-invite">
-      <section className="coach-invite-story" aria-label="Welcome to Kamee coaching">
-        <Link href="/" className="coach-brand" aria-label="Kamee home"><span className="coach-brand-mark" aria-hidden="true">k</span><span>kamee<small>COACHING</small></span></Link>
-        <div><h2>Your experience.<br />Their <em>next chapter.</em></h2><p>A space to share what you know, show who you are, and help people move forward.</p></div>
-        <footer>STRONGER TOGETHER. ONE STEP AT A TIME.</footer>
-      </section>
       <section className="coach-invite-form">
       <div className="w-full">
-        <p className="coach-eyebrow">WELCOME TO YOUR COACHING SPACE</p>
+        <Link href="/" className="coach-brand" aria-label="Kamee home"><Image src="/adaptive-icon.png" width={38} height={38} className="coach-brand-mark" alt="" /><span>kamee</span></Link>
         <h1>
           You&apos;re invited to coach on Kamee
         </h1>
@@ -53,10 +49,9 @@ export async function InviteCard({ token }: { token?: string }) {
         ) : (
           <div className="text-left">
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              Sign in with the email this invite was sent to, the same one you use in the Kamee
-              app. You&apos;ll accept the invite right after.
+              Sign in with the email that received your invite.
             </p>
-            <EmailCodeSignIn theme="light" next={path} fallbackNext={path} sendLabel="Email me a sign-in code" />
+            <EmailCodeSignIn next={path} fallbackNext={path} sendLabel="Email me a sign-in code" />
           </div>
         )}
       </div>

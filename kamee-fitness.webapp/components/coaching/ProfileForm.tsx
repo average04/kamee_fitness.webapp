@@ -95,7 +95,7 @@ export function ProfileForm({
   return (
     <div className="space-y-5 coach-panel">
       <div className="flex items-center justify-between">
-        <div><h2>Introduce yourself</h2><p className="coach-panel-description">Give future clients a feel for you and your approach.</p></div>
+        <h2>Profile details</h2>
         <SaveIndicator state={saveState} onRetry={saveNow} />
       </div>
       {message && (
@@ -108,7 +108,7 @@ export function ProfileForm({
       <Field label="Headline" error={errors.headline} hint={`${form.headline.length}/80`}>
         <input
           className={inputClass}
-          placeholder="Strength coach. Outdoor enthusiast. Here for your progress."
+          placeholder="e.g. Strength and conditioning coach"
           maxLength={80}
           value={form.headline}
           disabled={readOnly}
@@ -124,7 +124,7 @@ export function ProfileForm({
       >
         <textarea
           className={`${inputClass} min-h-32`}
-          placeholder="Share your approach, what you love about coaching, and who you help."
+          placeholder="Your approach and who you coach."
           maxLength={2000}
           value={form.about}
           disabled={readOnly}

@@ -16,9 +16,8 @@ export function Checklist({ missing }: { missing: string[] }) {
 
   return (
     <div className="coach-panel coach-checklist">
-      <p className="coach-eyebrow">YOUR NEXT CHAPTER</p>
-      <h2 className="mt-2">Make it yours</h2>
-      <p className="coach-panel-description">{doneCount} of {KEYS.length} essentials complete</p>
+      <h2>Checklist</h2>
+      <p className="coach-panel-description">{doneCount} of {KEYS.length} complete</p>
       <div className="coach-progress" role="progressbar" aria-label="Profile completion" aria-valuenow={doneCount} aria-valuemin={0} aria-valuemax={KEYS.length}><div style={{ width: `${doneCount / KEYS.length * 100}%` }} /></div>
       <ul className="mt-3 space-y-2">
         {KEYS.map((key) => {

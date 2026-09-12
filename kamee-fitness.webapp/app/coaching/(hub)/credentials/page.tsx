@@ -27,7 +27,7 @@ export default async function CredentialsPage() {
   return (
     <div className="space-y-6">
       <BackLink status={status} />
-      <PageIntro title="Experience worth sharing." description="Your qualifications are part of your story. Add them here if you have them; credentials are optional and documents stay private." />
+      <PageIntro title="Credentials" description="Optional. Supporting documents stay private." />
       <CredentialsManager
         coachId={user.id}
         credentials={(data ?? []) as CredentialRow[]}

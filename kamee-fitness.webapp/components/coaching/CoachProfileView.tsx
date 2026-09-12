@@ -58,7 +58,7 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
   const name = data.display_name || data.username || "Coach";
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-900">
       <div className="relative h-48 w-full bg-ink-900">
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

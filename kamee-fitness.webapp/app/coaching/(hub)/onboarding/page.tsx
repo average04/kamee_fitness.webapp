@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
 
   return (
     <div className="space-y-6">
-      <PageIntro eyebrow="LET'S GET YOU STARTED" title="Your next chapter starts here." description="Bring your experience, personality and coaching style together. We'll help you turn them into a profile that feels like you." />
+      <PageIntro title="Set up your coach profile" />
 
       {hub.latestReview?.decision === "changes_requested" && status === "changes_requested" && (
         <div className="rounded-2xl border border-ember-600/40 bg-ember-600/10 p-5">
@@ -36,7 +36,7 @@ export default async function OnboardingPage() {
 
       {status === "in_review" && (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <p className="text-sm text-mist">Submitted â€” we&apos;ll review it soon.</p>
+          <p className="text-sm text-mist">Submitted. We&apos;ll review it soon.</p>
         </div>
       )}
 
@@ -50,10 +50,10 @@ export default async function OnboardingPage() {
         <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
           <Checklist missing={hub.missing} />
           <div className="coach-panel">
-            <h2>The details tell your story.</h2>
-            <Link href="/coaching/gallery" className="coach-resource"><strong>Build your photo gallery <span aria-hidden="true">&#8599;</span></strong><span>Add at least three photos of you coaching, training or doing what you love.</span></Link>
-            <Link href="/coaching/credentials" className="coach-resource"><strong>Add credentials <span aria-hidden="true">&#8599;</span></strong><span>Optional. Share your qualifications; supporting documents stay private.</span></Link>
-            <Link href="/coaching/preview" className="coach-resource"><strong>See your profile preview <span aria-hidden="true">&#8599;</span></strong><span>Take a look through a future client&apos;s eyes.</span></Link>
+            <h2>More profile details</h2>
+            <Link href="/coaching/gallery" className="coach-resource"><strong>Gallery <span aria-hidden="true">&#8599;</span></strong></Link>
+            <Link href="/coaching/credentials" className="coach-resource"><strong>Credentials <span aria-hidden="true">&#8599;</span></strong></Link>
+            <Link href="/coaching/preview" className="coach-resource"><strong>Preview profile <span aria-hidden="true">&#8599;</span></strong></Link>
           </div>
         </aside>
       </div>

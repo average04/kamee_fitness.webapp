@@ -20,7 +20,7 @@ export default async function PreviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <PageIntro title="Meet your future first impression." description="Preview the information members will see on your coach profile." />
+        <PageIntro title="Profile preview" description="What members will see." />
 
       </div>
       {data ? (
