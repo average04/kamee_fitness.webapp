@@ -40,6 +40,7 @@ export default async function PanelLayout({
           >
             Coaches
           </Link>
+          <Link href="/admin/coaching-plans" className="text-sm text-zinc-400 hover:text-zinc-100">Coaching plans</Link>
         </nav>
         <div className="flex items-center gap-3 text-sm text-zinc-400">
           <span>{user.email}</span>

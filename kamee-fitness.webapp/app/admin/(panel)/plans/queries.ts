@@ -38,6 +38,7 @@ export async function listPlans(
   let query = admin
     .from("plans")
     .select("*", { count: "exact" })
+    .neq("kind", "coach")
     .order("updated_at", { ascending: false })
     .range(from, to);
 
@@ -76,6 +77,7 @@ export async function getPlan(id: string): Promise<Plan | null> {
     .from("plans")
     .select("*")
     .eq("id", id)
+    .neq("kind", "coach")
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as Plan) ?? null;

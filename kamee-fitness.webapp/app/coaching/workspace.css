@@ -1,4 +1,25 @@
 /* Coach-facing theme only; marketing and operator screens keep their own theme. */
+.plan-stack { display: grid; gap: 18px; min-width: 0; }
+.plan-home { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.plan-card { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.plan-toolbar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: var(--color-ink-950); padding: 12px 0; border-bottom: 1px solid var(--color-ink-700); }
+.plan-tabs, .plan-order { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.plan-tabs button, .plan-order button, .plan-secondary { border: 1px solid var(--color-ink-600); border-radius: 9px; padding: 8px 12px; font-size: 13px; }
+.plan-tabs button[aria-pressed=true], .plan-primary { background: var(--color-leaf-500); color: var(--color-ink-950); border-radius: 9px; padding: 10px 16px; font-weight: 600; }
+.plan-primary:disabled, .plan-secondary:disabled, .plan-order button:disabled { opacity: .45; }
+.plan-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 12px; }
+.plan-field { display: grid; gap: 7px; font-size: 13px; min-width: 0; }
+.plan-field .coach-input { font-size: 14px; }
+.plan-day { border-top: 1px solid var(--color-ink-600); padding-top: 16px; }
+.plan-day summary, .plan-stack summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.plan-block { border: 1px solid var(--color-ink-600); border-radius: 12px; padding: 16px; min-width: 0; }
+.plan-exercise { background: var(--color-ink-950); border-radius: 10px; padding: 14px; }
+.plan-preview-exercise { border-bottom: 1px solid var(--color-ink-700); padding: 12px 0; }
+.plan-preview-exercise p { color: var(--color-muted); font-size: 14px; }
+.plan-issues, .plan-segments { padding-left: 20px; list-style: disc; line-height: 1.8; }
+.plan-video { width: 100%; max-height: 480px; border-radius: 12px; background: #000; }
+@media (max-width: 900px) { .plan-home { grid-template-columns: 1fr; } .plan-toolbar { position: static; } }
 .coaching-workspace {
   --font-display: var(--font-coach-display);
   --coach-border: var(--color-ink-700);
