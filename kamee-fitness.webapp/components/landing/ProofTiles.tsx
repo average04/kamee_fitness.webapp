@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { TICKER, type FeatureAccent } from "@/lib/landing/content";
 
 const DOT: Record<FeatureAccent, string> = {
+  fuel: "bg-fuel-500",
   leaf: "bg-leaf-500",
   teal: "bg-teal-500",
 };
 
 const CHIP_TEXT: Record<FeatureAccent, string> = {
+  fuel: "text-fuel-100",
   leaf: "text-leaf-300",
   teal: "text-[#b8e4e8]",
 };

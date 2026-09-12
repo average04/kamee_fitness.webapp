@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · Kamee Fitness",
   },
   description:
-    "Kamee Fitness — personalized plans, guided workouts, GPS tracking, and a coach named Kamy. Free on iOS and Android.",
+    "Kamee Fitness — personalized plans, guided workouts, GPS tracking, and Coach Kamy. Premium adds a Fuel Log and meal plans. Free to start on iOS and Android.",
   applicationName: "Kamee Fitness",
   authors: [{ name: "Kamee Fitness" }],
   creator: "Kamee Fitness",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     siteName: "Kamee Fitness",
     title: "Kamee Fitness — Personal Workout & Training App",
     description:
-      "Strong and steady wins the race. Personalized plans, guided workouts, GPS tracking, and Coach Kamy. Free on iOS and Android.",
+      "Strong and steady wins the race. Personalized plans, guided workouts, GPS tracking, and Coach Kamy. Fuel Log and meal plans with Premium. Free to start on iOS and Android.",
     locale: "en_US",
     images: [
       {

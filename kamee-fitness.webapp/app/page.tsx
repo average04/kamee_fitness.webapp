@@ -5,6 +5,7 @@ import CoachSection from "@/components/landing/CoachSection";
 import GpsSection from "@/components/landing/GpsSection";
 import PlansSection from "@/components/landing/PlansSection";
 import LogSection from "@/components/landing/LogSection";
+import FuelSection from "@/components/landing/FuelSection";
 import ProgressBand from "@/components/landing/ProgressBand";
 import CommunitiesSection, {
   PricingBand,
@@ -45,12 +46,14 @@ const jsonLd = {
       installUrl: [APP_STORE_URL, PLAY_STORE_URL],
       image: `${SITE_URL}/hero/keyart.webp`,
       description:
-        "Personalized training plans, GPS run tracking with live splits and heart-rate zones, a workout log, calendar sync, and an AI coach named Kamy.",
+        "Personalized training plans, GPS run tracking, a workout log, calendar sync, and Coach Kamy. Premium adds a Fuel Log with meal estimates and training-aware meal plans.",
       featureList: [
         "AI coach with session debriefs and weekly reports",
         "Training plans from Couch to 5K to half marathon",
         "GPS tracking with live splits, heart-rate zones and route replay",
         "Guided and free-form workout logging",
+        "Premium Fuel Log with photo meal estimates and editable portions",
+        "Premium meal plans that follow your training week",
         "Training calendar with external calendar sync",
         "Clubs, events and a live race calendar",
       ],
@@ -85,6 +88,7 @@ export default function Home() {
         <GpsSection />
         <PlansSection />
         <LogSection />
+        <FuelSection />
         <ProgressBand />
         <CommunitiesSection />
         <PricingBand />
