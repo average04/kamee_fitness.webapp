@@ -38,9 +38,6 @@ export default function Header() {
           </span>
         </Link>
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-          <Link href="/#fuel" className="hidden whitespace-nowrap text-xs font-medium uppercase tracking-[0.16em] text-fuel-500 transition-colors hover:text-fuel-100 sm:inline">
-            Fuel log
-          </Link>
           <Link
             href="/blog"
             className="hidden whitespace-nowrap text-xs font-medium uppercase tracking-[0.16em] text-muted transition-colors hover:text-mist sm:inline"

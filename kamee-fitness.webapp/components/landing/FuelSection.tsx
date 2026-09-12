@@ -15,7 +15,6 @@ export default function FuelSection() {
     <section id="fuel" aria-labelledby="fuel-heading" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-16 sm:px-6 sm:py-20 lg:px-8">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-[0.6875rem] font-bold uppercase tracking-[0.3em] text-fuel-500">Fuel log</p>
-        <span className="rounded-full border border-fuel-500/25 bg-fuel-900 px-3 py-1 text-xs font-semibold text-fuel-100">Kamee Premium</span>
       </div>
       <h2 id="fuel-heading" className="mt-3 font-display text-[clamp(1.75rem,5vw,2.875rem)] font-extrabold uppercase leading-[1.02] tracking-tight text-mist">
         Fuel the work you put in.
@@ -71,10 +70,6 @@ export default function FuelSection() {
               </li>
             ))}
           </ul>
-          <a href="#get-the-app" className="mt-8 inline-flex min-h-11 items-center gap-3 rounded-full bg-ember-500 px-5 py-3 text-sm font-bold text-ink-950 transition-colors hover:bg-ember-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ember-400">
-            Get Kamee for iOS & Android <span aria-hidden="true">↗</span>
-          </a>
-          <p className="mt-3 text-xs text-muted">In the app: Record → FUEL · Requires Kamee Premium</p>
         </div>
       </div>
     </section>
