@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PRIVACY_LAST_UPDATED, PRIVACY_VERSION } from "@/lib/legal-version";
 import Privacy from "@/content/legal/privacy.mdx";
 import { LegalDocLayout } from "@/components/LegalDocLayout";
 
@@ -24,13 +25,13 @@ const SECTIONS = [
   { id: "children", label: "11. Children" },
   { id: "push-notifications-email", label: "12. Notifications" },
   { id: "changes-to-this-policy", label: "13. Changes" },
-  { id: "appendix-apple-app-store-privacy-nutrition-label", label: "14. Apple nutrition label" },
+  { id: "appendix-data-summary", label: "14. Data summary" },
   { id: "contact", label: "15. Contact" },
 ];
 
 export default function PrivacyPage() {
   return (
-    <LegalDocLayout title="Privacy Policy" sections={SECTIONS}>
+    <LegalDocLayout title="Privacy Policy" sections={SECTIONS} lastUpdated={PRIVACY_LAST_UPDATED} subtitle={`Version ${PRIVACY_VERSION}`}>
       <Privacy />
     </LegalDocLayout>
   );
