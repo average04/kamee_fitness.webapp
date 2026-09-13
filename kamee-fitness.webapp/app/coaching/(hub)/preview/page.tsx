@@ -2,6 +2,7 @@ import { PageIntro } from "@/components/coaching/PageIntro";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { CoachProfileView, type CoachingProfileJson } from "@/components/coaching/CoachProfileView";
+import { VideoPlayer } from "@/components/coaching/plans/PlanPreview";
 
 export const metadata = { title: "Preview your profile" };
 
@@ -24,7 +25,7 @@ export default async function PreviewPage() {
 
       </div>
       {data ? (
-        <CoachProfileView data={data as CoachingProfileJson} />
+        <><CoachProfileView data={data as CoachingProfileJson} />{data.intro_video_id && <div className="coach-panel"><h2>Intro video</h2><VideoPlayer id={data.intro_video_id} /></div>}</>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-muted">
           Complete your profile to preview it.

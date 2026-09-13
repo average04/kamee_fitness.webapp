@@ -3,7 +3,7 @@ import Image from "next/image";
 import { requireCoach } from "@/lib/coaching/auth";
 import { COACH_STATUS_LABEL } from "@/lib/coaching/states";
 import { HubNav } from "@/components/coaching/HubNav";
-import { signOutCoach } from "./actions";
+import { CoachSignOut } from "@/components/coaching/CoachSignOut";
 
 export default async function CoachingHubLayout({ children }: { children: React.ReactNode }) {
   const { status } = await requireCoach();
@@ -16,14 +16,14 @@ export default async function CoachingHubLayout({ children }: { children: React.
         </Link>
         <p className="coach-sidebar-label">COACH PROFILE</p>
         <HubNav onboarding={["onboarding", "in_review", "changes_requested"].includes(status)} />
-        <form action={signOutCoach} className="coach-signout"><button>Sign out</button></form>
+        <CoachSignOut className="coach-signout" />
       </aside>
       <div className="coach-main">
         <header className="coach-topbar">
           <span>Coaching</span>
           <div className="flex items-center gap-3">
             <span className="coach-status">{COACH_STATUS_LABEL[status] ?? status}</span>
-            <form action={signOutCoach} className="md:hidden"><button className="text-xs text-muted">Sign out</button></form>
+            <CoachSignOut className="md:hidden" buttonClassName="text-xs text-muted" />
           </div>
         </header>
         <main id="coach-content" className="coach-content">{children}</main>

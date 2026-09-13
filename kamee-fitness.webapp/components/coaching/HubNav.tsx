@@ -9,6 +9,8 @@ const links = [
   ["credentials", "Credentials", "03"],
   ["gallery", "Photo gallery", "04"],
   ["preview", "Profile preview", "05"],
+  ["plans", "Plans", "06"],
+  ["videos", "Videos", "07"],
 ];
 
 export function HubNav({ onboarding }: { onboarding: boolean }) {
@@ -16,7 +18,7 @@ export function HubNav({ onboarding }: { onboarding: boolean }) {
   return (
     <nav className="coach-nav" aria-label="Coach workspace">
       {links.filter(([key]) => key !== "onboarding" || onboarding).map(([key, label, number]) => (
-        <Link key={key} href={`/coaching/${key}`} aria-current={pathname === `/coaching/${key}` ? "page" : undefined}>
+        <Link key={key} href={`/coaching/${key}`} aria-current={pathname === `/coaching/${key}` || pathname.startsWith(`/coaching/${key}/`) ? "page" : undefined}>
           <span className="coach-nav-number" aria-hidden="true">{number}</span>
           {label}
           <span className="coach-nav-arrow" aria-hidden="true">↗</span>

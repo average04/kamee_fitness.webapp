@@ -1,3 +1,4 @@
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/admin/auth";
 import { pct } from "@/lib/admin/metrics";
 import { ActivityFeed } from "@/components/admin/dashboard/ActivityFeed";
@@ -67,7 +68,11 @@ function CoverageBar({
 
 export default async function DashboardPage() {
   await requireAdmin();
-  const d = await loadDashboard();
+  const [d, deletions] = await Promise.all([
+    loadDashboard(),
+    createAdminSupabase().from("account_deletion_requests")
+      .select("user_id", { count: "exact", head: true }).gt("purge_attempt_count", 0),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -75,6 +80,15 @@ export default async function DashboardPage() {
         <h1 className="text-lg font-semibold">Dashboard</h1>
         <span className="text-xs text-zinc-500">Trends over the last 30 days</span>
       </div>
+
+      {(deletions.error || (deletions.count ?? 0) > 0) && (
+        <section role="alert" className="rounded-xl border border-amber-700 bg-amber-950/30 p-4 text-sm text-amber-200">
+          <h2 className="font-semibold">Account deletions need attention</h2>
+          <p>{deletions.error
+            ? "Could not check failed deletions. Check the deletion monitor before dismissing this alert."
+            : `${deletions.count} deletion request(s) failed. Review purge_last_error_code and purge_last_attempt_at in account_deletion_requests, resolve the cause, and verify the next purge succeeds.`}</p>
+        </section>
+      )}
 
       {/* KPI row */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
