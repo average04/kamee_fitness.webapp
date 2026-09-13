@@ -66,3 +66,5 @@ Final review follow-up: sign-out works when BroadcastChannel is unavailable
 recorded purge failures, using the attempt metadata added in backend migration
 001600. Both paths were verified in the local browser; the new backend columns
 must exist before deploying this web version.
+
+Production launch uses a 50 MB video upload limit, matching the current Supabase plan. The 10-minute duration limit is unchanged. A future storage-plan upgrade can revisit the size limit.

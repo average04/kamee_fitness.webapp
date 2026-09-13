@@ -108,8 +108,8 @@ export function VideoLibrary({
       setMessage("Choose a video and add a title.");
       return;
     }
-    if (file.type !== "video/mp4" || file.size > 200 * 1024 * 1024) {
-      setMessage("Choose an MP4 up to 200 MB.");
+    if (file.type !== "video/mp4" || file.size > 50 * 1024 * 1024) {
+      setMessage("Choose an MP4 up to 50 MB.");
       return;
     }
     setBusy(true);
@@ -249,7 +249,7 @@ export function VideoLibrary({
           </button>
         )}
         <p className="coach-panel-description">
-          MP4 · H.264 · Up to 10 minutes and 200 MB
+          MP4 · H.264 · Up to 10 minutes and 50 MB
         </p>
         <label>
           Title
