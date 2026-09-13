@@ -60,3 +60,9 @@ Run `scripts/coaching-editor-regressions.cjs` against local Next on port 3000 wi
 an approved local `codex-coaching-b-browser@example.invalid` fixture. The script
 refuses non-local Supabase configuration and creates a named local draft. Set
 PLAYWRIGHT_MODULE and PLAYWRIGHT_CHROMIUM_EXECUTABLE if using external Playwright.
+
+Final review follow-up: sign-out works when BroadcastChannel is unavailable
+(current-tab recovery is still cleared). The admin dashboard alerts on persistently
+recorded purge failures, using the attempt metadata added in backend migration
+001600. Both paths were verified in the local browser; the new backend columns
+must exist before deploying this web version.

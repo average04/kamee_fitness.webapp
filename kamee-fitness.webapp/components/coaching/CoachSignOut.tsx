@@ -13,12 +13,14 @@ function clearRecovery() {
 }
 export function CoachSignOut({ className, buttonClassName }: { className?: string; buttonClassName?: string }) {
   useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel("coaching-signout");
     channel.onmessage = clearRecovery;
     return () => channel.close();
   }, []);
   return <form action={signOutCoach} className={className} onSubmit={() => {
     clearRecovery();
+    if (typeof BroadcastChannel === "undefined") return;
     const channel = new BroadcastChannel("coaching-signout");
     channel.postMessage("signed-out");
     channel.close();
