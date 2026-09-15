@@ -17,6 +17,33 @@ import { sendInviteEmail } from "@/lib/coaching/invite-send";
 import { runCredentialVerification } from "@/lib/coaching/verify";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { findUserForInvite, type InviteCandidate } from "./queries";
+import { resolveInviteRecipient } from "@/lib/coaching/invite-recipient";
+import { isAllowed, parseAllowlist } from "@/lib/admin/allowlist";
+
+export async function inviteCoachByEmail(email: unknown): Promise<InviteResult> {
+  await requireAdmin();
+  if (typeof email === "string" && isAllowed(email, parseAllowlist(process.env.ADMIN_EMAILS))) {
+    return { ok: false, error: "Admin accounts cannot be invited as coaches." };
+  }
+  let userId: string;
+  try {
+    userId = await resolveInviteRecipient(email, {
+      find: findUserForInvite,
+      create: async (address) => {
+        // No password, confirmed email, or accepted terms are fabricated.
+        // Auth verifies this address when the recipient signs in with an OTP.
+        const { data, error } = await createAdminSupabase().auth.admin.createUser({ email: address, email_confirm: false });
+        if (error || !data.user) throw new Error("Could not prepare the account. Please try again; existing accounts will be reused.");
+        return data.user.id;
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not prepare the invitation.";
+    const safe = ["Enter a valid email address.", "This account cannot be invited. Check their existing coach profile.", "The account search could not complete. Try their username in the existing-account search.", "Could not prepare the account. Please try again; existing accounts will be reused."];
+    return { ok: false, error: safe.includes(message) ? message : "Could not prepare the invitation. Please try again." };
+  }
+  return inviteCoach(userId);
+}
 
 export type InviteResult = {
   ok: boolean;

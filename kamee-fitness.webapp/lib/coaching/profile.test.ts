@@ -114,8 +114,8 @@ describe("credentials", () => {
 });
 
 describe("CHECKLIST_KEYS", () => {
-  it("lists the six required items, without credentials (optional)", () => {
-    expect([...CHECKLIST_KEYS]).toEqual(["headline", "about", "avatar", "cover", "gallery", "terms"]);
+  it("lists four required items; photos and credentials are optional", () => {
+    expect([...CHECKLIST_KEYS]).toEqual(["headline", "about", "gallery", "terms"]);
     for (const k of CHECKLIST_KEYS) expect(MISSING_LABELS[k]).toBeTruthy();
   });
 });

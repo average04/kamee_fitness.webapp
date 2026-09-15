@@ -30,7 +30,7 @@ export default async function GalleryPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink status={status} />
+      <BackLink />
       <PageIntro title="Gallery" description="Add 3 to 12 photos." />
       <GalleryManager
         coachId={user.id}

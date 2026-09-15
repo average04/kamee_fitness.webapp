@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/auth";
-import { CoachSearch } from "@/components/admin/coaching/CoachSearch";
+import { InviteCoachDialog } from "@/components/admin/coaching/InviteCoachDialog";
 import { fmtDate } from "@/components/admin/coaching/format";
 import { StatusPill } from "@/components/admin/coaching/status";
 import { listCoachUsers, listLatestInvites } from "./queries";
@@ -13,16 +13,15 @@ export default async function CoachesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
         <h1 className="text-lg font-semibold">
           Coaches <span className="text-zinc-500">({rows.length})</span>
         </h1>
+        <p className="mt-1 text-sm text-zinc-400">Invite coaches and review their onboarding progress.</p>
+        </div>
+        <InviteCoachDialog />
       </div>
-
-      <section className="space-y-3 rounded-xl border border-zinc-800 p-4">
-        <h2 className="text-sm font-semibold text-zinc-300">Invite a user</h2>
-        <CoachSearch />
-      </section>
 
       <table className="w-full border-collapse text-sm">
         <thead>

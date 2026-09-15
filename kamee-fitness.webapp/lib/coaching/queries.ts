@@ -34,7 +34,7 @@ export type ReviewRow = {
  */
 export async function loadHub(userId: string) {
   const supabase = await createServerSupabase();
-  const [profileRes, missingRes, reviewsRes, termsRes] = await Promise.all([
+  const [profileRes, missingRes, reviewsRes, termsRes, avatarRes] = await Promise.all([
     supabase.from("coaching_profiles").select("*").eq("user_id", userId).single(),
     supabase.rpc("get_coaching_profile_missing"),
     supabase
@@ -49,6 +49,7 @@ export async function loadHub(userId: string) {
       .select("version, url, published_at")
       .eq("is_current", true)
       .maybeSingle(),
+    supabase.from("profiles").select("avatar_photo_path, display_name").eq("id", userId).single(),
   ]);
   // M8 (fix round 1): a swallowed error here would otherwise render the hub
   // with a phantom empty profile. Throw and let app/coaching/error.tsx show
@@ -69,6 +70,7 @@ export async function loadHub(userId: string) {
   if (termsRes.error) {
     throw new Error(`loadHub: failed to load coaching_terms_versions: ${termsRes.error.message}`);
   }
+  if (avatarRes.error) throw new Error("Could not load your account profile. Please retry.");
   const currentTerms: CurrentCoachTerms | null = termsRes.data
     ? {
         version: termsRes.data.version as string,
@@ -77,6 +79,8 @@ export async function loadHub(userId: string) {
       }
     : null;
   return {
+    displayName: (avatarRes.data?.display_name as string | null) ?? null,
+    avatarPhotoPath: (avatarRes.data?.avatar_photo_path as string | null) ?? null,
     profile: profileRes.data as CoachingProfileRow,
     currentTerms,
     missing: (missingRes.data as string[]) ?? [],

@@ -12,10 +12,10 @@ export default async function CoachingHubLayout({ children }: { children: React.
       <aside className="coach-sidebar">
         <Link href="/coaching" className="coach-brand" aria-label="Kamee coaching home">
           <Image src="/adaptive-icon.png" width={38} height={38} className="coach-brand-mark" alt="" />
-          <span>kamee<small>COACHING</small></span>
+          <span>Kamee<small>COACHING</small></span>
         </Link>
         <p className="coach-sidebar-label">COACH PROFILE</p>
-        <HubNav onboarding={["onboarding", "in_review", "changes_requested"].includes(status)} />
+        <HubNav />
         <CoachSignOut className="coach-signout" />
       </aside>
       <div className="coach-main">

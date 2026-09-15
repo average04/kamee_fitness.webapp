@@ -105,9 +105,6 @@ export function CoachProfileView({ data }: { data: CoachingProfileJson }) {
               )}
             </div>
           </div>
-          {!data.is_accepting_clients && (
-            <Pill className="border-white/10 text-muted">Not taking new clients</Pill>
-          )}
         </div>
 
         {data.headline && <p className="text-sm font-medium text-mist">{data.headline}</p>}
