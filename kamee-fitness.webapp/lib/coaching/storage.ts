@@ -149,3 +149,13 @@ export function isOwnCredentialDocPath(
   );
   return re.test(path);
 }
+
+/** Native-compatible avatar folder, scoped to the signed-in account. */
+export function buildAvatarPath(userId: string, ext: CoverExtension, now = Date.now()): string {
+  return `avatars/${userId}/${now}.${ext}`;
+}
+
+export function isOwnAvatarPath(path: unknown, uid: string): path is string {
+  if (typeof path !== "string" || path.length > MAX_PATH_LENGTH || !isUuid(uid)) return false;
+  return new RegExp(`^avatars/${uid}/\\d+\\.(jpg|png|webp)$`).test(path);
+}

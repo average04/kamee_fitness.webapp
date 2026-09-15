@@ -128,7 +128,7 @@ export function OrderControls({
   dragGroup?: string;
 }) {
   return (
-    <div className="plan-order">
+    <div className="plan-item-actions" role="group" aria-label={`Actions for ${label}`}>
       {dragGroup && (
         <button
           type="button"
@@ -156,13 +156,11 @@ export function OrderControls({
         ↓
       </button>
       {duplicate && (
-        <button type="button" onClick={duplicate}>
+        <button type="button" aria-label={`Duplicate ${label}`} onClick={duplicate}>
           Duplicate
         </button>
       )}
-      <button type="button" onClick={remove}>
-        Remove
-      </button>
+    <button type="button" className="plan-secondary text-red-400" aria-label={`Remove ${label}`} onClick={remove}>Remove</button>
     </div>
   );
 }

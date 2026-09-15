@@ -33,7 +33,7 @@ export async function acceptInvite(
   // M12 (fix round 1): a coach who already accepted (e.g. this form was
   // still open in a stale tab) should just land back in the hub instead of
   // re-submitting to the RPC.
-  if (isHubState(session.status)) redirect("/coaching/onboarding");
+  if (isHubState(session.status)) redirect("/coaching/profile");
 
   const supabase = await createServerSupabase();
   const token = formData.get("token");
@@ -43,7 +43,7 @@ export async function acceptInvite(
   if (error) {
     return { message: MESSAGES[error.message] ?? "Could not accept the invite. Please try again." };
   }
-  redirect("/coaching/onboarding");
+  redirect("/coaching/profile");
 }
 
 /** "Not you? Sign out" on the invite page: sign out and stay on the same invite link. */

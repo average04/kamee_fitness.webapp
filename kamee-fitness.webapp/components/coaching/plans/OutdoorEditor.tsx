@@ -171,7 +171,20 @@ export function OutdoorEditor({
   );
   return (
     <section className="plan-stack">
+      <div className="flex items-center justify-between gap-3">
       <h3>Run / walk session</h3>
+      {value && (
+        <button
+          type="button"
+          className="plan-secondary text-red-400"
+          onClick={() => {
+            if (confirm("Remove this run / walk session?")) onChange(null);
+          }}
+        >
+          Remove run / walk
+        </button>
+      )}
+      </div>
       <div className="plan-grid">
         <Select
           label="Session"
@@ -226,22 +239,13 @@ export function OutdoorEditor({
         {value ? "Replace session" : "Add session"}
       </button>
       {value && (
-        <button
-          type="button"
-          className="plan-secondary"
-          onClick={() => {
-            if (confirm("Remove this run / walk session?")) onChange(null);
-          }}
-        >
-          Remove session
-        </button>
-      )}
-      {value && (
         <>
           <p className="coach-panel-description">
             {Math.round((value.target_seconds ?? 0) / 60)} minutes including
             warm-up and cooldown
           </p>
+          <details className="plan-advanced">
+            <summary>Customize intervals &amp; instructions</summary>
           {value.segments.map((s, i) =>
             "repeat" in s ? (
               <div key={i} className="plan-stack">
@@ -275,6 +279,7 @@ export function OutdoorEditor({
             value={value.notes}
             onChange={(notes) => onChange({ ...value, notes })}
           />
+          </details>
         </>
       )}
     </section>

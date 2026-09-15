@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { setCoverPath } from "@/app/coaching/(hub)/actions";
+import { setCoverPath, setAvatarPath } from "@/app/coaching/(hub)/actions";
 import {
   buildCoverPath,
+  buildAvatarPath,
   buildPublicStorageUrl,
   checkImageFile,
   extensionForMimeType,
@@ -16,11 +17,14 @@ export function CoverUpload({
   userId,
   current,
   readOnly,
+  kind = "cover",
 }: {
   userId: string;
   current: string | null;
   readOnly: boolean;
+  kind?: "cover" | "avatar";
 }) {
+  const photoLabel = kind === "avatar" ? "Profile photo" : "Cover photo";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,7 +68,7 @@ export function CoverUpload({
     // previously left `state` stuck at "saving" and the file input disabled
     // forever, since nothing downstream of the throw ever ran.
     try {
-      const result = await setCoverPath(path);
+      const result = await (kind === "avatar" ? setAvatarPath(path) : setCoverPath(path));
       if (result.message) {
         setState("error");
         setError(result.message);
@@ -80,7 +84,7 @@ export function CoverUpload({
       setPreview(confirmedPreviewRef.current);
     } catch {
       setState("error");
-      setError("Could not save the cover. Please retry.");
+      setError("Could not save the photo. Please retry.");
       // The storage upload already succeeded (this function only runs
       // after that) -- retry should replay setCoverPath only, never
       // re-upload the same bytes.
@@ -102,7 +106,7 @@ export function CoverUpload({
       revertPreview();
       return;
     }
-    const path = buildCoverPath(userId, ext);
+    const path = kind === "avatar" ? buildAvatarPath(userId, ext) : buildCoverPath(userId, ext);
     try {
       const supabase = createBrowserSupabase();
       const { error: uploadError } = await supabase.storage
@@ -110,14 +114,14 @@ export function CoverUpload({
         .upload(path, file, { contentType: file.type, upsert: false });
       if (uploadError) {
         setState("error");
-        setError("Could not upload the cover photo. Please retry.");
+        setError("Could not upload the photo. Please retry.");
         setLastFile(file);
         revertPreview();
         return;
       }
     } catch {
       setState("error");
-      setError("Could not upload the cover photo. Please retry.");
+      setError("Could not upload the photo. Please retry.");
       setLastFile(file);
       revertPreview();
       return;
@@ -161,7 +165,7 @@ export function CoverUpload({
     <div className="space-y-2 coach-panel">
       <div className="flex items-center justify-between">
         <label htmlFor={inputId} className="block text-sm font-semibold text-mist">
-          Your cover photo
+          {photoLabel} <span className="font-normal text-mist/60">(optional)</span>
         </label>
         <SaveIndicator state={state} onRetry={retry} />
       </div>
@@ -169,13 +173,13 @@ export function CoverUpload({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={preview}
-          alt="Cover preview"
-          className="coach-cover-preview"
+          alt={`${photoLabel} preview`}
+          className={kind === "avatar" ? "h-32 w-32 rounded-full object-cover" : "coach-cover-preview"}
         />
       )}
       {!preview && <div className="coach-cover-empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>
-        <p>Add a cover photo</p>
+        <p>Add a {photoLabel.toLowerCase()}</p>
       </div>}
       <p className="coach-panel-description">JPEG, PNG or WebP. Up to 5 MB.</p>
       <input

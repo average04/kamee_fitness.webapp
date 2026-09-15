@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { acceptCoachTerms } from "@/app/coaching/(hub)/actions";
 import type { CoachTermsState } from "@/lib/coaching/terms";
 import { COACH_TERMS_PATH } from "@/lib/legal-version";
+import { RequiredMark } from "@/components/RequiredMark";
 
 // UTC with a fixed locale so the server render and the hydrated client agree.
 const dateFmt = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" });
@@ -86,12 +87,13 @@ export function CoachTermsAcceptance({ state }: { state: CoachTermsState }) {
       <label className="flex items-start gap-2 text-sm text-mist">
         <input
           type="checkbox"
+          aria-required="true"
           className="mt-0.5"
           checked={agreed}
           disabled={pending}
           onChange={(e) => setAgreed(e.target.checked)}
         />
-        <span>I have read and agree to the Coach Terms, version {state.version}.</span>
+        <span>I have read and agree to the Coach Terms, version {state.version}.<RequiredMark /></span>
       </label>
       <button
         type="button"

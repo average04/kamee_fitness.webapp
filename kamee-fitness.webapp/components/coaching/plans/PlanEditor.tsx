@@ -2,7 +2,7 @@
 import { commaValues, validateDraft } from "@/lib/coaching/plan-validation";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   savePlan,
@@ -15,10 +15,8 @@ import {
   duplicate,
   editable,
   move,
-  newDay,
   progressWeek,
   stateLabel,
-  type Day,
   type ExerciseOption,
   type PlanDocument,
   type Video,
@@ -28,12 +26,12 @@ import {
   Field,
   Select,
   OrderControls,
-  VideoSelect,
   dropProps,
   startDrag,
 } from "./Fields";
-import { WorkoutEditor } from "./WorkoutEditor";
-import { OutdoorEditor } from "./OutdoorEditor";
+import { GOAL_LABELS, planGoals } from "@/lib/coaching/goals";
+import { MultiSelectField } from "./MultiSelectField";
+import { WeekSchedule } from "./WeekSchedule";
 import { MealsEditor } from "./MealsEditor";
 import { PlanPreview } from "./PlanPreview";
 
@@ -51,11 +49,13 @@ export function PlanEditor({
   videos: Video[];
 }) {
   const router = useRouter();
+  const coverInputId = useId();
   const [plan, setPlan] = useState(initial);
   const [equipmentText, setEquipmentText] = useState(initial.required_equipment.join(", "));
   const [musclesText, setMusclesText] = useState(initial.target_muscles.join(", "));
-  const [tab, setTab] = useState("Schedule");
+  const [tab, setTab] = useState("Details");
   const [weekIndex, setWeekIndex] = useState(0);
+  const [weeksToAdd, setWeeksToAdd] = useState("1");
   const [listingStatus, setListingStatus] = useState(
     initial.listing_status ?? "draft",
   );
@@ -139,11 +139,6 @@ export function PlanEditor({
   };
   const setWeek = (w: Week) =>
     update({ weeks: plan.weeks.map((old, i) => (i === weekIndex ? w : old)) });
-  const setDay = (index: number, d: Day) =>
-    setWeek({
-      ...week,
-      days: week.days.map((old, i) => (i === index ? d : old)),
-    });
   function save(submit = false) {
     const document = { ...plan, required_equipment: commaValues(equipmentText), target_muscles: commaValues(musclesText) };
     const problems = validateDraft(document);
@@ -238,7 +233,7 @@ export function PlanEditor({
               aria-pressed={!canEdit || tab === t}
               onClick={() => setTab(t)}
             >
-              {t}
+              {t === "Meals" ? "Meals (optional)" : t}
             </button>
           ))}
         </nav>
@@ -252,13 +247,13 @@ export function PlanEditor({
               >
                 {pending ? "Saving…" : "Save draft"}
               </button>
-              <button
+              {tab === "Preview" && <button
                 className="plan-primary"
                 disabled={pending || uploading}
                 onClick={() => save(true)}
               >
                 Submit for review
-              </button>
+              </button>}
             </>
           ) : (
             plan.version_state === "approved" && (
@@ -283,7 +278,9 @@ export function PlanEditor({
         </div>
       </div>
       {listingStatus !== "retired" && (
-        <div className="plan-order">
+        <details className="plan-advanced">
+          <summary>Plan options</summary>
+          <div className="plan-order">
           {plan.version_state === "approved" && (
             <button
               className="plan-secondary"
@@ -335,6 +332,7 @@ export function PlanEditor({
             Retire plan
           </button>
         </div>
+        </details>
       )}
       {recovery && canEdit && (
         <div className="coach-panel plan-stack" role="status">
@@ -420,12 +418,7 @@ export function PlanEditor({
               <p className="coach-panel-description">
                 {plan.summary?.length ?? 0} / 120 minimum characters
               </p>
-              <div className="plan-grid">
-                <Field
-                  label="Goal"
-                  value={plan.goal}
-                  onChange={(goal) => update({ goal })}
-                />
+              <div className="plan-details-basics">
                 <Field
                   label="Minutes per session"
                   type="number"
@@ -442,47 +435,57 @@ export function PlanEditor({
                   onChange={(level) => update({ level })}
                 >
                   {["none", "beginner", "intermediate", "advanced"].map((x) => (
-                    <option key={x}>{x}</option>
+                    <option key={x} value={x}>{({ none: "Any level", beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced", bodyweight: "No equipment", minimal: "Basic equipment", full_gym: "Full gym" } as Record<string, string>)[x] ?? x}</option>
                   ))}
                 </Select>
                 <Select
-                  label="Equipment"
+                  label="Equipment access"
                   value={plan.equipment_tier}
                   onChange={(equipment_tier) => update({ equipment_tier })}
                 >
                   {["bodyweight", "minimal", "full_gym"].map((x) => (
-                    <option key={x}>{x}</option>
+                    <option key={x} value={x}>{({ none: "Any level", beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced", bodyweight: "No equipment", minimal: "Basic equipment", full_gym: "Full gym" } as Record<string, string>)[x] ?? x}</option>
                   ))}
                 </Select>
-                <Field
-                  label="Required equipment (comma separated)"
-                  value={equipmentText}
-                  onChange={(v) => { setEquipmentText(v); update({}, v, musclesText); }}
-                />
-                <Field
-                  label="Target muscles (comma separated)"
-                  value={musclesText}
-                  onChange={(v) => { setMusclesText(v); update({}, equipmentText, v); }}
-                />
               </div>
-              <label className="plan-field">
-                <span>Cover · JPG, PNG or WebP, up to 5 MB</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => uploadCover(e.target.files?.[0])}
-                />
-              </label>
-              {plan.cover_image_path && (
-                <Image
-                  src={`/coaching/plans/cover?path=${encodeURIComponent(plan.cover_image_path)}`}
-                  alt="Plan cover"
-                  width={960}
-                  height={400}
-                  unoptimized
-                  className="coach-cover-preview"
-                />
-              )}
+              <div className="plan-details-selections">
+                <MultiSelectField label="Goals" hint="Choose all the outcomes this plan supports."
+                  value={planGoals(plan)} labels={GOAL_LABELS}
+                  options={Object.keys(GOAL_LABELS)}
+                  onChange={goals => update({ goals, goal: goals[0] ?? null })} />
+                <MultiSelectField label="Required equipment" hint="Select the items members need. Leave empty if none are needed."
+                  value={commaValues(equipmentText)}
+                  options={["Dumbbells", "Barbell", "Weight plates", "Kettlebell", "Resistance bands", "Bench", "Squat rack", "Pull-up bar", "Cable machine", "Exercise mat", "Treadmill", "Running shoes"]}
+                  onChange={values => { const text = values.join(", "); setEquipmentText(text); update({}, text, musclesText); }} />
+                <MultiSelectField label="Target muscles" hint="Choose the muscle groups trained by this plan."
+                  value={commaValues(musclesText)}
+                  options={["Full body", "Chest", "Back", "Shoulders", "Biceps", "Triceps", "Forearms", "Core", "Glutes", "Quadriceps", "Hamstrings", "Calves"]}
+                  onChange={values => { const text = values.join(", "); setMusclesText(text); update({}, equipmentText, text); }} />
+              </div>
+              <section className="plan-cover-upload" aria-labelledby={`${coverInputId}-title`}>
+                <div>
+                  <h3 id={`${coverInputId}-title`}>Plan cover photo</h3>
+                  <p id={`${coverInputId}-hint`} className="coach-panel-description">Choose an image that represents your plan. JPG, PNG or WebP, up to 5 MB.</p>
+                </div>
+                {plan.cover_image_path ? (
+                  <Image src={`/coaching/plans/cover?path=${encodeURIComponent(plan.cover_image_path)}`}
+                    alt="Plan cover preview" width={960} height={400} unoptimized className="coach-cover-preview" />
+                ) : <div className="plan-cover-placeholder" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>
+                  <span>No cover photo selected</span>
+                </div>}
+                <div>
+                  <input id={coverInputId} type="file" accept="image/jpeg,image/png,image/webp"
+                    className="peer sr-only" aria-describedby={`${coverInputId}-hint`}
+                    onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; void uploadCover(file); }} />
+                  <label htmlFor={coverInputId} className="plan-cover-button peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-leaf-500">
+                    {uploading ? "Uploading cover…" : plan.cover_image_path ? "Replace cover photo" : "Choose cover photo"}
+                  </label>
+                </div>
+                <p role="status" className="coach-panel-description">
+                  {uploading ? "Uploading your image. Please wait." : plan.cover_image_path ? "Cover selected. Save draft to keep your changes." : "Your selected image will appear here."}
+                </p>
+              </section>
               {plan.version_no > 1 && (
                 <Field
                   label="What changed?"
@@ -517,39 +520,34 @@ export function PlanEditor({
                     Week {i + 1}
                   </button>
                 ))}
-                <button
-                  type="button"
-                  disabled={plan.weeks.length >= 52}
-                  onClick={() => {
-                    update({
-                      weeks: [
-                        ...plan.weeks,
-                        {
-                          lineage_key: crypto.randomUUID(),
-                          role: "build",
-                          days: [],
-                        },
-                      ],
-                    });
-                    setWeekIndex(plan.weeks.length);
-                  }}
-                >
-                  + Week
-                </button>
+                <div className="plan-add-weeks">
+                  <Field label="Weeks to add" type="number" min={1} max={52 - plan.weeks.length}
+                    value={weeksToAdd} onChange={setWeeksToAdd} />
+                  <button type="button" disabled={!Number.isInteger(Number(weeksToAdd)) || Number(weeksToAdd) < 1 || Number(weeksToAdd) + plan.weeks.length > 52}
+                    onClick={() => {
+                      const count = Number(weeksToAdd);
+                      if (!Number.isInteger(count) || count < 1 || count + plan.weeks.length > 52) return;
+                      update({ weeks: [...plan.weeks, ...Array.from({ length: count }, () => ({
+                        lineage_key: crypto.randomUUID(), role: "build" as const, days: [],
+                      }))] });
+                      setWeekIndex(plan.weeks.length);
+                      setProgression(null);
+                    }}>Add weeks</button>
+                </div>
               </div>
               <section className="coach-panel plan-stack">
-                <div className="plan-card">
-                  <Select
-                    label={`Week ${weekIndex + 1}`}
-                    value={week.role}
-                    onChange={(v) =>
-                      setWeek({ ...week, role: v as Week["role"] })
-                    }
-                  >
-                    {["build", "cutback", "taper", "goal"].map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </Select>
+                <div className="plan-stack">
+                  <h2>Week {weekIndex + 1}</h2>
+                  <details className="plan-advanced">
+                    <summary>Week settings</summary>
+                    <div className="plan-week-settings">
+                    <Select label="Training phase" value={week.role}
+                      onChange={(v) => setWeek({ ...week, role: v as Week["role"] })}>
+                      <option value="build">Regular training</option>
+                      <option value="cutback">Recovery week (lighter training)</option>
+                      <option value="taper">Pre-event week (reduced training)</option>
+                      <option value="goal">Event / goal week</option>
+                    </Select>
                   <OrderControls
                     label={`week ${weekIndex + 1}`}
                     index={weekIndex}
@@ -574,156 +572,12 @@ export function PlanEditor({
                       }
                     }}
                   />
-                </div>
-                {week.days.map((day, di) => (
-                  <details
-                    open
-                    key={day.lineage_key}
-                    className="plan-day"
-                    {...dropProps(week.lineage_key, di, week.days, (days) => {
-                      if (canEdit) setWeek({ ...week, days });
-                    })}
-                  >
-                    <summary>{day.title || `Day ${di + 1}`}</summary>
-                    <div className="plan-stack">
-                      <div className="plan-card">
-                        <Field
-                          label="Day title"
-                          value={day.title}
-                          onChange={(title) => setDay(di, { ...day, title })}
-                        />
-                        <OrderControls
-                          dragGroup={week.lineage_key}
-                          label={`day ${di + 1}`}
-                          index={di}
-                          count={week.days.length}
-                          move={(delta) =>
-                            setWeek({
-                              ...week,
-                              days: move(week.days, di, delta),
-                            })
-                          }
-                          duplicate={() => {
-                            if (week.days.length < 7)
-                              setWeek({
-                                ...week,
-                                days: [...week.days, duplicate(day)],
-                              });
-                          }}
-                          remove={() => {
-                            if (confirm("Remove this day?"))
-                              setWeek({
-                                ...week,
-                                days: week.days.filter((_, i) => i !== di),
-                              });
-                          }}
-                        />
-                      </div>
-                      <div className="plan-grid">
-                        <Select
-                          label="Day type"
-                          value={day.day_kind}
-                          onChange={(v) => {
-                            const dropBlocks =
-                              ["run", "rest"].includes(v) &&
-                              day.blocks.length > 0;
-                            const dropCardio =
-                              ["workout", "rest"].includes(v) && !!day.cardio;
-                            if (
-                              (dropBlocks || dropCardio) &&
-                              !confirm(
-                                `Changing day type removes ${[dropBlocks && "exercises", dropCardio && "cardio"].filter(Boolean).join(" and ")}. Continue?`,
-                              )
-                            )
-                              return;
-                            setDay(di, {
-                              ...day,
-                              day_kind: v as Day["day_kind"],
-                              blocks: dropBlocks ? [] : day.blocks,
-                              cardio: dropCardio ? null : day.cardio,
-                            });
-                          }}
-                        >
-                          {[
-                            ["workout", "Workout"],
-                            ["run", "Run / walk"],
-                            ["hybrid", "Hybrid"],
-                            ["active_recovery", "Active recovery"],
-                            ["rest", "Rest"],
-                          ].map(([v, label]) => (
-                            <option key={v} value={v}>
-                              {label}
-                            </option>
-                          ))}
-                        </Select>
-                        <VideoSelect
-                          value={day.coaching_video_id}
-                          videos={videos}
-                          onChange={(coaching_video_id) =>
-                            setDay(di, { ...day, coaching_video_id })
-                          }
-                        />
-                      </div>
-                      {day.day_kind === "rest" &&
-                        (day.blocks.length > 0 || day.cardio) && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDay(di, { ...day, blocks: [], cardio: null })
-                            }
-                          >
-                            Clear session for rest day
-                          </button>
-                        )}
-                      {day.day_kind !== "rest" && (
-                        <>
-                          {["workout", "hybrid", "active_recovery"].includes(
-                            day.day_kind,
-                          ) && (
-                            <WorkoutEditor
-                              blocks={day.blocks}
-                              exercises={exercises}
-                              videos={videos}
-                              onChange={(blocks) =>
-                                setDay(di, { ...day, blocks })
-                              }
-                            />
-                          )}
-                          {["run", "hybrid", "active_recovery"].includes(
-                            day.day_kind,
-                          ) && (
-                            <OutdoorEditor
-                              value={day.cardio}
-                              onChange={(cardio) =>
-                                setDay(di, { ...day, cardio })
-                              }
-                            />
-                          )}
-                        </>
-                      )}
                     </div>
                   </details>
-                ))}
-                <button
-                  type="button"
-                  className="plan-secondary"
-                  disabled={week.days.length >= 7}
-                  onClick={() =>
-                    setWeek({
-                      ...week,
-                      days: [
-                        ...week.days,
-                        newDay(
-                          plan.discipline === "running" ? "run" : "workout",
-                        ),
-                      ],
-                    })
-                  }
-                >
-                  Add day
-                </button>
+                </div>
+                <WeekSchedule key={week.lineage_key} week={week} exercises={exercises} videos={videos} onChange={setWeek} />
                 <details>
-                  <summary>Apply progression</summary>
+                  <summary>Duplicate week with adjustments (advanced)</summary>
                   <div className="plan-stack">
                     <p className="coach-panel-description">
                       Copy this week with adjusted exercises. Reps change only
@@ -756,7 +610,7 @@ export function PlanEditor({
                         )
                       }
                     >
-                      Preview progression
+                      Preview adjusted week
                     </button>
                     {progression && (
                       <>
@@ -850,6 +704,14 @@ export function PlanEditor({
           )}
         </fieldset>
       )}
+      {canEdit && <div className="plan-card plan-step-navigation">
+        {tab !== "Details" && <button type="button" className="plan-secondary" disabled={pending || uploading}
+          onClick={() => setTab(({ Schedule: "Details", Meals: "Schedule", Preview: "Meals" } as Record<string, string>)[tab])}>Back</button>}
+        {tab !== "Preview" && <button type="button" className="plan-primary" disabled={pending || uploading}
+          onClick={() => setTab(({ Details: "Schedule", Schedule: "Meals", Meals: "Preview" } as Record<string, string>)[tab])}>
+          {tab === "Details" ? "Next: add training days" : tab === "Schedule" ? "Next: meals (optional)" : "Next: preview plan"}
+        </button>}
+      </div>}
     </div>
   );
 }

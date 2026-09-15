@@ -2,6 +2,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { ExerciseOption, PlanDocument } from "@/lib/coaching/plans";
+import { GOAL_LABELS, planGoals } from "@/lib/coaching/goals";
+import { calendarDays } from "@/lib/coaching/calendar";
 import { flattenSegments } from "@/lib/coaching/outdoor/segments";
 
 export function VideoPlayer({
@@ -87,6 +89,12 @@ export function PlanPreview({
         </label>
       </div>
       <article className="coach-panel plan-stack">
+        {planGoals(plan).length > 0 && <div>
+          <h3>Goals</h3>
+          <ul className="flex flex-wrap gap-2" aria-label="Plan goals">
+            {planGoals(plan).map(goal => <li key={goal} className="rounded-full border border-white/10 px-3 py-1 text-sm">{GOAL_LABELS[goal] ?? goal}</li>)}
+          </ul>
+        </div>}
         {plan.cover_image_path && (
           <Image
             src={
@@ -111,12 +119,12 @@ export function PlanPreview({
         {plan.weeks.map((w, wi) => (
           <section key={w.lineage_key} className="plan-stack">
             <h3>
-              Week {wi + 1} · {w.role}
+              Week {wi + 1} · {({ build: "Regular training", cutback: "Recovery week", taper: "Pre-event week", goal: "Event / goal week" })[w.role]}
             </h3>
             {w.days.map((d, di) => (
               <div key={d.lineage_key} className="plan-block plan-stack">
                 <h4>
-                  {d.title || `Day ${di + 1}`}{" "}
+                  {calendarDays[di]}{d.title ? ` - ${d.title}` : ""}{" "}
                   <span className="coach-panel-description">
                     · {d.day_kind.replaceAll("_", " ")}
                   </span>
@@ -128,14 +136,14 @@ export function PlanPreview({
                     )}
                     {d.blocks.map((b) => (
                       <div key={b.lineage_key}>
-                        <h5>{b.kind}</h5>
+                        <h5>{({ main: "Exercises", warmup: "Warm-up", cooldown: "Cool-down", superset: "Superset", circuit: "Circuit" })[b.kind]}</h5>
                         {b.exercises.map((e) => (
                           <div
                             className="plan-preview-exercise"
                             key={e.lineage_key}
                           >
                             <strong>
-                              {exercises.find((x) => x.id === e.exercise_id)
+                              {e.custom_name ?? exercises.find((x) => x.id === e.exercise_id)
                                 ?.name ?? "Exercise"}
                             </strong>
                             <p>

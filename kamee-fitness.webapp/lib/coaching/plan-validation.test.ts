@@ -29,7 +29,7 @@ describe("review regressions", () => {
       {
         lineage_key: "b",
         kind: "main",
-        exercises: [{ sets: 3.5, rest_seconds: 60 } as never],
+        exercises: [{ exercise_id: "catalog", sets: 3.5, reps: "10", rest_seconds: 60 } as never],
       },
     ];
     expect(validateDraft(p)).toHaveLength(2);

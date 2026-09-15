@@ -4,6 +4,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { safeNextPath } from "@/lib/safe-next";
 import { signInErrorMessage } from "@/lib/auth/sign-in-errors";
+import { isLocalDevelopmentAuth } from "@/lib/auth/local-auth";
+import { RequiredMark } from "@/components/RequiredMark";
+
+function usesLocalAuth() {
+  return isLocalDevelopmentAuth(process.env.NODE_ENV, window.location.origin, process.env.NEXT_PUBLIC_SUPABASE_URL);
+}
 
 const TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAADSfFsj2UkEr0f3Z";
@@ -40,11 +46,13 @@ export function EmailCodeSignIn({
   fallbackNext = "/me",
   sendLabel = "Send magic link / code",
   theme = "dark",
+  invitedEmail,
 }: {
   next: string | null;
   fallbackNext?: string;
   sendLabel?: string;
   theme?: "light" | "dark";
+  invitedEmail?: string;
 }) {
   // Resolved lazily (not at render time) because it needs window.location.origin,
   // which is unavailable during this client component's server-side render pass.
@@ -53,7 +61,8 @@ export function EmailCodeSignIn({
   }
   const emailId = useId();
   const codeId = useId();
-  const [email, setEmail] = useState("");
+  const [enteredEmail, setEmail] = useState("");
+  const email = invitedEmail ?? enteredEmail;
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -63,6 +72,7 @@ export function EmailCodeSignIn({
   const widgetId = useRef<string | null>(null);
 
   useEffect(() => {
+    if (usesLocalAuth()) return;
     function render() {
       if (!window.turnstile || !widgetEl.current || widgetId.current) return;
       widgetId.current = window.turnstile.render(widgetEl.current, {
@@ -92,7 +102,7 @@ export function EmailCodeSignIn({
 
   async function onSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!captchaToken) {
+    if (!captchaToken && !usesLocalAuth()) {
       setMessage("Still verifying you're human — give it a moment and retry.");
       return;
     }
@@ -104,7 +114,7 @@ export function EmailCodeSignIn({
       options: {
         shouldCreateUser: false,
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(resolveNext())}`,
-        captchaToken,
+        captchaToken: captchaToken ?? undefined,
       },
     });
     if (widgetId.current && window.turnstile) {
@@ -140,11 +150,13 @@ export function EmailCodeSignIn({
   return (
     <>
       <form onSubmit={onSend} className="mt-6 space-y-3">
-        <label htmlFor={emailId} className="block text-sm font-medium">Email address</label>
+        <p className="text-xs text-muted">* Required</p>
+        <label htmlFor={emailId} className="block text-sm font-medium">Email address<RequiredMark /></label>
         <input
           id={emailId}
           type="email"
           required
+          readOnly={!!invitedEmail}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
@@ -168,10 +180,11 @@ export function EmailCodeSignIn({
       )}
 
       <form onSubmit={onVerify} className="mt-4 space-y-2">
-        <label htmlFor={codeId} className="block text-xs text-muted">Have a code from your email?</label>
+        <label htmlFor={codeId} className="block text-xs text-muted">Email code<RequiredMark /> <span className="font-normal">(if signing in with a code)</span></label>
         <div className="flex gap-2">
           <input
             id={codeId}
+            required
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}

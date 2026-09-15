@@ -1,6 +1,7 @@
 "use client";
 
 import { cloneElement, useId, type ReactElement } from "react";
+import { RequiredMark } from "@/components/RequiredMark";
 
 /**
  * Shared a11y wrapper for a single labeled form control across the Coaching
@@ -16,10 +17,12 @@ export function Field({
   error,
   hint,
   children,
+  required = false,
 }: {
   label: string;
   error?: string;
   hint?: string;
+  required?: boolean;
   // A permissive prop shape (rather than pinning the exact <input>/<textarea>/
   // <select> attributes union) so cloneElement below accepts whichever of
   // the three this Field wraps without fighting each intrinsic element's
@@ -28,6 +31,7 @@ export function Field({
   children: ReactElement<Record<string, unknown>>;
 }) {
   const id = useId();
+  const isRequired = required || children.props.required === true;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
@@ -36,7 +40,7 @@ export function Field({
     <div className="space-y-1.5">
       <div className="coach-field-label">
         <label htmlFor={id} className="block text-sm font-medium text-mist">
-          {label}
+          {label}{isRequired && <RequiredMark />}
         </label>
         {hint && (
           <span id={hintId} className="text-xs text-muted">
@@ -46,6 +50,7 @@ export function Field({
       </div>
       {cloneElement(children, {
         id,
+        "aria-required": isRequired || undefined,
         "aria-invalid": error ? true : undefined,
         "aria-describedby": describedBy,
       })}

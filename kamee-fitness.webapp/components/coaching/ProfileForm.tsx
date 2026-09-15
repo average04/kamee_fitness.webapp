@@ -82,12 +82,6 @@ export function ProfileForm({
     if (!readOnly) controller().update(next);
   }
 
-  function updateAndSaveNow<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
-    const next = { ...form, [key]: value };
-    setForm(next);
-    if (!readOnly) controller().saveNow(next);
-  }
-
   function saveNow() {
     if (!readOnly) controller().saveNow(form);
   }
@@ -104,8 +98,9 @@ export function ProfileForm({
         </p>
       )}
 
+      <p className="text-xs text-muted">* Required for approval. You can save a draft before completing these fields.</p>
       <div className="coach-form-grid">
-      <Field label="Headline" error={errors.headline} hint={`${form.headline.length}/80`}>
+      <Field label="Headline" required error={errors.headline} hint={`${form.headline.length}/80`}>
         <input
           className={inputClass}
           placeholder="e.g. Strength and conditioning coach"
@@ -119,6 +114,7 @@ export function ProfileForm({
 
       <Field
         label="About"
+        required
         error={errors.about}
         hint={`${form.about.length}/2000, at least 80`}
       >
@@ -195,31 +191,6 @@ export function ProfileForm({
           onBlur={saveNow}
         />
       </Field>
-
-      <Field label="Typical response time" error={errors.responseDays}>
-        <select
-          className={inputClass}
-          value={form.responseDays}
-          disabled={readOnly}
-          onChange={(e) => updateAndSaveNow("responseDays", Number(e.target.value))}
-        >
-          {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-            <option key={d} value={d}>
-              {d} day{d > 1 ? "s" : ""}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <label className="flex items-center gap-2 text-sm text-mist">
-        <input
-          type="checkbox"
-          checked={form.isAcceptingClients}
-          disabled={readOnly}
-          onChange={(e) => updateAndSaveNow("isAcceptingClients", e.target.checked)}
-        />
-        Currently accepting clients
-      </label>
 
       </div>
     </div>

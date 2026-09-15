@@ -1,3 +1,5 @@
+import { customExerciseIssue } from "./custom-exercise";
+import { planGoals } from "./goals";
 import type { PlanDocument } from "./plans";
 
 export const commaValues = (text: string) =>
@@ -7,12 +9,19 @@ export const commaValues = (text: string) =>
     .filter(Boolean);
 export function validateDraft(plan: PlanDocument): string[] {
   const issues: string[] = [];
+  const goals = planGoals(plan);
+  if (goals.length > 12 || new Set(goals).size !== goals.length || goals.some(g => !g.trim() || g.length > 80 || g !== g.trim()))
+    issues.push("Choose up to 12 unique goals, each 1-80 characters.");
   if (plan.est_minutes_per_session != null && (!Number.isInteger(plan.est_minutes_per_session) || plan.est_minutes_per_session < 1 || plan.est_minutes_per_session > 1440))
     issues.push("Estimated session minutes must be a whole number from 1 to 1,440.");
   plan.weeks.forEach((w, wi) =>
     w.days.forEach((d, di) =>
       d.blocks.forEach((b) =>
         b.exercises.forEach((e) => {
+          if (!e.exercise_id) {
+            const issue = customExerciseIssue(e.custom_name ?? "", e.reps);
+            if (issue) issues.push(`Week ${wi + 1}, day ${di + 1}: ${issue}`);
+          }
           if (
             !Number.isInteger(e.sets) ||
             e.sets < 1 ||
@@ -60,7 +69,8 @@ export function draftPayload(p: PlanDocument) {
   return {
     title: p.title,
     summary: p.summary,
-    goal: p.goal,
+    goal: planGoals(p)[0] ?? null,
+    goals: planGoals(p),
     level: p.level,
     equipment_tier: p.equipment_tier,
     required_equipment: p.required_equipment.filter(Boolean),
@@ -82,6 +92,7 @@ export function draftPayload(p: PlanDocument) {
           exercises: b.exercises.map((e) => ({
             lineage_key: e.lineage_key,
             exercise_id: e.exercise_id,
+            custom_name: e.custom_name ?? null,
             sets: e.sets,
             reps: e.reps,
             tempo: e.tempo,

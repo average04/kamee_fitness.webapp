@@ -26,7 +26,7 @@ export default async function CredentialsPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink status={status} />
+      <BackLink />
       <PageIntro title="Credentials" description="Optional. Supporting documents stay private." />
       <CredentialsManager
         coachId={user.id}

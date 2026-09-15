@@ -169,7 +169,7 @@ export function GalleryManager({
   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (inputRef.current) inputRef.current.value = "";
-    if (files.length === 0 || readOnly || photos.length >= MAX_PHOTOS) return;
+    if (files.length === 0 || readOnly || uploading || photos.length >= MAX_PHOTOS) return;
 
     const plan = planGalleryUploads(files, coachId, photos.length, MAX_PHOTOS);
     const problems = [...plan.problems];
@@ -294,8 +294,12 @@ export function GalleryManager({
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-mist">
-        {photos.length} of {MAX_PHOTOS} · at least {MIN_RECOMMENDED} needed for approval
+        Gallery * · {photos.length} of {MAX_PHOTOS} · at least {MIN_RECOMMENDED} required for approval
       </h2>
+      <p id={`${addInputId}-hint`} className="text-sm text-muted">
+        Select several photos at once. On a computer, hold Ctrl (Windows) or Command (Mac)
+        to select individual photos, or Shift to select a range. JPEG, PNG or WebP, up to 5 MB each.
+      </p>
 
       {error && (
         <p role="alert" className="text-sm text-red-400">
@@ -375,6 +379,7 @@ export function GalleryManager({
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
+          aria-describedby={`${addInputId}-hint`}
           className="peer sr-only"
           disabled={addDisabled}
           onChange={onFileChange}
@@ -396,7 +401,7 @@ export function GalleryManager({
               : "Uploading…"
             : photos.length >= MAX_PHOTOS
               ? "12 of 12"
-              : "+ Add photos"}
+              : "+ Select photos"}
           {photos.length === 0 && <span className="max-w-xs px-4 text-xs leading-relaxed text-muted">JPEG, PNG or WebP &middot; up to 5 MB each.</span>}
         </label>
       </div>

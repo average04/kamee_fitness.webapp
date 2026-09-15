@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useId, useRef, useState } from "react";
+import Link from "next/link";
 import {
   deleteCredential,
   setCredentialDocument,
@@ -153,6 +154,7 @@ export function CredentialsManager({
           )}
         </div>
 
+        <p className="text-xs text-muted">Credentials are optional. * Required when adding a credential.</p>
         {editing && <input type="hidden" name="id" value={editing.id} />}
 
         {state.message && (
@@ -219,6 +221,7 @@ export function CredentialsManager({
         )}
 
         </div>
+        <div className="flex items-center justify-between gap-4">
         <button
           type="submit"
           disabled={readOnly || pending}
@@ -226,6 +229,13 @@ export function CredentialsManager({
         >
           {pending ? "Saving…" : editing ? "Save changes" : "Add credential"}
         </button>
+        <Link
+          href="/coaching/gallery"
+          className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted hover:text-mist focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leaf-500"
+        >
+          Skip for now <span aria-hidden="true">&#8594;</span>
+        </Link>
+        </div>
       </form>
     </div>
   );

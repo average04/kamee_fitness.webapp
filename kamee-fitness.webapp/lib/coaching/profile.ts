@@ -327,7 +327,7 @@ function trimmedStringArray(v: unknown): string[] | null {
  * stays in MISSING_LABELS below only so a database without that migration
  * still produces readable copy.
  */
-export const CHECKLIST_KEYS = ["headline", "about", "avatar", "cover", "gallery", "terms"] as const;
+export const CHECKLIST_KEYS = ["headline", "about", "gallery", "terms"] as const;
 
 /**
  * Copy for the "what's missing" checklist, keyed by what the approval RPC
@@ -342,7 +342,7 @@ export const MISSING_LABELS: Record<string, string> = {
   profile: "Start your coach profile",
   headline: "Add a headline",
   about: "Write at least 80 characters about yourself",
-  avatar: "Upload a profile photo in the Kamee app",
+  avatar: "Upload a profile photo",
   cover: "Upload a cover photo",
   credential: "Add at least one credential",
   gallery: "Add at least 3 gallery photos",

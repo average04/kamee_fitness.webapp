@@ -16,8 +16,9 @@ import { sendReviewReadyEmail } from "@/lib/coaching/review-send";
 import { HUB_STATES, type CoachStatus } from "@/lib/coaching/states";
 import { acceptTermsErrorMessage, acceptVersionError } from "@/lib/coaching/terms";
 import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
-import { isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
+import { isOwnAvatarPath, isOwnCoverPath, isOwnCredentialDocPath, isOwnGalleryPath } from "@/lib/coaching/storage";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { validateDisplayName } from "@/lib/coaching/display-name";
 
 const EDITABLE: CoachStatus[] = ["onboarding", "changes_requested", "approved", "suspended"];
 
@@ -77,8 +78,6 @@ export async function saveProfile(raw: unknown): Promise<FormState> {
       languages: v.value.languages,
       location_label: v.value.locationLabel || null,
       socials: v.value.socials,
-      is_accepting_clients: v.value.isAcceptingClients,
-      response_days: v.value.responseDays,
     })
     .eq("user_id", user.id)
     .select("user_id");
@@ -88,7 +87,7 @@ export async function saveProfile(raw: unknown): Promise<FormState> {
   if (error || !data || data.length !== 1) {
     return { message: "Could not save. Please retry." };
   }
-  revalidatePath("/coaching/onboarding");
+  revalidatePath("/coaching/profile");
   return { savedAt: new Date().toISOString() };
 }
 
@@ -118,7 +117,6 @@ export async function acceptCoachTerms(version: unknown): Promise<FormState> {
   const { data, error } = await supabase.rpc("accept_coaching_terms", { p_version: version });
   if (error || !data) return { message: acceptTermsErrorMessage(error?.message) };
 
-  revalidatePath("/coaching/onboarding");
   revalidatePath("/coaching/profile");
   return { savedAt: new Date().toISOString() };
 }
@@ -144,7 +142,7 @@ export async function setCoverPath(path: unknown): Promise<FormState> {
   if (error || !data || data.length !== 1) {
     return { message: "Could not save the cover. Please try again." };
   }
-  revalidatePath("/coaching/onboarding");
+  revalidatePath("/coaching/profile");
   return { savedAt: new Date().toISOString() };
 }
 
@@ -439,7 +437,8 @@ export async function submitProfile(): Promise<FormState> {
     // Swallowed on purpose: see above.
   }
 
-  revalidatePath("/coaching/onboarding");
+  revalidatePath("/coaching/profile");
+  revalidatePath("/coaching/preview");
   return { savedAt: new Date().toISOString() };
 }
 
@@ -451,4 +450,33 @@ export async function signOutCoach() {
   const supabase = await createServerSupabase();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+/** Update only the signed-in coach's native/shared profile photo. */
+export async function setAvatarPath(path: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  if (!isOwnAvatarPath(path, gate.user.id)) return { message: "Please upload a new profile photo." };
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.from("profiles")
+    .update({ avatar_photo_path: path }).eq("id", gate.user.id).select("id");
+  if (error || data?.length !== 1) return { message: "Could not save the profile photo. Please retry." };
+  revalidatePath("/coaching/profile");
+  revalidatePath("/coaching/preview");
+  return { savedAt: new Date().toISOString() };
+}
+
+/** Save the coach's chosen name to their shared account profile. */
+export async function saveDisplayName(raw: unknown): Promise<FormState> {
+  const gate = await guardEditable();
+  if ("blocked" in gate) return { message: gate.message };
+  const validated = validateDisplayName(raw);
+  if ("message" in validated) return validated;
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase.from("profiles")
+    .update({ display_name: validated.name }).eq("id", gate.user.id).select("id");
+  if (error || data?.length !== 1) return { message: "Could not save your name. Please retry." };
+  revalidatePath("/coaching/profile");
+  revalidatePath("/coaching/preview");
+  return { savedAt: new Date().toISOString() };
 }

@@ -17,7 +17,8 @@ export type ExerciseOption = {
 };
 export type Exercise = {
   lineage_key: string;
-  exercise_id: string;
+  exercise_id: string | null;
+  custom_name?: string | null;
   sets: number;
   reps: string;
   tempo: string | null;
@@ -99,6 +100,7 @@ export type PlanDocument = {
   title: string;
   summary: string | null;
   goal: string | null;
+  goals?: string[];
   discipline: "strength" | "running";
   level: string;
   equipment_tier: string;
