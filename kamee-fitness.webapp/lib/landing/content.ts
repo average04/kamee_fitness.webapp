@@ -214,3 +214,104 @@ export const FAQ: FaqItem[] = [
     a: "Yes. See our Privacy Policy for exactly what we store and why.",
   },
 ];
+
+/** One answered question on the /faq help page, grouped under a heading. */
+export interface HelpFaqSection {
+  id: string;
+  label: string;
+  items: FaqItem[];
+}
+
+// The help FAQ is a DIFFERENT audience from the landing FAQ above: these
+// readers already have the app, usually because something confused them or
+// stopped working. So no download question, no pitch — every answer names the
+// screen to go to. The mobile app's Help screen links straight here, which is
+// the point of keeping it on the web: an answer can be corrected without an
+// OTA publish.
+//
+// Only claim what is LIVE in docs/feature-map.md. An FAQ promising a feature
+// that is PREVIEW or PAUSED is worse than no FAQ.
+export const HELP_FAQ: HelpFaqSection[] = [
+  {
+    id: "getting-started",
+    label: "Getting started",
+    items: [
+      {
+        q: "Is Kamee free?",
+        a: "Yes — free to start. Kamee Premium adds the Fuel Log, meal plans, custom training plans, and advanced weekly and monthly stats.",
+      },
+      {
+        q: "How do I switch between kilometers and miles?",
+        a: "Settings → Workouts & tracking → Distance units. The choice applies everywhere distance and pace appear, including voice announcements.",
+      },
+      {
+        q: "Can I bring my history from another app?",
+        a: "Yes. Import GPX, TCX and FIT files from Settings → Sync, and pull past activities in from your watch's health platform on the same screen.",
+      },
+    ],
+  },
+  {
+    id: "tracking",
+    label: "Tracking runs",
+    items: [
+      {
+        q: "Does Kamee work without a signal?",
+        a: "Yes. Runs finish and save on your phone with zero connectivity, then sync themselves once you are back online. Nothing is lost while you are offline.",
+      },
+      {
+        q: "My run finished but hasn't synced — where is it?",
+        a: "It is safe on your phone. Anything waiting to upload shows an unsynced banner, and Kamee retries on its own whenever the connection comes back. You can also force a retry from Settings → Sync.",
+      },
+      {
+        q: "Why does tracking stop when my screen is off?",
+        a: "Some Android phones — Xiaomi, Oppo, Vivo, Realme, Infinix and Tecno especially — aggressively kill background apps to save battery. Settings → Workouts & tracking → Background tracking walks you through the exact toggles to change on your phone.",
+      },
+      {
+        q: "Can I edit or delete a past session?",
+        a: "Yes. Open the session from your history and use the menu in the top right. Sessions never expire on their own — a workout stays in your history until you remove it.",
+      },
+    ],
+  },
+  {
+    id: "fuel",
+    label: "Fuel and meal plans",
+    items: [
+      {
+        q: "How does the Fuel Log work?",
+        a: "Open Record → FUEL. Snap a meal, upload a photo, or describe what you ate. Kamy estimates calories and protein, carbs, and fat; review the items and adjust portions before saving. You can edit portions later, too. The Fuel Log and meal plans are included with Kamee Premium.",
+      },
+      {
+        q: "Do meal plans follow my training?",
+        a: "Yes. Eat to the Plan gives food guidance for run, strength, rest, and long-run days, including the day before a long run. Calorie and macro targets are optional and set by you. Kamy's meal nutrition numbers are estimates.",
+      },
+    ],
+  },
+  {
+    id: "account",
+    label: "Account and billing",
+    items: [
+      {
+        q: "How do I cancel Premium?",
+        a: "Subscriptions are billed by Apple or Google, not by us, so cancelling happens in your App Store or Google Play account settings. Your Premium features stay available until the period you already paid for runs out.",
+      },
+      {
+        q: "How do I delete my account?",
+        a: "In the app: You → Personal info → Delete account. Deletion is not instant — you get a 30-day grace period during which a banner lets you restore the account. After that everything is permanently erased. You can also start the process at kamee.fit/delete-account.",
+      },
+      {
+        q: "Is my data private?",
+        a: "Yes. See our Privacy Policy for exactly what we store and why.",
+      },
+    ],
+  },
+  {
+    id: "help",
+    label: "Still stuck",
+    items: [
+      {
+        q: "How do I report a bug?",
+        a: "Settings → Help → Report a bug. It sends your message along with your app version, build and device, which is usually what we need to reproduce the problem. Contact support on the same screen covers everything else.",
+      },
+    ],
+  },
+];

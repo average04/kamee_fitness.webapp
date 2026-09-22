@@ -6,6 +6,7 @@ import {
   COMMUNITY_CARDS,
   FAQ,
   FEATURES,
+  HELP_FAQ,
   GPS_POINTS,
   LOG_POINTS,
   PLAN_NAMES,
@@ -104,6 +105,45 @@ describe("FAQ", () => {
       expect(item.a.length).toBeGreaterThan(10);
       expect(item.a).not.toMatch(PLACEHOLDER);
       expect(item.a).not.toMatch(UNSHIPPED);
+    }
+  });
+});
+
+describe("HELP_FAQ", () => {
+  const items = HELP_FAQ.flatMap((s) => s.items);
+
+  it("has unique section ids, which the page's table of contents anchors on", () => {
+    expect(new Set(HELP_FAQ.map((s) => s.id)).size).toBe(HELP_FAQ.length);
+    for (const section of HELP_FAQ) {
+      expect(section.id).toMatch(/^[a-z][a-z0-9-]*$/);
+      expect(section.label.length).toBeGreaterThan(0);
+      expect(section.items.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("every entry is a real Q/A and free of unshipped claims", () => {
+    for (const item of items) {
+      expect(item.q.endsWith("?")).toBe(true);
+      expect(item.a.length).toBeGreaterThan(10);
+      expect(item.a).not.toMatch(PLACEHOLDER);
+      expect(item.a).not.toMatch(UNSHIPPED);
+    }
+  });
+
+  it("asks no question twice", () => {
+    expect(new Set(items.map((i) => i.q)).size).toBe(items.length);
+  });
+
+  it("drops the landing page's download question", () => {
+    // This audience already has the app installed; "where can I download
+    // Kamee?" is a prospect's question and reads as filler here.
+    expect(items.some((i) => /download/i.test(i.q))).toBe(false);
+  });
+
+  it("never sends someone to a personal inbox", () => {
+    // support@kamee.fit is the only public contact address.
+    for (const item of items) {
+      expect(item.a).not.toMatch(/@gmail\.com/i);
     }
   });
 });
