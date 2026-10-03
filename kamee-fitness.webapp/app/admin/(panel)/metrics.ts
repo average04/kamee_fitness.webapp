@@ -75,12 +75,20 @@ async function recent(
 }
 
 async function workoutTraining(sb: SB, sinceIso: string): Promise<string[]> {
-  const { data, error } = await sb.from("workout_sessions")
-    .select("source, started_at, performed_date, status")
-    .eq("status", "completed")
-    .or(`and(source.eq.freestyle,performed_date.gte.${sinceIso.slice(0, 10)}),and(source.eq.planned,started_at.gte.${sinceIso})`);
-  if (error) { console.error("dashboard workout training:", error.message); return []; }
-  return workoutTrainingTimestamps((data ?? []) as WorkoutMetricRow[]);
+  const pageSize = 500;
+  const rows: WorkoutMetricRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await sb.from("workout_sessions")
+      .select("source, started_at, performed_date, status")
+      .eq("status", "completed")
+      .or(`and(source.eq.freestyle,performed_date.gte.${sinceIso.slice(0, 10)}),and(source.eq.planned,started_at.gte.${sinceIso})`)
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) { console.error("dashboard workout training:", error.message); return []; }
+    rows.push(...((data ?? []) as WorkoutMetricRow[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return workoutTrainingTimestamps(rows);
 }
 
 async function savedWorkouts(sb: SB): Promise<ActivityEvent[]> {

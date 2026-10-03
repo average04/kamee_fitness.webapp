@@ -192,5 +192,7 @@ describe("owner-bound mixed workout readers", () => {
     expect(history?.name).toBe("Catalog press");
     expect(history?.sets).toHaveLength(2);
     expect(history?.sets.map((s) => s.sessionId)).toEqual(["planned", "past"]);
+    expect(history?.sets[0]).toMatchObject({ source: "planned", timestampPrecision: "instant", startedAt: "2026-09-29T09:00:00Z", dateIso: "2026-09-29" });
+    expect(history?.sets[1]).toMatchObject({ source: "freestyle", timestampPrecision: "date", startedAt: "2026-09-28T22:00:00Z", dateIso: "2026-09-29" });
   });
 });

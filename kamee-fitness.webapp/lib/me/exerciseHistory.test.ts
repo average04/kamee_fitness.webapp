@@ -16,6 +16,25 @@ describe("epley1Rm", () => {
 });
 
 describe("buildExerciseHistory", () => {
+  it("uses known instants for the latest same-day session regardless of input or UUID order", () => {
+    const later = { sessionId: "a-later", dateIso: "2026-06-01", source: "freestyle" as const, timestampPrecision: "instant" as const, startedAt: "2026-06-01T18:00:00Z", reps: 5, weightKg: 70 };
+    const earlier = { sessionId: "z-earlier", dateIso: "2026-06-01", source: "planned" as const, timestampPrecision: "instant" as const, startedAt: "2026-06-01T09:00:00Z", reps: 5, weightKg: 50 };
+    for (const sets of [[later, earlier], [earlier, later]]) {
+      const history = buildExerciseHistory(sets);
+      expect(history.series.map((s) => s.sessionId)).toEqual(["z-earlier", "a-later"]);
+      expect(history.lastWeightKg).toBe(70);
+    }
+  });
+  it("does not claim a latest load when the latest training date has ambiguous session order", () => {
+    const dated = { sessionId: "dated", dateIso: "2026-06-01", source: "freestyle" as const, timestampPrecision: "date" as const, startedAt: "2026-06-01T12:00:00Z", reps: 5, weightKg: 50 };
+    const other = { ...dated, sessionId: "other", weightKg: 70 };
+    for (const timestampPrecision of ["date", "instant"] as const) {
+      for (const sets of [[dated, { ...other, timestampPrecision }], [{ ...other, timestampPrecision }, dated]]) {
+        expect(buildExerciseHistory(sets).lastWeightKg).toBeNull();
+      }
+    }
+    expect(buildExerciseHistory([dated, { ...other, dateIso: "2026-06-02" }]).lastWeightKg).toBe(70);
+  });
   it("counts two same-date sessions independently and excludes unmeasured/nonlifting values", () => {
     const h = buildExerciseHistory([
       { sessionId: "a", dateIso: "2026-06-01", reps: 10, weightKg: null, trackingType: "weight_reps" },

@@ -376,7 +376,14 @@ export async function loadExerciseHistory(
     name: identity.source === "personal" && snapshot ? snapshot.name_snapshot! : meta?.name ?? snapshot?.name_snapshot ?? "Exercise",
     primaryMuscle: meta?.primary_muscle ?? meta?.muscles?.[0] ?? snapshot?.muscle_snapshot?.[0] ?? null,
     demoImagePath: identity.source === "catalog" ? meta?.demo_image_path ?? null : null,
-    sets: toSets(rows).map((r) => ({ ...r, dateIso: workoutDate(completed.get(r.sessionId!)!) })),
+    sets: toSets(rows).map((r) => {
+      const session = completed.get(r.sessionId!)!;
+      return {
+        ...r, dateIso: workoutDate(session), source: session.source ?? "planned",
+        startedAt: session.started_at,
+        timestampPrecision: session.timestamp_precision ?? (session.source === "freestyle" ? "date" : "instant"),
+      };
+    }),
   };
 }
 
