@@ -1,3 +1,5 @@
+import { isMeasuredLiftingSet } from "./oneRepMax";
+import { workoutTrainingIso } from "./workoutDate";
 import type { SessionSetRow, StreakRow, WorkoutSessionRow } from "./queries";
 import { inWindow, type DateWindow } from "./range";
 
@@ -8,8 +10,8 @@ export type WorkoutSummary = {
   totalVolumeKg: number;
   timeTrainedSeconds: number;
   perWeek: { week: string; count: number }[];
-  topExercises: { name: string; sets: number }[];
-  prs: { name: string; weightKg: number }[];
+  topExercises: { exerciseId?: string; name: string; sets: number }[];
+  prs: { exerciseId?: string; name: string; weightKg: number }[];
 };
 
 /** ISO week-start (Monday) UTC date key for a timestamp. */
@@ -30,13 +32,13 @@ export function summarizeWorkouts(
   window: DateWindow,
 ): WorkoutSummary {
   const completed = workouts.filter(
-    (w) => w.status === "completed" && inWindow(w.started_at, window),
+    (w) => w.status === "completed" && inWindow(workoutTrainingIso(w), window),
   );
   const ids = new Set(completed.map((w) => w.id));
   const inSets = sets.filter((s) => ids.has(s.session_id));
 
   const totalVolumeKg = inSets.reduce(
-    (sum, s) => sum + (s.reps_done ?? 0) * (s.weight ?? 0),
+    (sum, s) => sum + (isMeasuredLiftingSet({ reps: s.reps_done, weightKg: s.weight, trackingType: s.tracking_type }) ? s.reps_done! * s.weight! : 0),
     0,
   );
   const timeTrainedSeconds = completed.reduce(
@@ -46,7 +48,7 @@ export function summarizeWorkouts(
 
   const perWeekMap = new Map<string, number>();
   for (const w of completed) {
-    const k = weekKey(w.started_at);
+    const k = weekKey(workoutTrainingIso(w));
     perWeekMap.set(k, (perWeekMap.get(k) ?? 0) + 1);
   }
   const perWeek = [...perWeekMap.entries()]
@@ -55,24 +57,27 @@ export function summarizeWorkouts(
 
   const setCount = new Map<string, number>();
   const prByName = new Map<string, number>();
+  const nameByKey = new Map<string, string>();
+  const identityByKey = new Map<string, string>();
   for (const s of inSets) {
-    const name = s.plan_exercise_id
-      ? exerciseNames[s.plan_exercise_id]
-      : undefined;
+    const name = s.name_snapshot ?? (s.exercise_key ? exerciseNames[s.exercise_key] : s.plan_exercise_id ? exerciseNames[s.plan_exercise_id] : undefined);
     if (!name) continue;
-    setCount.set(name, (setCount.get(name) ?? 0) + 1);
-    if (s.weight != null) {
-      prByName.set(name, Math.max(prByName.get(name) ?? 0, s.weight));
+    const key = s.exercise_key ?? name;
+    nameByKey.set(key, name);
+    if (s.exercise_key) identityByKey.set(key, s.exercise_key);
+    setCount.set(key, (setCount.get(key) ?? 0) + 1);
+    if (isMeasuredLiftingSet({ reps: s.reps_done, weightKg: s.weight, trackingType: s.tracking_type }) && s.weight! > 0) {
+      prByName.set(key, Math.max(prByName.get(key) ?? 0, s.weight!));
     }
   }
   const topExercises = [...setCount.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([name, sets]) => ({ name, sets }));
+    .map(([key, sets]) => ({ ...(identityByKey.has(key) ? { exerciseId: identityByKey.get(key) } : {}), name: nameByKey.get(key)!, sets }));
   const prs = [...prByName.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([name, weightKg]) => ({ name, weightKg }));
+    .map(([key, weightKg]) => ({ ...(identityByKey.has(key) ? { exerciseId: identityByKey.get(key) } : {}), name: nameByKey.get(key)!, weightKg }));
 
   return {
     sessions: completed.length,

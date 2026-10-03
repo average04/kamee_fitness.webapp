@@ -30,11 +30,10 @@ export default async function ExercisePage({
   const h = buildExerciseHistory(hist.sets);
   const chart = h.series.map((s) => ({
     dateIso: s.dateIso,
-    topSetKg: Math.round(s.topSetKg),
-    est1RmKg: Math.round(s.bestEst1RmKg),
+    topSetKg: s.topSetKg == null ? null : Math.round(s.topSetKg),
+    est1RmKg: s.bestEst1RmKg == null ? null : Math.round(s.bestEst1RmKg),
   }));
-  const bestEst1Rm = h.series.reduce((m, s) => Math.max(m, s.bestEst1RmKg), 0);
-
+  const bestEst1Rm = h.series.reduce((m, s) => Math.max(m, s.bestEst1RmKg ?? 0), 0);
   return (
     <main className="relative z-10 mx-auto max-w-3xl px-6 py-10">
       <BackLink />
@@ -56,17 +55,17 @@ export default async function ExercisePage({
         )}
         {h.timesTrained > 0 ? (
           <p className="mt-4 text-sm text-muted">
-            PR {fmtWeight(h.prKg, units)}
-            {h.prDateIso ? ` (${h.prDateIso})` : ""} · est 1RM{" "}
-            {fmtWeight(bestEst1Rm, units)} · last {fmtWeight(h.lastWeightKg, units)}{" "}
-            · best vol {fmtVolume(h.bestVolumeKg, units)} · trained{" "}
-            {h.timesTrained}×
+            {h.prKg > 0 && <>PR {fmtWeight(h.prKg, units)}
+              {h.prDateIso ? ` (${h.prDateIso})` : ""} · est 1RM {fmtWeight(bestEst1Rm, units)} · </>}
+            {h.lastWeightKg != null && <>last {fmtWeight(h.lastWeightKg, units)} · </>}
+            {h.bestVolumeKg > 0 && <>best vol {fmtVolume(h.bestVolumeKg, units)} · </>}
+            trained {h.timesTrained}× · {h.totalReps} reps
           </p>
         ) : (
           <p className="mt-4 text-sm text-muted">No sets logged yet.</p>
         )}
       </header>
-      {chart.length > 1 && (
+      {chart.filter((s) => s.topSetKg != null).length > 1 && (
         <div className="mt-6">
           <ExerciseProgressionChart data={chart} />
         </div>
@@ -74,9 +73,9 @@ export default async function ExercisePage({
       {chart.length > 0 && (
         <ul className="mt-6 space-y-1 text-sm text-mist/85">
           {[...h.series].reverse().map((s) => (
-            <li key={s.dateIso} className="flex justify-between gap-3">
+            <li key={s.sessionId} className="flex justify-between gap-3">
               <span className="text-muted">{s.dateIso}</span>
-              <span>top {fmtWeight(s.topSetKg, units)}</span>
+              <span>{s.topSetKg != null ? `top ${fmtWeight(s.topSetKg, units)} · ` : ""}{s.reps > 0 ? `${s.reps} reps` : ""}{s.durationSeconds > 0 ? `${s.reps > 0 ? " · " : ""}${s.durationSeconds} s` : ""}</span>
             </li>
           ))}
         </ul>

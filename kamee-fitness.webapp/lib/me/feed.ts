@@ -1,3 +1,5 @@
+import { isMeasuredLiftingSet } from "./oneRepMax";
+import { workoutTrainingIso } from "./workoutDate";
 import type { SessionSetRow, TrackSessionRow, WorkoutSessionRow } from "./queries";
 
 export type FeedItem =
@@ -6,8 +8,8 @@ export type FeedItem =
       id: string;
       title: string;
       dateIso: string;
-      volumeKg: number;
-      durationS: number;
+      volumeKg: number | null;
+      durationS: number | null;
       setCount: number;
     }
   | {
@@ -32,10 +34,9 @@ export function buildFeed(
   const volBySession = new Map<string, number>();
   const countBySession = new Map<string, number>();
   for (const s of sets) {
-    volBySession.set(
-      s.session_id,
-      (volBySession.get(s.session_id) ?? 0) + (s.reps_done ?? 0) * (s.weight ?? 0),
-    );
+    if (isMeasuredLiftingSet({ reps: s.reps_done, weightKg: s.weight, trackingType: s.tracking_type })) {
+      volBySession.set(s.session_id, (volBySession.get(s.session_id) ?? 0) + s.reps_done! * s.weight!);
+    }
     countBySession.set(s.session_id, (countBySession.get(s.session_id) ?? 0) + 1);
   }
   const items: FeedItem[] = [];
@@ -45,9 +46,9 @@ export function buildFeed(
       kind: "workout",
       id: w.id,
       title: dayTitleBySession[w.id] ?? "Workout",
-      dateIso: w.started_at,
-      volumeKg: volBySession.get(w.id) ?? 0,
-      durationS: w.duration_seconds ?? 0,
+      dateIso: workoutTrainingIso(w),
+      volumeKg: volBySession.get(w.id) ?? null,
+      durationS: w.duration_seconds,
       setCount: countBySession.get(w.id) ?? 0,
     });
   }

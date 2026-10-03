@@ -158,7 +158,7 @@ export default async function MePage({
                   {w.topExercises.length ? (
                     <ul className="mt-2 space-y-1 text-sm text-mist/85">
                       {w.topExercises.map((e) => (
-                        <li key={e.name} className="flex justify-between gap-3">
+                        <li key={e.exerciseId ?? e.name} className="flex justify-between gap-3">
                           <span>{e.name}</span>
                           <span className="text-muted">{e.sets} sets</span>
                         </li>
@@ -175,7 +175,7 @@ export default async function MePage({
                   {w.prs.length ? (
                     <ul className="mt-2 space-y-1 text-sm text-mist/85">
                       {w.prs.map((p) => (
-                        <li key={p.name} className="flex justify-between gap-3">
+                        <li key={p.exerciseId ?? p.name} className="flex justify-between gap-3">
                           <span>{p.name}</span>
                           <span className="text-leaf-400">
                             {fmtWeight(p.weightKg, units)}
