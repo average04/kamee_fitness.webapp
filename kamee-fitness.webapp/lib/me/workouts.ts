@@ -9,10 +9,20 @@ export type WorkoutSummary = {
   longestStreak: number;
   totalVolumeKg: number;
   timeTrainedSeconds: number;
+  missingDurationCount: number;
   perWeek: { week: string; count: number }[];
   topExercises: { exerciseId?: string; name: string; sets: number }[];
   prs: { exerciseId?: string; name: string; weightKg: number }[];
 };
+
+export function workoutTimeDisplay(summary: Pick<WorkoutSummary, 'timeTrainedSeconds' | 'missingDurationCount'>, format: (seconds: number) => string) {
+  const missing = summary.missingDurationCount;
+  return {
+    label: missing ? 'Time recorded' : 'Time trained',
+    value: missing && !summary.timeTrainedSeconds ? 'Not recorded' : format(summary.timeTrainedSeconds),
+    sub: missing ? `${missing} workout${missing === 1 ? '' : 's'} without duration` : undefined,
+  };
+}
 
 /** ISO week-start (Monday) UTC date key for a timestamp. */
 function weekKey(iso: string): string {
@@ -85,6 +95,7 @@ export function summarizeWorkouts(
     longestStreak: streaks?.longest_streak ?? 0,
     totalVolumeKg,
     timeTrainedSeconds,
+    missingDurationCount: completed.filter((w) => w.duration_seconds == null).length,
     perWeek,
     topExercises,
     prs,

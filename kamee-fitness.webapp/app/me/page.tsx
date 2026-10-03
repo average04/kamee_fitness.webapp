@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { loadMeData, loadPlanProgress } from "@/lib/me/queries";
 import { parseRange, resolveWindow } from "@/lib/me/range";
-import { summarizeWorkouts } from "@/lib/me/workouts";
+import { summarizeWorkouts, workoutTimeDisplay } from "@/lib/me/workouts";
 import { summarizeTracks } from "@/lib/me/tracks";
 import { buildHeatmap } from "@/lib/me/heatmap";
 import { buildWeightSeries } from "@/lib/me/weight";
@@ -137,8 +137,7 @@ export default async function MePage({
                 accent="leaf"
               />
               <StatCard
-                label="Time trained"
-                value={fmtDuration(w.timeTrainedSeconds)}
+                {...workoutTimeDisplay(w, fmtDuration)}
               />
             </div>
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
