@@ -87,5 +87,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/me/:path*", "/login", "/coaching/:path*"],
+  // /delete-account: keeps the code sign-in's session refreshed while the
+  // visitor confirms (the page itself is public; it re-checks getUser()).
+  matcher: ["/admin/:path*", "/me/:path*", "/login", "/coaching/:path*", "/delete-account"],
 };
