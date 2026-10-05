@@ -12,7 +12,7 @@ import {
 export default function ExerciseProgressionChart({
   data,
 }: {
-  data: { dateIso: string; topSetKg: number; est1RmKg: number }[];
+  data: { dateIso: string; topSetKg: number | null; est1RmKg: number | null }[];
 }) {
   return (
     <div className="h-56 w-full">

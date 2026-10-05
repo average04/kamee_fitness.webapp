@@ -3,6 +3,9 @@ import "server-only";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
   bucketByDay,
+  workoutSavedActivity,
+  workoutTrainingTimestamps,
+  type WorkoutMetricRow,
   mergeActivity,
   pct,
   type ActivityEvent,
@@ -69,6 +72,31 @@ async function recent(
   return ((data ?? []) as unknown as Row[])
     .map((r) => ({ type, label: label(r), at: String(r[atCol] ?? "") }))
     .filter((e) => e.at);
+}
+
+async function workoutTraining(sb: SB, sinceIso: string): Promise<string[]> {
+  const pageSize = 500;
+  const rows: WorkoutMetricRow[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await sb.from("workout_sessions")
+      .select("source, started_at, performed_date, status")
+      .eq("status", "completed")
+      .or(`and(source.eq.freestyle,performed_date.gte.${sinceIso.slice(0, 10)}),and(source.eq.planned,started_at.gte.${sinceIso})`)
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) { console.error("dashboard workout training:", error.message); return []; }
+    rows.push(...((data ?? []) as WorkoutMetricRow[]));
+    if (!data || data.length < pageSize) break;
+  }
+  return workoutTrainingTimestamps(rows);
+}
+
+async function savedWorkouts(sb: SB): Promise<ActivityEvent[]> {
+  const { data, error } = await sb.from("workout_sessions")
+    .select("submitted_at, status").eq("status", "completed").not("submitted_at", "is", null)
+    .order("submitted_at", { ascending: false }).limit(8);
+  if (error) { console.error("dashboard saved workouts:", error.message); return []; }
+  return workoutSavedActivity((data ?? []) as Pick<WorkoutMetricRow, "status" | "submitted_at">[]);
 }
 
 async function loadSubscriptions(sb: SB) {
@@ -164,7 +192,7 @@ export async function loadDashboard(now: Date = new Date()): Promise<DashboardDa
     countAll(sb, "waitlist"),
     timestamps(sb, "profiles", "created_at", sinceIso),
     timestamps(sb, "waitlist", "created_at", sinceIso),
-    timestamps(sb, "workout_sessions", "started_at", sinceIso),
+    workoutTraining(sb, sinceIso),
     timestamps(sb, "track_sessions", "finished_at", sinceIso),
     loadSubscriptions(sb),
     loadCatalog(sb),
@@ -182,7 +210,7 @@ export async function loadDashboard(now: Date = new Date()): Promise<DashboardDa
       "subscription",
       (r) => `${r.product_id ?? "subscription"} · ${r.store ?? ""}`.trim(),
     ),
-    recent(sb, "workout_sessions", "started_at", "started_at", "workout", () => "Workout session"),
+    savedWorkouts(sb),
     recent(sb, "exercises", "name, created_at", "created_at", "exercise", (r) =>
       String(r.name ?? "Exercise"),
     ),

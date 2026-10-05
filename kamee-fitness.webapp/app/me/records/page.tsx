@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { workoutDate } from "@/lib/me/workoutDate";
 import { loadMeData } from "@/lib/me/queries";
 import { buildRecords, type RecordSet } from "@/lib/me/records";
 import { buildTrackRecords } from "@/lib/me/trackRecords";
@@ -18,22 +19,23 @@ export default async function RecordsPage() {
   const dateBySession = new Map<string, string>();
   for (const w of data.workouts) {
     if (w.status === "completed") {
-      dateBySession.set(w.id, w.started_at.slice(0, 10));
+      dateBySession.set(w.id, workoutDate(w));
     }
   }
   const sets: RecordSet[] = [];
   for (const s of data.sets) {
     const dateIso = dateBySession.get(s.session_id);
-    const exerciseId = s.plan_exercise_id
-      ? data.exerciseIdByPlanEx[s.plan_exercise_id]
-      : undefined;
+    const exerciseId = s.exercise_key;
     if (!dateIso || !exerciseId) continue;
     sets.push({
       exerciseId,
       name: data.nameByExercise[exerciseId] ?? "Exercise",
       dateIso,
-      reps: s.reps_done ?? 0,
-      weightKg: s.weight ?? 0,
+      sessionId: s.session_id,
+      reps: s.reps_done,
+      weightKg: s.weight,
+      durationSeconds: s.duration_seconds,
+      trackingType: s.tracking_type,
     });
   }
   const records = buildRecords(sets).filter((r) => r.prKg > 0);

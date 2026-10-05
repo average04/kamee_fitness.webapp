@@ -1,3 +1,4 @@
+import { workoutTrainingIso } from "./workoutDate";
 import type { TrackSessionRow, WorkoutSessionRow } from "./queries";
 
 export type HeatmapDay = { date: string; count: number };
@@ -22,7 +23,7 @@ export function buildHeatmap(
     const k = dayKey(utcDay(t));
     counts.set(k, (counts.get(k) ?? 0) + 1);
   };
-  for (const w of workouts) bump(w.started_at);
+  for (const w of workouts) bump(workoutTrainingIso(w));
   for (const t of tracks) bump(t.finished_at ?? t.created_at);
 
   const days: HeatmapDay[] = [];

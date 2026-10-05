@@ -4,6 +4,18 @@ import { buildWeeklyGoal } from "./goal";
 import type { WorkoutSessionRow } from "./queries";
 
 describe("buildRecords", () => {
+  it("counts session IDs on one date and excludes duration, reps-only, null and zero load from lifting records", () => {
+    const records = buildRecords([
+      { exerciseId: "catalog:x", name: "Press", sessionId: "a", dateIso: "2026-06-01", reps: 8, weightKg: 50, trackingType: "weight_reps" },
+      { exerciseId: "catalog:x", name: "Press", sessionId: "b", dateIso: "2026-06-01", reps: 10, weightKg: null, trackingType: "weight_reps" },
+      { exerciseId: "catalog:x", name: "Press", sessionId: "c", dateIso: "2026-06-01", reps: null, weightKg: null, durationSeconds: 60, trackingType: "duration" },
+      { exerciseId: "personal:x", name: "Press", sessionId: "b", dateIso: "2026-06-01", reps: 20, weightKg: 999, trackingType: "reps" },
+      { exerciseId: "personal:y", name: "Hold", sessionId: "b", dateIso: "2026-06-01", reps: null, weightKg: null, durationSeconds: 60, trackingType: "duration" },
+      { exerciseId: "personal:z", name: "Zero", sessionId: "b", dateIso: "2026-06-01", reps: 8, weightKg: 0, trackingType: "weight_reps" },
+    ]);
+    expect(records.find((r) => r.exerciseId === "catalog:x")?.timesTrained).toBe(2);
+    expect(records.filter((r) => r.prKg > 0).map((r) => r.exerciseId)).toEqual(["catalog:x"]);
+  });
   const sets: RecordSet[] = [
     { exerciseId: "e1", name: "Bench", dateIso: "2026-06-01", reps: 8, weightKg: 60 },
     { exerciseId: "e1", name: "Bench", dateIso: "2026-06-10", reps: 5, weightKg: 70 },

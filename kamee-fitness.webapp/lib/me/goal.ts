@@ -1,3 +1,4 @@
+import { workoutTrainingIso } from "./workoutDate";
 import type { WorkoutSessionRow } from "./queries";
 
 export type WeeklyGoal = {
@@ -25,7 +26,7 @@ export function buildWeeklyGoal(
   const counts = new Map<number, number>();
   for (const w of workouts) {
     if (w.status !== "completed") continue;
-    const t = Date.parse(w.started_at);
+    const t = Date.parse(workoutTrainingIso(w));
     if (Number.isNaN(t)) continue;
     const ws = weekStart(t);
     counts.set(ws, (counts.get(ws) ?? 0) + 1);
