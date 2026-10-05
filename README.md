@@ -14,3 +14,5 @@ visitor's store. This link routes visitors; it does not enable Meta install
 measurement or change an ad's optimization goal.
 
 Run `npm test` and `npm run build` from the nested `kamee-fitness.webapp/` app.
+Netlify uses `npm run build -- --webpack` to avoid its Turbopack font-resolver
+failure; the fonts and Next.js runtime remain unchanged.
