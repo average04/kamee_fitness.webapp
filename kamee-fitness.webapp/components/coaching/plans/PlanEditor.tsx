@@ -1,4 +1,6 @@
 "use client";
+
+import { preparePhotoForUpload } from "@/lib/coaching/prepare-photo";
 import { commaValues, validateDraft } from "@/lib/coaching/plan-validation";
 import Link from "next/link";
 import Image from "next/image";
@@ -182,12 +184,13 @@ export function PlanEditor({
     });
   }
   async function uploadCover(file?: File) {
-    if (!file) return;
+    if (!file || !canEdit || pending || uploading) return;
     setUploading(true);
     setMessage("");
     try {
+      const prepared = await preparePhotoForUpload(file, "plan-cover");
       const body = new FormData();
-      body.set("file", file);
+      body.set("file", prepared.file);
       const r = await fetch("/coaching/plans/cover", { method: "POST", body });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Cover upload failed");
@@ -465,7 +468,7 @@ export function PlanEditor({
               <section className="plan-cover-upload" aria-labelledby={`${coverInputId}-title`}>
                 <div>
                   <h3 id={`${coverInputId}-title`}>Plan cover photo</h3>
-                  <p id={`${coverInputId}-hint`} className="coach-panel-description">Choose an image that represents your plan. JPG, PNG or WebP, up to 5 MB.</p>
+                  <p id={`${coverInputId}-hint`} className="coach-panel-description">Choose an image that represents your plan. JPG, PNG or WebP, up to 25 MB; photos are resized before upload.</p>
                 </div>
                 {plan.cover_image_path ? (
                   <Image src={`/coaching/plans/cover?path=${encodeURIComponent(plan.cover_image_path)}`}
