@@ -3,7 +3,8 @@
 # /api/waitlist route handler, and image optimization automatically.
 [build]
   base = "kamee-fitness.webapp"
-  command = "npm run build"
+  # Avoid the Next 16 Turbopack font import-map failure in Netlify's cached build.
+  command = "npm run build -- --webpack"
   # Relative to `base`, so this resolves to kamee-fitness.webapp/.next.
   # Must differ from `base` or the Next.js plugin errors out.
   publish = ".next"

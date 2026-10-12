@@ -41,15 +41,7 @@ function getLimiter(name: string, max: number, windowSec: number): Ratelimit | n
   return limiter;
 }
 
-/** Best-effort client IP from edge/proxy headers (use only for coarse limiting). */
-export function clientIp(headers: Headers): string {
-  return (
-    headers.get("cf-connecting-ip") ||
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
+export { clientIp } from "@/lib/client-ip";
 
 /**
  * Returns `{ ok }` — `false` means the caller exceeded the limit (respond 429).
