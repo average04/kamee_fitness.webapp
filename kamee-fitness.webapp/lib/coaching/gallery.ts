@@ -4,7 +4,8 @@
  * knows how to merge state and plan uploads.
  */
 
-import { checkImageFile, extensionForMimeType } from "./storage";
+import { extensionForMimeType } from "./storage";
+import { checkPhotoSource } from "./prepare-photo";
 
 export type GalleryRow = {
   id: string;
@@ -46,12 +47,12 @@ export function mergeGalleryState(
   });
 }
 
-/** One file the gallery will upload, with its storage path already chosen. */
+/** Reserved path for one source; its extension is replaced after conversion. */
 export type PlannedUpload<F> = { file: F; path: string };
 
 /**
  * Turns a multi-file selection into an upload plan: skips files that aren't
- * a JPEG/PNG/WEBP under 5 MB, stops at the gallery cap, and gives each file
+ * a JPEG/PNG/WEBP at most 25 MiB, stops at the gallery cap, and gives each file
  * its own path (`coaching/<uid>/gallery/<digits>.<ext>`, the shape
  * isOwnGalleryPath and the database accept -- digits only, so a per-file
  * two-digit suffix keeps paths unique within one selection). `problems` is
@@ -69,7 +70,7 @@ export function planGalleryUploads<F extends { name: string; type: string; size:
   const problems: string[] = [];
   let overCap = 0;
   files.forEach((file, i) => {
-    const check = checkImageFile(file);
+    const check = checkPhotoSource(file);
     const ext = extensionForMimeType(file.type);
     if (!check.ok || !ext) {
       problems.push(`${file.name}: ${check.ok ? "Please choose a JPEG, PNG, or WEBP image." : check.message}`);
