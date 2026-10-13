@@ -68,6 +68,9 @@
 .coach-panel { background: var(--color-ink-900); border: 1px solid var(--coach-border); border-radius: 20px; padding: 28px;  }
 .coach-panel h2 { font-family: var(--font-body); font-size: 19px; font-weight: 600; letter-spacing: -.4px; }
 .coach-panel-description { color: var(--color-muted); font-size: 13px; line-height: 1.7; margin-top: 5px; }
+.coaching-workspace .coach-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 18px; border: 1px solid var(--color-leaf-500); border-radius: 10px; background: var(--color-leaf-500); color: var(--color-ink-950); font-size: 14px; font-weight: 600; transition: background 160ms, border-color 160ms, color 160ms; }
+.coaching-workspace .coach-primary:not(:disabled):hover { background: var(--color-leaf-400); border-color: var(--color-leaf-400); }
+.coaching-workspace .coach-primary:disabled { background: var(--color-ink-800); border-color: var(--color-ink-600); color: var(--color-ink-200); }
 .coach-input { width: 100%; border-radius: 10px; border: 1px solid var(--color-ink-600); background: var(--color-ink-950); padding: 12px 14px; font-size: 15px; color: var(--color-mist); outline: none; transition: border-color 160ms, box-shadow 160ms; }
 .coach-input:focus { border-color: var(--color-leaf-500); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-leaf-500) 15%, transparent); background: var(--color-ink-900); }
 .coach-input:disabled { opacity: .65; }

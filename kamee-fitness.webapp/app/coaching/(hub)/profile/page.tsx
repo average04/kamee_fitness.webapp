@@ -42,7 +42,7 @@ export default async function CoachProfilePage() {
         </div>
       )}
 
-      <div className="coach-onboarding-grid">
+      <div className={onboarding ? "coach-onboarding-grid" : undefined}>
         <div className="space-y-6">
           <DisplayNameForm current={hub.displayName} readOnly={readOnly} />
           <CoverUpload kind="avatar" userId={user.id} current={hub.avatarPhotoPath} readOnly={readOnly} />
@@ -59,15 +59,11 @@ export default async function CoachProfilePage() {
           </nav>}
           <SubmitBlock missing={hub.missing} status={status} />
         </div>
-        <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
-          {onboarding && <Checklist missing={hub.missing} />}
-          <div className="coach-panel">
-            <h2>More profile details</h2>
-            <Link href="/coaching/gallery" className="coach-resource"><strong>Gallery <span aria-hidden="true">&#8599;</span></strong></Link>
-            <Link href="/coaching/credentials" className="coach-resource"><strong>Credentials <span aria-hidden="true">&#8599;</span></strong></Link>
-            <Link href="/coaching/preview" className="coach-resource"><strong>Preview profile <span aria-hidden="true">&#8599;</span></strong></Link>
-          </div>
-        </aside>
+        {onboarding && (
+          <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
+            <Checklist missing={hub.missing} />
+          </aside>
+        )}
       </div>
     </div>
   );
