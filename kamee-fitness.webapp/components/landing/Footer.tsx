@@ -19,7 +19,7 @@ export default function Footer() {
           <Link href="/blog" className="hover:text-mist">
             Blog
           </Link>
-          <a href="/me" className="hover:text-mist">
+          <a href="/auth/landing" className="hover:text-mist">
             Log in
           </a>
           <Link href="/terms" className="hover:text-mist">
