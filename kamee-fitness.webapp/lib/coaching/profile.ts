@@ -154,15 +154,14 @@ export function validateCredential(
 
 /**
  * View-model for the hub's autosaving profile form: every field as a plain
- * string/primitive so inputs stay uncontrolled-free and comma lists can be
- * edited freely (trailing commas, in-progress words) without the array
- * round-tripping fighting the caret. `profileInputFromFormState` converts
- * back to the shape `saveProfile`/`validateProfile` expect.
+ * string/primitive, except specialties which stay as a lossless array for
+ * checkbox/custom selection. Languages remain an editable comma list.
+ * `profileInputFromFormState` converts to `saveProfile`/`validateProfile` input.
  */
 export type ProfileFormState = {
   headline: string;
   about: string;
-  specialties: string;
+  specialties: string[];
   yearsExperience: string;
   languages: string;
   locationLabel: string;
@@ -189,7 +188,7 @@ export function profileFormStateFromRow(row: ProfileRowLike): ProfileFormState {
   return {
     headline: row.headline ?? "",
     about: row.about ?? "",
-    specialties: row.specialties.join(", "),
+    specialties: [...row.specialties],
     yearsExperience: row.years_experience != null ? String(row.years_experience) : "",
     languages: row.languages.join(", "),
     locationLabel: row.location_label ?? "",
@@ -223,7 +222,7 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
     // "filled in" to the checklist or to validateProfile's length checks.
     headline: s.headline.trim(),
     about: s.about.trim(),
-    specialties: splitList(s.specialties),
+    specialties: [...s.specialties],
     yearsExperience: intOrNull(s.yearsExperience),
     languages: splitList(s.languages),
     locationLabel: s.locationLabel.trim(),
@@ -239,7 +238,9 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
  * just the TS-typed `ProfileInput` our own client sends. This never trusts
  * the caller: every field is type-checked (strings, arrays of strings,
  * finite numbers or exactly `null`, booleans strictly `true`/`false`),
- * strings are trimmed (array items are trimmed and empties dropped), and
+ * strings are trimmed (language items are trimmed and empties dropped).
+ * Specialty labels are type-checked but preserved exactly, so unrelated
+ * saves cannot rewrite legacy spelling, whitespace or embedded commas; and
  * `socials` is rebuilt from only `instagram`/`website` so an attacker can't
  * smuggle extra keys into the jsonb column. Unknown keys are dropped: in
  * particular a `termsAccepted` field is ignored, because coach terms are
@@ -253,7 +254,7 @@ export function coerceProfileInput(raw: unknown): ProfileInput | null {
   const headline = trimmedString(r.headline);
   const about = trimmedString(r.about);
   const locationLabel = trimmedString(r.locationLabel);
-  const specialties = trimmedStringArray(r.specialties);
+  const specialties = stringArray(r.specialties);
   const languages = trimmedStringArray(r.languages);
   if (
     headline === null ||
@@ -319,6 +320,12 @@ function trimmedStringArray(v: unknown): string[] | null {
     if (t) out.push(t);
   }
   return out;
+}
+
+/** Legacy specialty labels are stored verbatim; only explicit editor additions are normalized. */
+function stringArray(v: unknown): string[] | null {
+  if (!Array.isArray(v) || !v.every((item) => typeof item === "string")) return null;
+  return [...v];
 }
 
 /**

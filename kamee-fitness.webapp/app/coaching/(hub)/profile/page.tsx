@@ -2,6 +2,7 @@ import { PageIntro } from "@/components/coaching/PageIntro";
 import Link from "next/link";
 import { requireCoach } from "@/lib/coaching/auth";
 import { loadHub } from "@/lib/coaching/queries";
+import { loadCoachingSpecialtyOptions } from "@/lib/coaching/specialty-options-query";
 import { Checklist } from "@/components/coaching/Checklist";
 import { CoverUpload } from "@/components/coaching/CoverUpload";
 import { ProfileForm } from "@/components/coaching/ProfileForm";
@@ -15,7 +16,10 @@ export const metadata = { title: "Your coach profile" };
 
 export default async function CoachProfilePage() {
   const { user, status } = await requireCoach();
-  const hub = await loadHub(user.id);
+  const [hub, specialtyOptions] = await Promise.all([
+    loadHub(user.id),
+    loadCoachingSpecialtyOptions(),
+  ]);
   const onboarding = ["onboarding", "in_review", "changes_requested"].includes(status);
   const readOnly = status === "in_review";
   const terms = coachTermsState(hub.profile, hub.currentTerms, {
@@ -47,7 +51,12 @@ export default async function CoachProfilePage() {
           <DisplayNameForm current={hub.displayName} readOnly={readOnly} />
           <CoverUpload kind="avatar" userId={user.id} current={hub.avatarPhotoPath} readOnly={readOnly} />
           <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
-          <ProfileForm profile={hub.profile} readOnly={readOnly} />
+          <ProfileForm
+            profile={hub.profile}
+            readOnly={readOnly}
+            specialtyOptions={specialtyOptions.options}
+            specialtyOptionsError={specialtyOptions.error}
+          />
           <CoachTermsAcceptance state={terms} />
           {onboarding && <nav className="flex justify-end" aria-label="Next onboarding step">
             <Link
