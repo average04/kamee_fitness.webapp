@@ -23,8 +23,9 @@ export function addSpecialty(
 ): { ok: true; value: string[] } | { ok: false; error: string } {
   const label = draft.trim();
   if (!label) return { ok: false, error: "Enter a custom specialty." };
-  if (label.length > MAX_SPECIALTY_LENGTH) {
-    return { ok: false, error: "Use 160 characters or fewer for a specialty." };
+  // Lowercase keys can expand, and must remain valid when sent again as a filter.
+  if (label.length > MAX_SPECIALTY_LENGTH || specialtyKey(label).length > MAX_SPECIALTY_LENGTH) {
+    return { ok: false, error: "Specialty is too long. Use a shorter name." };
   }
   if (isSpecialtySelected(selected, label)) {
     return { ok: false, error: "That specialty is already selected." };
