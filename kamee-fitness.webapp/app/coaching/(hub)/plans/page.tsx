@@ -2,15 +2,16 @@ import Link from "next/link";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { PageIntro } from "@/components/coaching/PageIntro";
-import { CreatePlan } from "@/components/coaching/plans/CreatePlan";
 import { stateLabel } from "@/lib/coaching/plans";
+
+export const metadata = { title: "My coaching plans" };
 
 export default async function PlansPage() {
   const { status } = await requireCoach();
   if (status !== "approved")
     return (
       <PageIntro
-        title="Plans"
+        title="My plans"
         description="You can create plans once your coach profile is approved."
       />
     );
@@ -31,37 +32,39 @@ export default async function PlansPage() {
   if (error || requests.error) throw new Error("Could not load your plans.");
   return (
     <>
-      <PageIntro title="Plans" />
-      <div className="plan-home">
-        <div className="plan-stack">
-          {!data?.length && (
-            <div className="coach-panel">
-              <h2>No plans yet</h2>
+      <div className="plan-list-heading">
+        <PageIntro title="My plans" />
+        <Link className="coach-primary" href="/coaching/plans/new">
+          Create plan
+        </Link>
+      </div>
+      <div className="plan-list">
+        {!data?.length && (
+          <div className="coach-panel">
+            <h2>No plans yet</h2>
+            <p className="coach-panel-description">
+              Create your first workout or outdoor plan.
+            </p>
+          </div>
+        )}
+        {data?.map((p) => (
+          <Link
+            className="coach-panel plan-card"
+            key={p.id}
+            href={`/coaching/plans/${p.id}`}
+          >
+            <div>
+              <h2>{p.title}</h2>
               <p className="coach-panel-description">
-                Build a schedule, add meals and attach your videos.
+                {p.discipline === "running" ? "Outdoor" : "Workout"} ·{" "}
+                {p.weeks_count} weeks · Version {p.version_no}
               </p>
             </div>
-          )}
-          {data?.map((p) => (
-            <Link
-              className="coach-panel plan-card"
-              key={p.id}
-              href={`/coaching/plans/${p.id}`}
-            >
-              <div>
-                <h2>{p.title}</h2>
-                <p className="coach-panel-description">
-                  {p.discipline === "running" ? "Outdoor" : "Workout"} ·{" "}
-                  {p.weeks_count} weeks · Version {p.version_no}
-                </p>
-              </div>
-              <span className="coach-status">
-                {stateLabel(p.version_state)}
-              </span>
-            </Link>
-          ))}
-        </div>
-        <CreatePlan />
+            <span className="coach-status">
+              {stateLabel(p.version_state)}
+            </span>
+          </Link>
+        ))}
       </div>
       {!!requests.data?.length && (
         <section className="plan-stack mt-6">

@@ -2,6 +2,7 @@ import { PageIntro } from "@/components/coaching/PageIntro";
 import Link from "next/link";
 import { requireCoach } from "@/lib/coaching/auth";
 import { loadHub } from "@/lib/coaching/queries";
+import { loadCoachingSpecialtyOptions } from "@/lib/coaching/specialty-options-query";
 import { Checklist } from "@/components/coaching/Checklist";
 import { CoverUpload } from "@/components/coaching/CoverUpload";
 import { ProfileForm } from "@/components/coaching/ProfileForm";
@@ -15,7 +16,10 @@ export const metadata = { title: "Your coach profile" };
 
 export default async function CoachProfilePage() {
   const { user, status } = await requireCoach();
-  const hub = await loadHub(user.id);
+  const [hub, specialtyOptions] = await Promise.all([
+    loadHub(user.id),
+    loadCoachingSpecialtyOptions(),
+  ]);
   const onboarding = ["onboarding", "in_review", "changes_requested"].includes(status);
   const readOnly = status === "in_review";
   const terms = coachTermsState(hub.profile, hub.currentTerms, {
@@ -42,12 +46,17 @@ export default async function CoachProfilePage() {
         </div>
       )}
 
-      <div className="coach-onboarding-grid">
+      <div className={onboarding ? "coach-onboarding-grid" : undefined}>
         <div className="space-y-6">
           <DisplayNameForm current={hub.displayName} readOnly={readOnly} />
           <CoverUpload kind="avatar" userId={user.id} current={hub.avatarPhotoPath} readOnly={readOnly} />
           <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
-          <ProfileForm profile={hub.profile} readOnly={readOnly} />
+          <ProfileForm
+            profile={hub.profile}
+            readOnly={readOnly}
+            specialtyOptions={specialtyOptions.options}
+            specialtyOptionsError={specialtyOptions.error}
+          />
           <CoachTermsAcceptance state={terms} />
           {onboarding && <nav className="flex justify-end" aria-label="Next onboarding step">
             <Link
@@ -59,15 +68,11 @@ export default async function CoachProfilePage() {
           </nav>}
           <SubmitBlock missing={hub.missing} status={status} />
         </div>
-        <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
-          {onboarding && <Checklist missing={hub.missing} />}
-          <div className="coach-panel">
-            <h2>More profile details</h2>
-            <Link href="/coaching/gallery" className="coach-resource"><strong>Gallery <span aria-hidden="true">&#8599;</span></strong></Link>
-            <Link href="/coaching/credentials" className="coach-resource"><strong>Credentials <span aria-hidden="true">&#8599;</span></strong></Link>
-            <Link href="/coaching/preview" className="coach-resource"><strong>Preview profile <span aria-hidden="true">&#8599;</span></strong></Link>
-          </div>
-        </aside>
+        {onboarding && (
+          <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
+            <Checklist missing={hub.missing} />
+          </aside>
+        )}
       </div>
     </div>
   );
