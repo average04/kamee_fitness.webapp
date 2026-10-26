@@ -241,7 +241,7 @@ export function PlanEditor({
           {canEdit ? (
             <>
               <button
-                className="plan-secondary"
+                className={tab === "Preview" ? "plan-secondary" : "plan-primary"}
                 disabled={pending || uploading}
                 onClick={() => save()}
               >
