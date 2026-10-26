@@ -37,6 +37,29 @@
 .coaching-workspace :where(button, input:not([type=checkbox]), select) { min-height: 44px; }
 .coaching-workspace button { cursor: pointer; }
 .coaching-workspace button:disabled { cursor: not-allowed; }
+.coaching-workspace .plan-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-red-400);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-red-500) 12%, var(--color-ink-950));
+  color: var(--color-red-300);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.coaching-workspace .plan-danger:not(:disabled):hover {
+  border-color: var(--color-red-300);
+  background: color-mix(in srgb, var(--color-red-500) 22%, var(--color-ink-950));
+}
+.coaching-workspace .plan-danger:focus-visible { outline: 3px solid var(--color-red-300); outline-offset: 3px; }
+.coaching-workspace .plan-danger:disabled { opacity: .45; }
 .coach-navigation-feedback {
   position: fixed;
   z-index: 100;
@@ -258,7 +281,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .plan-session-enter, .plan-combobox-popup { animation: none; }
-  .plan-week-strip button, .plan-session-choices button { transition: none; }
+  .plan-week-strip button, .plan-session-choices button, .plan-danger { transition: none; }
 }
 
 .plan-add-weeks { display: flex; align-items: end; gap: 8px; margin-left: auto; }

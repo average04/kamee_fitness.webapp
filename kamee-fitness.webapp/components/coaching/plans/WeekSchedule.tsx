@@ -43,7 +43,7 @@ export function WeekSchedule({ week, exercises, videos, onChange }: {
       <div key={calendarDays[selected]} className="plan-stack plan-session-enter">
         <div className="flex items-center justify-between gap-3">
           <h3 className="plan-selected-day">{calendarDays[selected]}</h3>
-          {day && day.day_kind !== "rest" && <button type="button" className="plan-secondary text-red-400"
+          {day && day.day_kind !== "rest" && <button type="button" className="plan-danger"
             onClick={() => {
               if (confirm(`Remove all activities from ${calendarDays[selected]}? Other days will stay unchanged.`))
                 setDay({ ...newDay("rest"), lineage_key: day.lineage_key });

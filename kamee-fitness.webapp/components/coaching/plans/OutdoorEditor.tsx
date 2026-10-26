@@ -176,7 +176,7 @@ export function OutdoorEditor({
       {value && (
         <button
           type="button"
-          className="plan-secondary text-red-400"
+          className="plan-danger"
           onClick={() => {
             if (confirm("Remove this run / walk session?")) onChange(null);
           }}

@@ -91,7 +91,7 @@ export function MealsEditor({
         <h2>Meals</h2>
         <button
           type="button"
-          className="plan-secondary"
+          className="plan-danger"
           onClick={() => {
             if (confirm("Remove the attached meals from this draft?"))
               onChange(null);
@@ -183,11 +183,12 @@ export function MealsEditor({
               <h3>Meal {mi + 1}</h3>
               <button
                 type="button"
+                className="plan-danger"
                 onClick={() =>
                   updateDay({ meals: day.meals.filter((_, i) => i !== mi) })
                 }
               >
-                Remove
+                Remove meal
               </button>
             </div>
             <div className="plan-grid">
@@ -255,6 +256,7 @@ export function MealsEditor({
                     />
                     <button
                       type="button"
+                      className="plan-danger"
                       onClick={() =>
                         set({
                           ingredients: meal.ingredients.filter(
@@ -316,6 +318,7 @@ export function MealsEditor({
                 ))}
                 <button
                   type="button"
+                  className="plan-danger"
                   onClick={() =>
                     set({
                       substitutions: meal.substitutions.filter(
@@ -324,7 +327,7 @@ export function MealsEditor({
                     })
                   }
                 >
-                  Remove
+                  Remove substitution
                 </button>
               </div>
             ))}
