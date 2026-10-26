@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { ExerciseOption, PlanDocument } from "@/lib/coaching/plans";
+import { mealDayLabel } from "@/lib/coaching/plans";
 import { GOAL_LABELS, planGoals } from "@/lib/coaching/goals";
 import { calendarDays } from "@/lib/coaching/calendar";
 import { flattenSegments } from "@/lib/coaching/outdoor/segments";
@@ -186,7 +187,7 @@ export function PlanPreview({
             <h3>{plan.meals.title}</h3>
             {plan.meals.days.map((d) => (
               <details key={d.day_key}>
-                <summary>{d.label}</summary>
+                <summary>{mealDayLabel(d)}</summary>
                 {!locked && (
                   <div className="plan-stack">
                     <p>{d.note}</p>

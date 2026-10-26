@@ -3,6 +3,8 @@ import { useState } from "react";
 import {
   dayKeys,
   emptyNutrition,
+  mealDayLabel,
+  mealDayName,
   newMeals,
   type Meals,
   type Nutrition,
@@ -125,14 +127,14 @@ export function MealsEditor({
               lineage_key: crypto.randomUUID(),
               day_key,
               shape: "steady",
-              label: day_key,
+              label: mealDayName(day_key),
               note: "",
               meals: [],
             })),
           });
         }}
       >
-        <option value="weekday">Weekday</option>
+        <option value="weekday">Day 1–7</option>
         <option value="day_kind">Training day type</option>
       </Select>
       <div className="plan-tabs" aria-label="Meal day">
@@ -143,7 +145,7 @@ export function MealsEditor({
             key={d.day_key}
             onClick={() => setSelected(i)}
           >
-            {d.day_key.replaceAll("_", " ")}
+            {mealDayName(d.day_key)}
           </button>
         ))}
       </div>
@@ -151,7 +153,7 @@ export function MealsEditor({
         <Field
           label="Day label"
           maxLength={40}
-          value={day.label}
+        value={mealDayLabel(day)}
           onChange={(label) => updateDay({ label })}
         />
         <Select
