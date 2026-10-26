@@ -72,9 +72,15 @@
   .coaching-workspace .plan-meal-daily-nutrition > div + div { padding: 0 0 0 22px; border-top: 0; border-left: 1px solid var(--coach-border); }
 }
 @container meal-workspace (max-width: 450px) {
-  .coaching-workspace .plan-meal-days { gap: 4px; }
-  .coaching-workspace .plan-meal-days button { font-size: 12px; padding: 9px 1px; }
-  .coaching-workspace .plan-meal-count-word { display: none; }
+  .coaching-workspace .plan-meal-days {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 88px; gap: 8px;
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain;
+    scroll-snap-type: x proximity; scroll-padding-inline: 6px;
+    padding: 6px; margin-inline: -6px;
+    scrollbar-width: thin; scrollbar-color: var(--color-ink-600) transparent;
+  }
+  .coaching-workspace .plan-meal-days button { min-height: 76px; font-size: 14px; padding: 12px 8px; scroll-snap-align: start; }
+  .coaching-workspace .plan-meal-days button small { font-size: 12px; }
   .coaching-workspace .plan-meal-card { padding: 15px; }
   .coaching-workspace .plan-meal-card h4 { font-size: 15px; }
   .coaching-workspace .plan-meal-card-detail { display: none; }
