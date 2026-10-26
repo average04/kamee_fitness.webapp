@@ -2,10 +2,16 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { makeAdminCommerceFixture, adminFixtureIds as ids } from "./commerce-admin-fixtures";
-import { formatAdminMoney, parseAdminOptionInput, parseAdminTermsInput, createExclusiveRunner } from "./commerce-admin";
+import { formatAdminMoney, parseAdminOptionInput, parseAdminTermsInput, createExclusiveRunner, mapAdminCommerceError } from "./commerce-admin";
 import { ProductReadinessPanel } from "@/components/coaching/commerce/ProductReadinessPanel";
 
 describe("product readiness operator contract",()=>{
+  it.each(["exact_registry_required","registry_changed"])("classifies provider prerequisite %s as registry not ready",message=>{
+    const error=mapAdminCommerceError({message});
+    expect(error.code).toBe("registry_not_ready");
+    expect(error.message).toContain("provider registry");
+    expect(error.message).not.toContain("RPCs");
+  });
   it("formats money using integer minor units",()=>{
     expect(formatAdminMoney({currency:"PHP",exponent:2,minor:"2000000"})).toBe("PHP 20,000");
   });

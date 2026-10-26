@@ -48,7 +48,7 @@ const messages: Record<PricingErrorCode, string> = {
   terms_outdated: "Review and explicitly accept the current commercial terms before saving a price.",
   option_disabled: "This reference price is not available yet. Pricing is being prepared.",
   retired: "Pricing cannot be changed for a retired listing.",
-  conflict: "Pricing changed since you opened it. Review the refreshed values, then choose and save again.",
+  conflict: "Pricing changed since you opened it. Your selection is preserved. Review it against the refreshed values before saving again.",
   operator_permission_required: "This change needs an operator. Please contact Kamee support.",
   registry_not_ready: "Store setup is still being prepared. Please try again later.",
   invalid_input: "Check your price selection or commercial terms acceptance and try again.",
