@@ -242,6 +242,8 @@ export function OutdoorEditor({
             {Math.round((value.target_seconds ?? 0) / 60)} minutes including
             warm-up and cooldown
           </p>
+          <details className="plan-advanced">
+            <summary>Customize intervals &amp; instructions</summary>
           {value.segments.map((s, i) =>
             "repeat" in s ? (
               <div key={i} className="plan-stack">
@@ -275,6 +277,7 @@ export function OutdoorEditor({
             value={value.notes}
             onChange={(notes) => onChange({ ...value, notes })}
           />
+          </details>
         </>
       )}
     </section>

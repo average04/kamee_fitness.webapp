@@ -129,3 +129,60 @@
 .coaching-workspace button.bg-leaf-600:hover { background: var(--color-leaf-400); }
 
 .coach-page-intro h1, .coach-invite-form h1, .coach-brand { font-family: var(--font-coach-display), var(--font-body), sans-serif; font-weight: 600; }
+
+/* Builder: keep the everyday controls visible and optional settings secondary. */
+.plan-advanced { color: var(--color-muted); min-width: 0; }
+.plan-advanced > summary { font-size: 13px; font-weight: 500; min-height: 44px; }
+.plan-advanced[open] > summary { margin-bottom: 12px; }
+.plan-advanced .plan-field { color: var(--color-mist); }
+.plan-exercise-picker { padding: 16px; border: 1px solid var(--coach-border); border-radius: 12px; }
+.plan-exercise-results { max-height: 320px; overflow-y: auto; list-style: none; padding: 0; }
+.plan-exercise-results li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--coach-border); }
+.plan-exercise-results li > span { overflow-wrap: anywhere; }
+.plan-exercise-results button { flex-shrink: 0; }
+.plan-step-navigation { padding-top: 18px; border-top: 1px solid var(--coach-border); }
+.plan-empty { padding: 24px 0; }
+.coaching-workspace summary:focus-visible { outline: 3px solid var(--color-leaf-500); outline-offset: 3px; }
+
+.plan-prescription { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.plan-prescription .coach-input { min-width: 0; padding-inline: 8px; }
+.plan-item-options > summary { padding: 8px; }
+.plan-item-options[open] { flex-basis: 100%; }
+
+/* Weekly calendar and searchable exercise selection. */
+.plan-week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.plan-week-strip button { display: grid; justify-items: center; align-content: start; gap: 10px; min-width: 0; padding: 16px 4px; border: 1px solid var(--coach-border); border-radius: 14px; transition: background 180ms ease, border-color 180ms ease, color 180ms ease; }
+.plan-week-strip button[aria-pressed=true] { background: var(--color-leaf-500); border-color: var(--color-leaf-500); color: var(--color-ink-950); }
+.plan-day-label { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.plan-weekday-status { font-size: 12px; text-align: center; overflow-wrap: anywhere; }
+.plan-day-mark { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .2; }
+.plan-day-mark.has-session { opacity: 1; }
+.plan-selected-day { font-size: 22px; font-weight: 600; }
+.plan-day-panel { border-top: 1px solid var(--coach-border); padding-top: 24px; min-width: 0; }
+.plan-session-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.plan-session-choices button { border: 1px solid var(--coach-border); border-radius: 12px; padding: 12px 20px; transition: background 160ms ease, border-color 160ms ease; }
+.plan-session-choices button[aria-pressed=true] { border-color: var(--color-leaf-500); background: var(--color-ink-800); }
+.plan-rest-message { padding: 32px 0; color: var(--color-muted); }
+.plan-session-enter { animation: plan-session-enter 200ms ease-out; }
+@keyframes plan-session-enter { from { opacity: .2; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.plan-combobox { position: relative; min-width: 0; }
+.plan-combobox > label { margin-bottom: 8px; }
+.plan-combobox-popup { position: absolute; z-index: 8; top: 100%; left: 0; right: 0; background: var(--color-ink-900); border: 1px solid var(--coach-border); border-radius: 12px; box-shadow: 0 12px 32px #0004; padding: 6px; animation: plan-session-enter 120ms ease-out; }
+.plan-combobox-popup[hidden] { display: none; }
+.plan-combobox-popup ul { max-height: 280px; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+.plan-combobox-popup [role=option] { padding: 12px; min-height: 44px; border-radius: 8px; cursor: pointer; overflow-wrap: anywhere; }
+.plan-combobox-popup [role=option]:hover, .plan-combobox-popup [aria-selected=true] { background: var(--color-leaf-500); color: var(--color-ink-950); }
+.plan-combobox-popup p { padding: 8px; }
+@media (max-width: 600px) {
+  .plan-week-strip { gap: 3px; margin-inline: -12px; grid-template-columns: repeat(7, minmax(44px, 1fr)); overflow-x: auto; padding-block: 4px; }
+  .plan-week-strip button { padding: 12px 2px; border-radius: 9px; }
+  .plan-weekday-status { display: none; }
+  .plan-session-choices button { flex: 1; padding: 10px 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-session-enter, .plan-combobox-popup { animation: none; }
+  .plan-week-strip button, .plan-session-choices button { transition: none; }
+}
+
+.plan-add-weeks { display: flex; align-items: end; gap: 8px; margin-left: auto; }
+.plan-add-weeks .plan-field { width: 104px; }

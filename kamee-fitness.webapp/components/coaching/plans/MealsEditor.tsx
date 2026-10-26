@@ -66,7 +66,7 @@ export function MealsEditor({
       <div className="coach-panel plan-stack">
         <h2>Meals</h2>
         <p className="coach-panel-description">
-          Attach a meal schedule to this plan.
+          Optional. Add meals here, or continue to preview.
         </p>
         <button
           type="button"
@@ -155,12 +155,12 @@ export function MealsEditor({
           onChange={(label) => updateDay({ label })}
         />
         <Select
-          label="Day shape"
+          label="Nutrition focus"
           value={day.shape}
           onChange={(shape) => updateDay({ shape })}
         >
           {["steady", "protein", "light", "carb_up", "fuel_run"].map((s) => (
-            <option key={s}>{s}</option>
+            <option key={s} value={s}>{({ steady: "Balanced", protein: "Higher protein", light: "Light day", carb_up: "Higher carbohydrate", fuel_run: "Fuel for running" } as Record<string, string>)[s]}</option>
           ))}
         </Select>
       </div>
@@ -192,7 +192,7 @@ export function MealsEditor({
             </div>
             <div className="plan-grid">
               <Select
-                label="Slot"
+                label="Meal time"
                 value={meal.slot}
                 onChange={(slot) => set({ slot })}
               >
@@ -205,7 +205,7 @@ export function MealsEditor({
                   "pre_run",
                   "post_run",
                 ].map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s}>{({ breakfast: "Breakfast", snack_am: "Morning snack", lunch: "Lunch", snack_pm: "Afternoon snack", dinner: "Dinner", pre_run: "Before a run", post_run: "After a run" } as Record<string, string>)[s]}</option>
                 ))}
               </Select>
               <Field

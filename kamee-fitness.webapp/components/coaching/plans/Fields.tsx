@@ -128,7 +128,9 @@ export function OrderControls({
   dragGroup?: string;
 }) {
   return (
-    <div className="plan-order">
+    <details className="plan-advanced plan-item-options">
+      <summary aria-label={`Options for ${label}`}>Options</summary>
+      <div className="plan-order">
       {dragGroup && (
         <button
           type="button"
@@ -163,7 +165,8 @@ export function OrderControls({
       <button type="button" onClick={remove}>
         Remove
       </button>
-    </div>
+      </div>
+    </details>
   );
 }
 const dragType = "application/x-kamee-plan-order";

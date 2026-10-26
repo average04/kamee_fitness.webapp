@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { ExercisePicker } from "./ExercisePicker";
 import Image from "next/image";
 import {
   duplicate,
@@ -21,10 +21,6 @@ export function WorkoutEditor({
   videos: Video[];
   onChange: (v: Block[]) => void;
 }) {
-  const [search, setSearch] = useState("");
-  const options = exercises.filter((e) =>
-    e.name.toLowerCase().includes(search.toLowerCase()),
-  );
   const setBlock = (i: number, b: Block) =>
     onChange(blocks.map((old, n) => (n === i ? b : old)));
   return (
@@ -44,32 +40,20 @@ export function WorkoutEditor({
             onChange,
           )}
         >
-          <div className="plan-card">
-            <Select
-              label="Block"
-              value={block.kind}
-              onChange={(v) =>
-                setBlock(bi, { ...block, kind: v as Block["kind"] })
-              }
-            >
-              {["warmup", "main", "cooldown", "superset", "circuit"].map(
-                (v) => (
-                  <option key={v}>{v}</option>
-                ),
-              )}
-            </Select>
-            <OrderControls
-              dragGroup={blocks
-                .map((b) => b.lineage_key)
-                .sort()
-                .join()}
-              label={`block ${bi + 1}`}
-              index={bi}
-              count={blocks.length}
-              move={(delta) => onChange(move(blocks, bi, delta))}
-              remove={() => onChange(blocks.filter((_, i) => i !== bi))}
-            />
-          </div>
+          <details className="plan-advanced">
+            <summary>Exercise group settings</summary>
+            <div className="plan-stack">
+              <Select label="Group type" value={block.kind}
+                onChange={(v) => setBlock(bi, { ...block, kind: v as Block["kind"] })}>
+                {[["main", "Regular exercises"], ["warmup", "Warm-up"], ["cooldown", "Cool-down"],
+                  ["superset", "Superset"], ["circuit", "Circuit"]].map(([value, label]) =>
+                  <option key={value} value={value}>{label}</option>)}
+              </Select>
+              <OrderControls label={`block ${bi + 1}`} index={bi} count={blocks.length}
+                move={(delta) => onChange(move(blocks, bi, delta))}
+                remove={() => { if (confirm("Remove this group and its exercises?")) onChange(blocks.filter((_, i) => i !== bi)); }} />
+            </div>
+          </details>
           {block.exercises.map((ex, ei) => {
             const demo = exercises.find(
               (e) => e.id === ex.exercise_id,
@@ -132,7 +116,7 @@ export function WorkoutEditor({
                     className="rounded-lg"
                   />
                 )}
-                <div className="plan-grid">
+                <div className="plan-grid plan-prescription">
                   <Field
                     label="Sets"
                     type="number"
@@ -154,6 +138,10 @@ export function WorkoutEditor({
                     value={ex.rest_seconds}
                     onChange={(v) => set({ rest_seconds: Number(v) })}
                   />
+                </div>
+                <details className="plan-advanced">
+                  <summary>Notes, video &amp; advanced settings</summary>
+                  <div className="plan-grid">
                   <Field
                     label="Tempo"
                     value={ex.tempo}
@@ -175,58 +163,36 @@ export function WorkoutEditor({
                   value={ex.notes}
                   onChange={(notes) => set({ notes })}
                 />
+                </details>
               </div>
             );
           })}
-          <div className="plan-grid">
-            <Field label="Find exercise" value={search} onChange={setSearch} />
-            <Select
-              label="Add from catalog"
-              value=""
-              onChange={(id) => {
-                if (!id) return;
-                setBlock(bi, {
-                  ...block,
-                  exercises: [
-                    ...block.exercises,
-                    {
-                      lineage_key: crypto.randomUUID(),
-                      exercise_id: id,
-                      sets: 3,
-                      reps: "10",
-                      rest_seconds: 60,
-                      tempo: null,
-                      weight_hint: null,
-                      notes: null,
-                      coaching_video_id: null,
-                    },
-                  ],
-                });
-              }}
-            >
-              <option value="">Choose exercise</option>
-              {options.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </Select>
-          </div>
+          <ExercisePicker exercises={exercises} onAdd={(id) => setBlock(bi, {
+            ...block, exercises: [...block.exercises, makeExercise(id)],
+          })} />
         </div>
       ))}
-      <button
-        type="button"
-        className="plan-secondary"
-        disabled={blocks.length >= 12}
-        onClick={() =>
-          onChange([
-            ...blocks,
-            { lineage_key: crypto.randomUUID(), kind: "main", exercises: [] },
-          ])
-        }
-      >
-        Add block
-      </button>
+      {blocks.length === 0 ? (
+        <>
+          <p className="coach-panel-description">Choose an exercise, then set the sets, reps and rest.</p>
+          <ExercisePicker exercises={exercises} onAdd={(id) => onChange([
+            { lineage_key: crypto.randomUUID(), kind: "main", exercises: [makeExercise(id)] },
+          ])} />
+        </>
+      ) : (
+        <details className="plan-advanced">
+          <summary>Add a warm-up, circuit or other group</summary>
+          <button type="button" className="plan-secondary" disabled={blocks.length >= 12}
+            onClick={() => onChange([...blocks, { lineage_key: crypto.randomUUID(), kind: "main", exercises: [] }])}>
+            Add exercise group
+          </button>
+        </details>
+      )}
     </section>
   );
+}
+
+function makeExercise(id: string): Block["exercises"][number] {
+  return { lineage_key: crypto.randomUUID(), exercise_id: id, sets: 3, reps: "10",
+    rest_seconds: 60, tempo: null, weight_hint: null, notes: null, coaching_video_id: null };
 }
