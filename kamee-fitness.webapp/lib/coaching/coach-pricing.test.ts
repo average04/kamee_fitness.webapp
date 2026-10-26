@@ -15,9 +15,19 @@ describe("coach pricing rendering",()=>{
   });
   it("enables the independent save path for a local enabled and accepted fixture",()=>{
     const workspace=coachPricingFixture(true); workspace.acceptance={version:publishedCoachTerms.version,contentHash:publishedCoachTerms.contentHash,acceptedAt:"2026-10-27T00:00:00Z"}; workspace.canRequestPrice=true;
+    workspace.pricing.requested={id:coachListingId,optionId:workspace.options[0].id,referenceMoney:workspace.options[0].referenceMoney,acceptedTermsVersion:publishedCoachTerms.version,requestedAt:"2026-10-27T00:00:00Z"};
     const output=html(workspace);expect(output).toMatch(/<button[^>]*type="submit"[^>]*>Save price<\/button>/);
     expect(output).not.toMatch(/<button[^>]*disabled=""[^>]*>Save price<\/button>/);
     expect(output).toContain("Commercial terms accepted");
+  });
+  it("shows a retained disabled option while keeping Save unavailable",()=>{
+    const workspace=coachPricingFixture(true);
+    workspace.acceptance={version:publishedCoachTerms.version,contentHash:publishedCoachTerms.contentHash,acceptedAt:"2026-10-27T00:00:00Z"};workspace.canRequestPrice=true;
+    workspace.options[4].enabled=false;
+    workspace.pricing.requested={id:coachListingId,optionId:workspace.options[4].id,referenceMoney:workspace.options[4].referenceMoney,acceptedTermsVersion:publishedCoachTerms.version,requestedAt:"2026-10-27T00:00:00Z"};
+    const output=html(workspace);
+    expect(output).toMatch(/<option[^>]*disabled=""[^>]*selected=""[^>]*>PHP 600 · Unavailable<\/option>/);
+    expect(output).toMatch(/<button[^>]*disabled=""[^>]*>Save price<\/button>/);
   });
   it("shows current effective price/version beside a different requested price and setup failure",()=>{
     const workspace=coachPricingFixture();

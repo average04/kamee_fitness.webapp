@@ -26,6 +26,7 @@ const messages:Record<PricingErrorCode,string> = {
 export function adminCommerceError(code:PricingErrorCode):AdminCommerceError{return {code,message:messages[code]};}
 export function mapAdminCommerceError(error:{message?:string;code?:string}):AdminCommerceError {
   if(error.message==="revision_conflict" || error.message==="conflict") return adminCommerceError("conflict");
+  if(error.message==="exact_registry_required" || error.message==="registry_changed") return adminCommerceError("registry_not_ready");
   if(error.code==="42501") return adminCommerceError("operator_permission_required");
   if(error.code==="22023") return adminCommerceError("invalid_input");
   return adminCommerceError(error.message && Object.hasOwn(messages,error.message)?error.message as PricingErrorCode:"unavailable");

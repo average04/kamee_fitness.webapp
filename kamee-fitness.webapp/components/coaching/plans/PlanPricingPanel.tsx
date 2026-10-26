@@ -38,16 +38,22 @@ export function PlanPricingPanel({listingId,initial,actions}: {listingId:string;
   const accepted=workspace ? hasCurrentSellerAcceptance(workspace) : false;
   const termsReady=data ? publishedTermsMatch(data) && !data.termsError : false;
   const enabled=workspace?.options.some(option=>option.enabled) ?? false;
+  const selectedEnabled=workspace?.options.some(option=>option.id === selected && option.enabled) ?? false;
   const blockedByError=result.error?.code === "unauthorized" || result.error?.code === "unavailable";
-  const canSave=Boolean(workspace?.canRequestPrice && enabled && accepted && termsReady && workspace.listingStatus !== "retired" && !blockedByError);
+  const canSave=Boolean(workspace?.canRequestPrice && selectedEnabled && accepted && termsReady && workspace.listingStatus !== "retired" && !blockedByError);
   function run(operation:()=>Promise<CoachPricingResult>,success:string) {
     startTransition(async()=>{
       setNotice("");
       try {
         const next=await operation();
-        setResult(previous=>({...next,data:next.data ?? previous.data}));
-        if (next.error?.code === "conflict" || next.error?.code === "terms_outdated") setSelected("");
-        if (next.mutationApplied) setNotice(next.error ? "Your change was recorded, but refreshed pricing is unavailable. Retry pricing to check its status." : success);
+        if (next.error?.code === "unauthorized") {
+          setResult({error:next.error});
+          setSelected("");
+        } else {
+          setResult(previous=>({...next,data:next.data ?? previous.data}));
+          if (next.error?.code === "terms_outdated") setSelected("");
+          if (next.mutationApplied) setNotice(next.error ? "Your change was recorded, but refreshed pricing is unavailable. Retry pricing to check its status." : success);
+        }
       } catch {setResult(previous=>({...previous,error:coachPricingError("unavailable")}));}
     });
   }
