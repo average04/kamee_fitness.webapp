@@ -5,6 +5,9 @@ import { PlanEditor } from "@/components/coaching/plans/PlanEditor";
 import type { PlanDocument, Video } from "@/lib/coaching/plans";
 
 import { loadCoachingCatalog } from "@/lib/coaching/catalog";
+import { readCoachPricing } from "@/lib/coaching/pricing-query";
+import { PlanPricingPanel } from "@/components/coaching/plans/PlanPricingPanel";
+import { acceptCoachSellerTerms, refreshCoachPricing, saveCoachPrice } from "../pricing-actions";
 
 export default async function PlanPage({
   params,
@@ -30,13 +33,23 @@ export default async function PlanPage({
   if (error || !plan) notFound();
   if (videoError)
     throw new Error("Could not load the exercise or video library.");
+  const document = plan as PlanDocument;
+  const pricing = await readCoachPricing(db, document.listing_id);
   return (
+    <>
     <PlanEditor
       ownerId={user.id}
       key={id}
-      initial={plan as PlanDocument}
+      initial={document}
       exercises={exercises ?? []}
       videos={(videos ?? []) as Video[]}
     />
+    <PlanPricingPanel
+      key={`${user.id}:${document.listing_id}`}
+      listingId={document.listing_id}
+      initial={pricing}
+      actions={{ save: saveCoachPrice, accept: acceptCoachSellerTerms, refresh: refreshCoachPricing }}
+    />
+    </>
   );
 }
