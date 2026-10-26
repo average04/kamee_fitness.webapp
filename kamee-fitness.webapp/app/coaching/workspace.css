@@ -230,7 +230,7 @@
 .plan-week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .plan-week-strip button { display: grid; justify-items: center; align-content: start; gap: 10px; min-width: 0; padding: 16px 4px; border: 1px solid var(--coach-border); border-radius: 14px; transition: background 180ms ease, border-color 180ms ease, color 180ms ease; }
 .plan-week-strip button[aria-pressed=true] { background: var(--color-leaf-500); border-color: var(--color-leaf-500); color: var(--color-ink-950); }
-.plan-weekday-letter { font-size: 15px; font-weight: 600; }
+.plan-day-label { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .plan-weekday-status { font-size: 12px; text-align: center; overflow-wrap: anywhere; }
 .plan-day-mark { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .2; }
 .plan-day-mark.has-session { opacity: 1; }

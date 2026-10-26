@@ -32,7 +32,7 @@ export function WeekSchedule({ week, exercises, videos, onChange }: {
         const session = week.days[index];
         return <button key={name} type="button" aria-label={`${name}: ${session ? kinds[session.day_kind] : "Unscheduled"}`}
           aria-pressed={selected === index} aria-controls={panelId} onClick={() => setSelected(index)}>
-          <span aria-hidden="true" className="plan-weekday-letter">{name}</span>
+          <span aria-hidden="true" className="plan-day-label">{name}</span>
           <span aria-hidden="true" className="plan-weekday-status">{session ? kinds[session.day_kind] : "+"}</span>
           <span aria-hidden="true" className={`plan-day-mark ${session && session.day_kind !== "rest" ? "has-session" : ""}`} />
         </button>;
