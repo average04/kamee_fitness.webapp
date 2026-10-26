@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isAllowed, parseAllowlist } from "@/lib/admin/allowlist";
 import { isPublicCoachingPath } from "@/lib/coaching/public-paths";
+import { localLoginOriginRedirect } from "@/lib/auth/local-login-origin";
 
 /**
  * Next 16 Proxy (formerly middleware). Refreshes the Supabase session on every
@@ -10,6 +11,14 @@ import { isPublicCoachingPath } from "@/lib/coaching/public-paths";
  * in `requireAdmin()`; this proxy is the first, not the only, line of defense.
  */
 export async function proxy(request: NextRequest) {
+  // Next normalizes loopback request URLs to localhost; Host retains the URL
+  // the visitor actually opened. Only the helper's explicit dev opt-in uses it.
+  const localRequestUrl = new URL(request.url);
+  const incomingHost = request.headers.get("host");
+  if (incomingHost) localRequestUrl.host = incomingHost;
+  const localLoginUrl = localLoginOriginRedirect(localRequestUrl.href, request.method, process.env.NODE_ENV, process.env.SITE_URL);
+  if (localLoginUrl) return NextResponse.redirect(localLoginUrl, 307);
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

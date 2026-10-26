@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import Image from "next/image";
 import { requireCoach } from "@/lib/coaching/auth";
 import { COACH_STATUS_LABEL } from "@/lib/coaching/states";

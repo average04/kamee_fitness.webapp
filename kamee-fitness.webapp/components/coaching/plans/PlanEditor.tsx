@@ -1,6 +1,6 @@
 "use client";
 import { commaValues, validateDraft } from "@/lib/coaching/plan-validation";
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import Image from "next/image";
 import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";

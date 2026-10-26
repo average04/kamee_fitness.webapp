@@ -1,14 +1,21 @@
 export const COACH_WORKSPACE_SECTIONS = [
   {
-    id: "profile",
-    label: "Profile",
-    href: "/coaching/profile",
-    pages: [
-      { href: "/coaching/profile", label: "Profile details" },
-      { href: "/coaching/credentials", label: "Credentials" },
-      { href: "/coaching/gallery", label: "Photo gallery" },
-      { href: "/coaching/preview", label: "Preview" },
-    ],
+    id: "dashboard",
+    label: "Overview",
+    href: "/coaching/dashboard",
+    pages: [{ href: "/coaching/dashboard", label: "Overview" }],
+  },
+  {
+    id: "clients",
+    label: "Clients",
+    href: "/coaching/clients",
+    pages: [{ href: "/coaching/clients", label: "Clients" }],
+  },
+  {
+    id: "earnings",
+    label: "Earnings",
+    href: "/coaching/earnings",
+    pages: [{ href: "/coaching/earnings", label: "Sales & earnings" }],
   },
   {
     id: "plans",
@@ -18,6 +25,17 @@ export const COACH_WORKSPACE_SECTIONS = [
       { href: "/coaching/plans", label: "My plans" },
       { href: "/coaching/plans/new", label: "Create plan" },
       { href: "/coaching/videos", label: "Video assets" },
+    ],
+  },
+  {
+    id: "profile",
+    label: "Profile",
+    href: "/coaching/profile",
+    pages: [
+      { href: "/coaching/profile", label: "Profile details" },
+      { href: "/coaching/credentials", label: "Credentials" },
+      { href: "/coaching/gallery", label: "Photo gallery" },
+      { href: "/coaching/preview", label: "Preview" },
     ],
   },
 ] as const;

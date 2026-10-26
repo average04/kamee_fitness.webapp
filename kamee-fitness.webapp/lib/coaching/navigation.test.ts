@@ -6,7 +6,7 @@ import { HubLocation, HubNav, HubSectionNav } from "@/components/coaching/HubNav
 const route = vi.hoisted(() => ({ pathname: "/coaching/profile" }));
 vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
 
-function renderedLinks(Component: typeof HubNav) {
+function renderedLinks(Component: typeof HubNav | typeof HubSectionNav) {
   const markup = renderToStaticMarkup(createElement(Component));
   return [...markup.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((match) => ({
     href: match[1].match(/href="([^"]+)"/)?.[1],
@@ -20,12 +20,25 @@ const primaryLinks = () => renderedLinks(HubNav);
 describe("coach workspace navigation", () => {
   beforeEach(() => { route.pathname = "/coaching/profile"; });
 
-  it("offers Profile and Plans as the two main areas", () => {
+  it("offers the business dashboard alongside Plans and Profile", () => {
     expect(primaryLinks().map(({ href, label }) => ({ href, label }))).toEqual([
-      { href: "/coaching/profile", label: "Profile" },
+      { href: "/coaching/dashboard", label: "Overview" },
+      { href: "/coaching/clients", label: "Clients" },
+      { href: "/coaching/earnings", label: "Earnings" },
       { href: "/coaching/plans", label: "Plans" },
+      { href: "/coaching/profile", label: "Profile" },
     ]);
   });
+
+  it.each(["dashboard", "clients", "earnings"])(
+    "selects the %s area without unrelated secondary tabs", (page) => {
+      route.pathname = `/coaching/${page}`;
+      expect(primaryLinks().filter((link) => link.current)).toMatchObject([
+        { href: `/coaching/${page}`, current: "location" },
+      ]);
+      expect(renderedLinks(HubSectionNav)).toEqual([]);
+    },
+  );
 
   it.each(["profile", "credentials", "gallery", "preview"])(
     "keeps the Profile area selected on %s", (page) => {

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { PageIntro } from "@/components/coaching/PageIntro";

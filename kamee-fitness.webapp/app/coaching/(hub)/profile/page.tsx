@@ -1,5 +1,5 @@
 import { PageIntro } from "@/components/coaching/PageIntro";
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import { requireCoach } from "@/lib/coaching/auth";
 import { loadHub } from "@/lib/coaching/queries";
 import { loadCoachingSpecialtyOptions } from "@/lib/coaching/specialty-options-query";
