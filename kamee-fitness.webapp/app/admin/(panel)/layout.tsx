@@ -11,8 +11,8 @@ export default async function PanelLayout({
 
   return (
     <div className="min-h-dvh bg-[#07090a] text-zinc-100">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-3">
-        <nav className="flex items-center gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 px-4 py-3 sm:px-6">
+        <nav className="flex flex-wrap items-center gap-4" aria-label="Admin navigation">
           <Link href="/admin" className="font-semibold">
             Kamee Admin
           </Link>
@@ -41,9 +41,10 @@ export default async function PanelLayout({
             Coaches
           </Link>
           <Link href="/admin/coaching-plans" className="text-sm text-zinc-400 hover:text-zinc-100">Coaching plans</Link>
+          <Link href="/admin/coaching-commerce" className="text-sm text-zinc-400 hover:text-zinc-100">Product readiness</Link>
         </nav>
-        <div className="flex items-center gap-3 text-sm text-zinc-400">
-          <span>{user.email}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm text-zinc-400">
+          <span className="break-all">{user.email}</span>
           <form action={signOut}>
             <button className="rounded-md border border-zinc-800 px-2 py-1 hover:border-zinc-600">
               Sign out
@@ -51,7 +52,7 @@ export default async function PanelLayout({
           </form>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }
