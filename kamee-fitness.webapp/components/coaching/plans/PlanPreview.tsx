@@ -114,7 +114,7 @@ export function PlanPreview({
         <p>{plan.summary}</p>
         <p className="coach-panel-description">
           {plan.weeks.length} weeks · {plan.est_minutes_per_session ?? "—"} min
-          / session · {plan.level}
+          / session · {({ none: "Any level", beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" } as Record<string, string>)[plan.level ?? "none"] ?? plan.level}
         </p>
         {locked && <p className="coach-status">Plan content locked</p>}
         {plan.weeks.map((w, wi) => (

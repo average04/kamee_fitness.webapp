@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { duplicate, move, progressWeek, type Week } from "./plans";
-import { buildRunDayCardio } from "./outdoor/runDayForm";
+import { assertRunRepetitions, buildRunDayCardio } from "./outdoor/runDayForm";
 import { flattenSegments } from "./outdoor/segments";
 
 const week: Week = {
@@ -60,6 +60,30 @@ describe("coach schedule operations", () => {
   });
 });
 describe("native outdoor contract", () => {
+  it("rejects non-finite advanced repeat input without expanding it", () => {
+    for (const repeat of [NaN, Infinity, -Infinity]) {
+      expect(() => assertRunRepetitions(repeat)).toThrow("whole number from 1 to 100");
+    }
+  });
+  it.each(["run_walk", "intervals", "walk_intervals"] as const)(
+    "rejects out-of-range or fractional %s repetitions before expanding segments",
+    (kind) => {
+      for (const reps of [0, -1, 1.5, 101]) {
+        const params = kind === "run_walk" ? { kind, reps, runSec: 60, walkSec: 90 }
+          : kind === "intervals" ? { kind, reps, workSec: 60, recoverSec: 90 }
+          : { kind, reps, fastSec: 60, easySec: 90 };
+        expect(() => buildRunDayCardio(params)).toThrow("whole number from 1 to 100");
+      }
+    },
+  );
+  it.each([[1, 750, 4], [100, 15600, 202]])(
+    "preserves the bounded %i-repeat run-walk prescription",
+    (reps, seconds, leaves) => {
+      const { cardio } = buildRunDayCardio({ kind: "run_walk", reps, runSec: 60, walkSec: 90 });
+      expect(cardio.targetSeconds).toBe(seconds);
+      expect(flattenSegments(cardio.segments!)).toHaveLength(leaves);
+    },
+  );
   it("includes native warmup/cooldown and compatible run-walk guidance", () => {
     const { cardio } = buildRunDayCardio({
       kind: "run_walk",

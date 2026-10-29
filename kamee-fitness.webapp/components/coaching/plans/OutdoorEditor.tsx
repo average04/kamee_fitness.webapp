@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Cardio } from "@/lib/coaching/plans";
 import {
   buildRunDayCardio,
@@ -11,7 +11,28 @@ import {
   sessionTotalSeconds,
   type SegmentLeaf,
 } from "@/lib/coaching/outdoor/segments";
+import { repeatInputState } from "@/lib/coaching/outdoor/repeat-input";
 import { Field, Select } from "./Fields";
+
+function RepeatField({ value, onChange }: { value: number; onChange: (repeat: number) => void }) {
+  const errorId = useId();
+  const [input, setInput] = useState(() => repeatInputState(value));
+  if (input.committed !== value) setInput(repeatInputState(value));
+  return <div className="plan-stack">
+    <label className="plan-field">
+      <span>Repeat</span>
+      <input className="coach-input" type="number" min={1} max={100} step={1}
+        value={input.draft} aria-invalid={input.error ? true : undefined}
+        aria-describedby={input.error ? errorId : undefined}
+        onChange={(event) => {
+          const next = repeatInputState(value, event.target.value);
+          setInput(next);
+          if (next.value !== null) onChange(next.value);
+        }} />
+    </label>
+    {input.error && <p id={errorId} role="alert">{input.error}</p>}
+  </div>;
+}
 
 const labels: Record<RunDayKind, string> = {
   easy: "Easy run",
@@ -41,6 +62,7 @@ export function OutdoorEditor({
       })
     : null;
   const [kind, setKind] = useState<RunDayKind>(parsed?.kind ?? "easy");
+  const [error, setError] = useState("");
   const [minutes, setMinutes] = useState(
     parsed && "minutes" in parsed
       ? parsed.minutes
@@ -72,13 +94,6 @@ export function OutdoorEditor({
           : 90,
   );
   function apply() {
-    if (
-      value &&
-      !confirm(
-        "Replace the current session with these settings? Custom segment edits will be removed.",
-      )
-    )
-      return;
     let params: RunDayParams;
     switch (kind) {
       case "run_walk":
@@ -99,17 +114,23 @@ export function OutdoorEditor({
       default:
         params = { kind, minutes };
     }
-    const { cardio } = buildRunDayCardio(params);
-    onChange({
-      lineage_key: value?.lineage_key ?? crypto.randomUUID(),
-      target_kind: cardio.targetKind,
-      mode: cardio.mode,
-      target_seconds: cardio.targetSeconds,
-      guidance_config: cardio.guidanceConfig,
-      notes: cardio.notes,
-      segments: cardio.segments!,
-      session_type: cardio.sessionType,
-    });
+    try {
+      const { cardio } = buildRunDayCardio(params);
+      setError("");
+      if (value && !confirm("Replace the current session with these settings? Custom segment edits will be removed.")) return;
+      onChange({
+        lineage_key: value?.lineage_key ?? crypto.randomUUID(),
+        target_kind: cardio.targetKind,
+        mode: cardio.mode,
+        target_seconds: cardio.targetSeconds,
+        guidance_config: cardio.guidanceConfig,
+        notes: cardio.notes,
+        segments: cardio.segments!,
+        session_type: cardio.sessionType,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Check the session settings.");
+    }
   }
   function updateLeaf(
     index: number,
@@ -189,7 +210,7 @@ export function OutdoorEditor({
         <Select
           label="Session"
           value={kind}
-          onChange={(v) => setKind(v as RunDayKind)}
+          onChange={(v) => { setKind(v as RunDayKind); setError(""); }}
         >
           {Object.entries(labels).map(([key, label]) => (
             <option key={key} value={key}>
@@ -205,7 +226,7 @@ export function OutdoorEditor({
               min={1}
               max={100}
               value={reps}
-              onChange={(v) => setReps(Number(v))}
+              onChange={(v) => { setReps(Number(v)); setError(""); }}
             />
             <Field
               label="Work seconds"
@@ -238,6 +259,7 @@ export function OutdoorEditor({
       <button type="button" className="plan-secondary" onClick={apply}>
         {value ? "Replace session" : "Add session"}
       </button>
+      {error && <p role="alert">{error}</p>}
       {value && (
         <>
           <p className="coach-panel-description">
@@ -249,15 +271,11 @@ export function OutdoorEditor({
           {value.segments.map((s, i) =>
             "repeat" in s ? (
               <div key={i} className="plan-stack">
-                <Field
-                  label="Repeat"
-                  type="number"
-                  min={1}
-                  max={100}
+                <RepeatField
                   value={s.repeat}
-                  onChange={(v) => {
+                  onChange={(repeat) => {
                     const segments = structuredClone(value.segments);
-                    (segments[i] as { repeat: number }).repeat = Number(v);
+                    (segments[i] as { repeat: number }).repeat = repeat;
                     onChange({
                       ...value,
                       segments,
