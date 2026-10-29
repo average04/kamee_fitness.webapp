@@ -1,21 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { MonthlyPayout } from "@/components/coaching/dashboard/FinancePanels";
+import { getDashboardReport } from "./dashboard";
 
-vi.mock("@/lib/coaching/dashboard-query", () => ({
-  loadCoachDashboard: async () => ({ displayName: "Coach Jay", plans: [], plansError: false, canManagePlans: true }),
-}));
-vi.mock("@/components/coaching/dashboard/CoachBusinessDashboard", () => ({ CoachBusinessDashboard: () => null }));
-import CoachEarningsPage from "@/app/coaching/(hub)/earnings/page";
-
-describe("earnings report navigation", () => {
-  it("opens the report selected by View breakdown", async () => {
-    const page = await CoachEarningsPage({ searchParams: Promise.resolve({ period: "september" }) });
-    expect(page.props.initialPeriod).toBe("september");
-    expect(page.props.view).toBe("earnings");
+describe("sample earnings navigation", () => {
+  it.each(["october", "september"])("keeps %s sample figures labelled and links to real earnings without a fictional period", (period) => {
+    const html = renderToStaticMarkup(createElement(MonthlyPayout, { report: getDashboardReport(period) }));
+    expect(html).toContain("Sample");
+    expect(html).toContain("Illustrative amounts; no payout is scheduled");
+    expect(html).toContain('href="/coaching/earnings"');
+    expect(html).toContain("View your earnings");
+    expect(html).not.toContain("?period=");
   });
-  it.each([{}, { period: "unknown" }, { period: ["september", "october"] }])(
-    "normalizes absent or invalid report parameters safely", async (params) => {
-      const page = await CoachEarningsPage({ searchParams: Promise.resolve(params) });
-      expect(page.props.initialPeriod).toBe("october");
-    },
-  );
 });

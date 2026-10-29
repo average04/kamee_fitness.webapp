@@ -66,7 +66,7 @@ describe("business dashboard rendering", () => {
     expect(markup).toContain('href="/coaching/plans/my-plan"');
     expect(markup).toContain('href="/coaching/plans/new"');
     expect(markup).toContain('href="/coaching/clients"');
-    expect(markup).toContain('href="/coaching/earnings?period=october"');
+    expect(markup).toContain('href="/coaching/earnings"');
     const ownPlans = markup.slice(markup.indexOf('aria-label="Your saved plans"'));
     expect(ownPlans).toContain("My real training plan");
     expect(ownPlans).not.toContain("₱");
@@ -110,7 +110,7 @@ describe("business dashboard rendering", () => {
     expect(markup).toContain('value="september" selected=""');
     expect(markup).toContain("₱7,360");
     expect(markup).toContain("₱4,800");
-    expect(markup).toContain('href="/coaching/earnings?period=september"');
+    expect(markup).toContain('href="/coaching/earnings"');
     expect(markup).not.toContain("₱10,080");
     const earnings = render({ view: "earnings", initialPeriod: "september" });
     expect(earnings).toContain("₱11,500");

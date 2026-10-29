@@ -62,7 +62,7 @@ export function MonthlyPayout({ report, breakdown = false }: { report: SampleRep
       <p className={styles.payoutValue}>{money(report.eligible)}</p>
       <p className={styles.description}>Eligible for monthly admin review</p>
       <dl className={styles.payoutLine}><dt>Pending clearance</dt><dd>{money(report.pending)}</dd></dl>
-      {!breakdown && <Link href={`/coaching/earnings?period=${report.period}`} className={styles.textLink}>View breakdown <span aria-hidden="true">↗</span></Link>}
+      {!breakdown && <Link href="/coaching/earnings" className={styles.textLink}>View your earnings <span aria-hidden="true">↗</span></Link>}
       <p className={styles.reviewNote}>Sample for {report.name}. Reviewed monthly after store settlement. Illustrative amounts; no payout is scheduled.</p>
     </section>
   );

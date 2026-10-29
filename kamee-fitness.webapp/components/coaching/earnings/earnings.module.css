@@ -1,0 +1,71 @@
+.earnings {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  container-type: inline-size;
+  color: var(--color-mist);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.earnings *, .earnings *::before, .earnings *::after { box-sizing: border-box; }
+.earnings :where(h1, h2, h3, p, dl, dd, ul) { margin: 0; }
+.earnings :where(h1, h2, h3) { font-family: var(--font-coach-display), var(--font-body), sans-serif; overflow-wrap: anywhere; }
+.earnings h1 { font-size: clamp(1.75rem, 3vw, 2.125rem); font-weight: 600; line-height: 1.2; letter-spacing: -.7px; }
+.earnings h2 { font-size: 1.125rem; font-weight: 600; }
+.earnings h3 { font-size: 1rem; font-weight: 600; }
+.earnings :where(a, button, input):focus-visible { outline: 3px solid var(--color-leaf-400); outline-offset: 3px; }
+.heading, .activityHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.heading > div, .activityHeading > div { min-width: 0; }
+.eyebrow { margin-bottom: 8px !important; color: var(--color-leaf-400); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; }
+.badge { display: inline-flex; padding: 5px 10px; border: 1px solid var(--color-ink-600); border-radius: 20px; color: var(--color-ink-100); font-size: .8125rem; }
+.description, .period, .time, .asOf { color: var(--color-ink-200); font-size: .875rem; overflow-wrap: anywhere; }
+.description { margin-top: 6px !important; }
+.panel { min-width: 0; padding: 22px; border: 1px solid var(--color-ink-600); border-radius: 15px; background: var(--color-ink-850); }
+.filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; margin-top: 20px; }
+.filters label { display: grid; gap: 7px; min-width: 0; flex: 1 1 180px; color: var(--color-ink-100); font-size: .875rem; }
+.filters input { min-width: 0; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-ink-600); border-radius: 9px; background: var(--color-ink-950); color: var(--color-mist); font: inherit; font-size: 1rem; color-scheme: dark; }
+.button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 10px 16px; border: 1px solid var(--color-ink-600); border-radius: 9px; background: var(--color-ink-800); color: var(--color-mist); font: inherit; font-size: .875rem; text-decoration: none; text-align: center; cursor: pointer; overflow-wrap: anywhere; }
+.button:hover { border-color: var(--color-leaf-400); }
+.primary { background: var(--color-leaf-500); border-color: var(--color-leaf-500); color: var(--color-ink-950); font-weight: 600; }
+.period { margin-top: 16px !important; }
+.error { display: grid; gap: 12px; border-color: var(--color-fuel-500); overflow-wrap: anywhere; }
+.panel > .error { padding: 16px; margin-top: 16px; border: 1px solid var(--color-fuel-500); border-radius: 9px; }
+.error > a:not(.button) { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-leaf-300); text-decoration: underline; text-underline-offset: 4px; }
+.error > .button { justify-self: start; }
+.totals { display: grid; gap: 20px; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding-bottom: 24px; border-bottom: 1px solid var(--color-ink-700); }
+.metrics > div { min-width: 0; }
+.metrics dt, .balances dt { color: var(--color-ink-200); font-size: .875rem; }
+.metrics dd { margin-top: 8px; font-family: var(--font-coach-display), var(--font-body), sans-serif; font-size: 2rem; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.financeGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; min-width: 0; }
+.moneyList { padding: 0; margin-top: 16px !important; list-style: none; }
+.moneyList li { font-family: var(--font-coach-display), var(--font-body), sans-serif; font-size: clamp(1.375rem, 2.5vw, 1.875rem); line-height: 1.3; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; margin-bottom: 14px; }
+.estimate { background: color-mix(in srgb, var(--color-leaf-700) 16%, var(--color-ink-900)); border-color: color-mix(in srgb, var(--color-leaf-600) 45%, var(--color-ink-700)); }
+.estimate h2 { color: var(--color-leaf-400); }
+.balances { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 20px !important; }
+.balances > div { min-width: 0; }
+.balances dd { margin-top: 7px; overflow-wrap: anywhere; }
+.activityList { list-style: none; padding: 0; margin-top: 16px !important; }
+.activityRow { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px 24px; padding: 20px 0; border-top: 1px solid var(--color-ink-600); }
+.activityRow > div { min-width: 0; }
+.time { display: block; margin-top: 6px; }
+.activityValue { display: grid; gap: 5px; text-align: right; max-width: 100%; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.activityValue strong { font-weight: 500; }
+.activityValue span { color: var(--color-ink-200); font-size: .8125rem; }
+.empty { padding-block: 20px; color: var(--color-ink-200); }
+.pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--color-ink-600); }
+.pagination p { font-size: .875rem; color: var(--color-ink-200); }
+@container (max-width: 680px) { .financeGrid { grid-template-columns: minmax(0, 1fr); } }
+@container (max-width: 400px) {
+  .panel { padding: 16px; }
+  .metrics, .balances { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .metrics > div, .balances > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+  .metrics dd, .balances dd { margin-top: 0; }
+  .metrics dd { font-size: 1.75rem; }
+  .filters { align-items: stretch; }
+  .filters label, .filters button { flex-basis: 100%; }
+  .activityRow { display: grid; }
+  .activityValue { text-align: left; }
+  .pagination > .button { width: 100%; }
+}
+@media (prefers-reduced-motion: no-preference) { .button { transition: border-color 150ms ease, background 150ms ease; } }
