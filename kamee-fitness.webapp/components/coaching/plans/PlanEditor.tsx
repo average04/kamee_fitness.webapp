@@ -52,7 +52,7 @@ export function PlanEditor({
 }) {
   const router = useRouter();
   const coverInputId = useId();
-  const [plan, setPlan] = useState(initial);
+  const [plan, setPlan] = useState(() => ({ ...initial, level: initial.level ?? "none" }));
   const [equipmentText, setEquipmentText] = useState(initial.required_equipment.join(", "));
   const [musclesText, setMusclesText] = useState(initial.target_muscles.join(", "));
   const [tab, setTab] = useState("Details");
@@ -351,6 +351,7 @@ export function PlanEditor({
               onClick={() => {
                 setPlan({
                   ...recovery,
+                  level: recovery.level ?? "none",
                   draft_revision: recovery.draft_revision,
                   version_state: initial.version_state,
                 });

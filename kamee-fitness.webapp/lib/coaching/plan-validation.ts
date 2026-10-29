@@ -71,7 +71,7 @@ export function draftPayload(p: PlanDocument) {
     summary: p.summary,
     goal: planGoals(p)[0] ?? null,
     goals: planGoals(p),
-    level: p.level,
+    level: p.level ?? "none",
     equipment_tier: p.equipment_tier,
     required_equipment: p.required_equipment.filter(Boolean),
     target_muscles: p.target_muscles.filter(Boolean),
