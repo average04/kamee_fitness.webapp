@@ -19,6 +19,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import { findUserForInvite, type InviteCandidate } from "./queries";
 import { resolveInviteRecipient } from "@/lib/coaching/invite-recipient";
 import { isAllowed, parseAllowlist } from "@/lib/admin/allowlist";
+import { withDatabaseBusyRetry } from "@/lib/coaching/retry-busy";
 
 export async function inviteCoachByEmail(email: unknown): Promise<InviteResult> {
   await requireAdmin();
@@ -173,13 +174,29 @@ export async function setCoachStatus(
   const cleanNote = noteResult.value;
 
   const db = createAdminSupabase();
-  const { error } = await db.rpc("admin_set_coach_status", {
+  const args = {
     p_user: userId,
     p_actor: admin.id,
     p_status: status,
     p_note: cleanNote,
-  });
-  if (error) return { ok: false, error: describeRpcError(error.message, "status") };
+  };
+  try {
+    await withDatabaseBusyRetry(
+      async () => {
+        const { error } = await db.rpc("admin_set_coach_status", args);
+        if (error) throw error;
+      },
+      async () => {
+        const current = await requireAdmin();
+        if (current.id !== admin.id) throw new Error("Admin account changed");
+      },
+    );
+  } catch (error) {
+    const message =
+      error !== null && typeof error === "object" && "message" in error &&
+      typeof error.message === "string" ? error.message : "";
+    return { ok: false, error: describeRpcError(message, "status") };
+  }
 
   revalidatePath(`/admin/coaches/${userId}`);
   revalidatePath("/admin/coaches");
