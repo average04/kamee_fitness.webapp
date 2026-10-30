@@ -4,6 +4,8 @@ Status: **bounded hosted create → save/reload → submit → approve → pause
 
 ## Targets and authorization
 
+Follow-up: [request-changes and resubmission acceptance](coach-revision-flow-2026-10-30.md) passes the targeted correction path on a separate fixture, with retirement and final preservation checks deferred after computer control became unavailable. This earlier positive-approval acceptance remains accepted and was not rerun.
+
 The user approved checking the existing owner/admin account and using a disposable plan for approval-flow acceptance, then supplied the requested one-time sign-in code. Preview admitted that existing account to the admin dashboard and coaching review queue. No role, allowlist or credential was created or changed. Authentication codes were not saved in QA artifacts.
 
 Admin review used web Preview source `4d11ddb79b782313b075e5c0dc2b44fe083a20b7`, Netlify deploy `6ae3d386a8f72900267ec0e1`. Coach authoring and retirement used the separately retained approved-coach session on `https://kamee.fit`. These origins allowed both roles to remain signed in. The compared admin coaching-plan route files are unchanged from main `83b3af115e7a8160693b2f03a56040039023156d`; the receipt does not claim that the new Preview coach editor or WebP converter was exercised on the Production coach page.
