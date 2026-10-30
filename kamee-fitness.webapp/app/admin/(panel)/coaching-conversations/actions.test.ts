@@ -18,7 +18,13 @@ vi.mock("next/navigation", () => ({
   },
 }));
 // The real requireAdmin gate (including Auth getUser and ADMIN_EMAILS) is exercised here.
-import { grantConversation, revokeConversation } from "./actions";
+import {
+  grantConversation,
+  revokeConversation,
+  listConversationCases,
+  readConversationCase,
+  resolveConversationCase,
+} from "./actions";
 
 const ACTOR = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ATTEMPT = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -41,6 +47,51 @@ const grantData = () => ({
   revision: "0",
 });
 const revokeData = () => ({ grantId: GRANT, revision: "9007199254740994" });
+const CASE = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const NEXT_CASE = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+const CREATED = "2026-10-31T10:15:20.123456789+00:00";
+const caseItem = () => ({
+  caseId: CASE,
+  category: "unsafe_advice",
+  status: "open",
+  createdAt: CREATED,
+});
+const caseListData = () => ({ items: [caseItem()], nextAfterId: null });
+const selectedMessage = () => ({
+  id: GRANT,
+  sequence: "9007199254740993",
+  createdAt: CREATED,
+  kind: "text",
+  author: "coach",
+  body: " Preserve selected text 📘\n",
+});
+const caseData = () => ({
+  caseId: CASE,
+  category: "unsafe_advice",
+  status: "open",
+  messages: [selectedMessage()],
+});
+const caseAck = () => ({ caseId: CASE, status: "resolved" });
+const caseActions = [
+  {
+    action: listConversationCases,
+    input: () => ({ afterId: null }),
+    rpc: "admin_list_coaching_conversation_cases",
+    data: caseListData,
+  },
+  {
+    action: readConversationCase,
+    input: () => ({ caseId: CASE }),
+    rpc: "admin_read_coaching_conversation_case",
+    data: caseData,
+  },
+  {
+    action: resolveConversationCase,
+    input: () => ({ caseId: CASE, action: "remove" }),
+    rpc: "admin_resolve_coaching_conversation_case",
+    data: caseAck,
+  },
+];
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -53,13 +104,372 @@ beforeEach(() => {
   mocks.client.mockReturnValue({ rpc: mocks.rpc });
   mocks.rpc.mockImplementation(async (name: string) => ({
     data:
-      name === "admin_grant_coaching_conversation" ? grantData() : revokeData(),
+      caseActions.find((entry) => entry.rpc === name)?.data() ??
+      (name === "admin_grant_coaching_conversation"
+        ? grantData()
+        : revokeData()),
     error: null,
   }));
 });
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
+});
+
+describe("selected conversation case Server Actions", () => {
+  it.each(caseActions)(
+    "gates $rpc using verified Auth and ADMIN_EMAILS before service construction",
+    async ({ action, input }) => {
+      for (const user of [
+        null,
+        {
+          id: ACTOR,
+          email: "member@fixtures.invalid",
+          user_metadata: { role: "admin" },
+        },
+      ]) {
+        mocks.getUser.mockResolvedValue({ data: { user }, error: null });
+        await expect(action(input())).rejects.toThrow("redirect:/admin/login");
+        expect(mocks.client).not.toHaveBeenCalled();
+        expect(mocks.rpc).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it.each(caseActions)(
+    "keeps SQL's actual admin-role/self-case denial for $rpc and hides diagnostics",
+    async ({ action, input }) => {
+      for (const code of ["42501", "PT403"]) {
+        mocks.rpc.mockResolvedValue({
+          data: { body: "private selected text" },
+          error: {
+            code,
+            message: "self-case or nonadmin identity",
+            details: "private transcript",
+          },
+        });
+        expect(await action(input())).toEqual({
+          ok: false,
+          error: "Conversation action is not permitted.",
+        });
+      }
+      expect(mocks.rpc).toHaveBeenCalledTimes(2);
+      expect(
+        mocks.rpc.mock.calls.every((call) => call[1].p_actor_id === ACTOR),
+      ).toBe(true);
+    },
+  );
+
+  it("lists only the exact case metadata with an explicit bound cursor", async () => {
+    expect(
+      await listConversationCases({ afterId: OTHER.toUpperCase() }),
+    ).toEqual({ ok: true, data: caseListData() });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "admin_list_coaching_conversation_cases",
+      { p_actor_id: ACTOR, p_after_id: OTHER },
+    );
+    expect(mocks.getUser.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.client.mock.invocationCallOrder[0],
+    );
+    expect(await listConversationCases({ afterId: null })).toEqual({
+      ok: true,
+      data: caseListData(),
+    });
+    expect(mocks.rpc.mock.lastCall?.[1].p_after_id).toBeNull();
+  });
+
+  it("reads only the requested case and preserves selected messages without transcript sorting", async () => {
+    const data = {
+      ...caseData(),
+      messages: [
+        selectedMessage(),
+        {
+          id: OTHER,
+          sequence: "1",
+          createdAt: CREATED,
+          kind: "system",
+          event: "opened",
+        },
+      ],
+    };
+    mocks.rpc.mockResolvedValue({ data, error: null });
+    expect(await readConversationCase({ caseId: CASE.toUpperCase() })).toEqual({
+      ok: true,
+      data,
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "admin_read_coaching_conversation_case",
+      { p_actor_id: ACTOR, p_case_id: CASE },
+    );
+  });
+
+  it.each(["remove", "restrict", "resolve"])(
+    "passes exactly the admitted %s remediation and server-derived actor",
+    async (action) => {
+      expect(await resolveConversationCase({ caseId: CASE, action })).toEqual({
+        ok: true,
+        data: caseAck(),
+      });
+      expect(mocks.rpc).toHaveBeenCalledWith(
+        "admin_resolve_coaching_conversation_case",
+        { p_actor_id: ACTOR, p_case_id: CASE, p_action: action },
+      );
+    },
+  );
+
+  it.each([
+    ["list", null],
+    ["list", {}],
+    ["list", { afterId: "bad" }],
+    ["list", { afterId: null, body: "private" }],
+    ["list", { afterId: null, actorId: OTHER }],
+    ["list", { afterId: null, role: "admin" }],
+    ["read", {}],
+    ["read", { caseId: `${CASE}\n` }],
+    ["read", { caseId: CASE, p_actor_id: OTHER }],
+    ["read", { caseId: CASE, messageIds: [GRANT] }],
+    ["read", { caseId: CASE, conversationId: ATTEMPT }],
+    ["resolve", { caseId: CASE, action: "delete" }],
+    ["resolve", { caseId: CASE, action: "remove\n" }],
+    ["resolve", { caseId: CASE, action: "remove", actorId: OTHER }],
+    [
+      "resolve",
+      { caseId: CASE, action: "remove", messages: [selectedMessage()] },
+    ],
+  ])(
+    "rejects malformed or widened %s inputs before service access: %j",
+    async (name, input) => {
+      const action =
+        name === "list"
+          ? listConversationCases
+          : name === "read"
+            ? readConversationCase
+            : resolveConversationCase;
+      expect(await action(input)).toEqual({
+        ok: false,
+        error: "Invalid conversation input.",
+      });
+      expect(mocks.client).not.toHaveBeenCalled();
+      expect(mocks.rpc).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { ...caseListData(), messages: [selectedMessage()] },
+    { ...caseListData(), items: [{ ...caseItem(), snippet: "private" }] },
+    { ...caseListData(), items: [{ ...caseItem(), buyerId: ACTOR }] },
+    { ...caseListData(), items: [{ ...caseItem(), status: "closed" }] },
+    { ...caseListData(), items: [{ ...caseItem(), category: "spam" }] },
+    { ...caseListData(), items: [caseItem(), caseItem()] },
+    {
+      ...caseListData(),
+      items: [{ ...caseItem(), caseId: NEXT_CASE }, caseItem()],
+    },
+    { items: [], nextAfterId: CASE },
+    { ...caseListData(), nextAfterId: OTHER },
+    { ...caseListData(), items: Array.from({ length: 51 }, caseItem) },
+  ])(
+    "rejects widened, oversized or unordered case metadata %j",
+    async (data) => {
+      mocks.rpc.mockResolvedValue({ data, error: null });
+      expect(await listConversationCases({ afterId: null })).toEqual({
+        ok: false,
+        error: "Conversation action could not be confirmed.",
+      });
+    },
+  );
+
+  it("enforces an exclusive case cursor and binds the continuation to the last returned case", async () => {
+    expect(await listConversationCases({ afterId: CASE })).toMatchObject({
+      ok: false,
+    });
+    mocks.rpc.mockResolvedValue({
+      data: {
+        items: [caseItem(), { ...caseItem(), caseId: NEXT_CASE }],
+        nextAfterId: NEXT_CASE,
+      },
+      error: null,
+    });
+    expect(await listConversationCases({ afterId: OTHER })).toMatchObject({
+      ok: true,
+    });
+    mocks.rpc.mockResolvedValue({
+      data: { items: [], nextAfterId: null },
+      error: null,
+    });
+    expect(await listConversationCases({ afterId: NEXT_CASE })).toEqual({
+      ok: true,
+      data: { items: [], nextAfterId: null },
+    });
+  });
+
+  it.each([
+    null,
+    { ...caseData(), caseId: OTHER },
+    { ...caseData(), transcript: [selectedMessage()] },
+    { ...caseData(), buyerId: ACTOR },
+    { ...caseData(), body: "unselected" },
+    { ...caseData(), category: "spam" },
+    { ...caseData(), status: "closed" },
+    { ...caseData(), messages: [] },
+    { ...caseData(), messages: Array.from({ length: 21 }, selectedMessage) },
+    { ...caseData(), messages: [selectedMessage(), selectedMessage()] },
+    {
+      ...caseData(),
+      messages: [selectedMessage(), { ...selectedMessage(), id: OTHER }],
+    },
+    ...[
+      { author: "admin" },
+      { kind: "unknown" },
+      { authorId: ACTOR },
+      { event: "opened" },
+      { sequence: "0" },
+      { sequence: "01" },
+      { sequence: 1 },
+      { sequence: "9223372036854775808" },
+      { body: "\uFEFF \n" },
+      { body: "\0" },
+      { body: "\ud800" },
+      { body: "x".repeat(2001) },
+      { body: "📘".repeat(2001) },
+      { createdAt: "2026-02-30T00:00:00Z" },
+      { createdAt: "2026-10-31T24:00:00Z" },
+      { createdAt: "2026-10-31T00:00:00+08:00" },
+      { createdAt: `${CREATED}\n` },
+    ].map((patch) => ({
+      ...caseData(),
+      messages: [{ ...selectedMessage(), ...patch }],
+    })),
+    {
+      ...caseData(),
+      messages: [
+        {
+          id: GRANT,
+          sequence: "1",
+          createdAt: CREATED,
+          kind: "removed",
+          body: "removed body must not escape",
+        },
+      ],
+    },
+    {
+      ...caseData(),
+      messages: [
+        {
+          id: GRANT,
+          sequence: "1",
+          createdAt: CREATED,
+          kind: "system",
+          event: "removed",
+        },
+      ],
+    },
+  ])("refuses unbound or malformed selected-case output %j", async (data) => {
+    mocks.rpc.mockResolvedValue({ data, error: null });
+    expect(await readConversationCase({ caseId: CASE })).toEqual({
+      ok: false,
+      error: "Conversation action could not be confirmed.",
+    });
+  });
+
+  it("accepts exact C1a text boundaries, UTC precision and body-free tombstones", async () => {
+    for (const body of ["📘".repeat(2000), "\u0085", " Preserve\n"]) {
+      const data = {
+        ...caseData(),
+        messages: [
+          { ...selectedMessage(), body },
+          {
+            id: OTHER,
+            sequence: "2",
+            createdAt: "2026-10-31T00:00:00Z",
+            kind: "removed",
+          },
+        ],
+      };
+      mocks.rpc.mockResolvedValue({ data, error: null });
+      expect(await readConversationCase({ caseId: CASE })).toEqual({
+        ok: true,
+        data,
+      });
+    }
+  });
+
+  it.each([
+    { ...caseAck(), caseId: OTHER },
+    { ...caseAck(), status: "closed" },
+    { ...caseAck(), body: "private" },
+  ])(
+    "refuses unbound or widened remediation acknowledgements %j",
+    async (data) => {
+      mocks.rpc.mockResolvedValue({ data, error: null });
+      expect(
+        await resolveConversationCase({ caseId: CASE, action: "restrict" }),
+      ).toEqual({
+        ok: false,
+        error: "Conversation action could not be confirmed.",
+      });
+    },
+  );
+
+  it.each(caseActions)(
+    "retries $rpc at most twice with frozen input and a verified actor before every attempt",
+    async ({ action, input: makeInput, data: makeData }) => {
+      vi.useFakeTimers();
+      const input = makeInput(),
+        data = makeData();
+      mocks.rpc
+        .mockResolvedValueOnce({ data: null, error: { code: "55P03" } })
+        .mockResolvedValueOnce({ data: null, error: { code: "PT503" } })
+        .mockResolvedValue({ data, error: null });
+      const pending = action(input);
+      await vi.advanceTimersByTimeAsync(0);
+      Object.assign(input, {
+        caseId: OTHER,
+        afterId: OTHER,
+        action: "resolve",
+      });
+      await vi.runAllTimersAsync();
+      expect(await pending).toEqual({ ok: true, data });
+      expect(mocks.rpc).toHaveBeenCalledTimes(3);
+      expect(mocks.rpc.mock.calls[1]).toEqual(mocks.rpc.mock.calls[0]);
+      expect(mocks.rpc.mock.calls[2]).toEqual(mocks.rpc.mock.calls[0]);
+      expect(mocks.getUser).toHaveBeenCalledTimes(4);
+    },
+  );
+
+  it.each(caseActions)(
+    "stops $rpc retry after the verified account changes",
+    async ({ action, input }) => {
+      vi.useFakeTimers();
+      mocks.rpc.mockResolvedValue({ data: null, error: { code: "55P03" } });
+      const pending = action(input());
+      await vi.advanceTimersByTimeAsync(0);
+      mocks.getUser.mockResolvedValue({
+        data: { user: { id: OTHER, email: EMAIL } },
+        error: null,
+      });
+      await vi.runAllTimersAsync();
+      expect(await pending).toMatchObject({ ok: false });
+      expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["PT403", "PT409", "57014", "UNKNOWN_COMMIT"])(
+    "never retries uncertain or denied case resolution (%s)",
+    async (code) => {
+      mocks.rpc.mockResolvedValue({
+        data: null,
+        error: { code, details: "private selected message" },
+      });
+      const result = await resolveConversationCase({
+        caseId: CASE,
+        action: "remove",
+      });
+      expect(result.ok).toBe(false);
+      expect(JSON.stringify(result)).not.toContain("private");
+      expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    },
+  );
 });
 
 describe("conversation operator Server Actions", () => {
@@ -263,6 +673,9 @@ describe("conversation operator Server Actions", () => {
 // local target and provisioned genuine Auth users, admin role, purchase and policy.
 // This HTTP adapter exercises the real gate + Auth + service client + RPCs. It does
 // not claim to test Next's production cookie transport or Server Action routing.
+// Task6 case-path HTTP acceptance is explicitly deferred to Task7's admitted
+// selected-case fixture. This existing grant/revoke scenario supplies no case
+// self-participant or selected-message SQL authorization evidence.
 describe.skipIf(process.env.C1B_WEB_LOCAL_ADAPTER !== "1")(
   "owned local HTTP/Auth adapter",
   () => {
