@@ -1,3 +1,4 @@
+import { workoutTrainingIso } from "@/lib/me/workoutDate";
 /**
  * Types and pure helpers for the admin dashboard. No I/O — safe to unit-test
  * and to import from both client (chart) and server (loader) modules.
@@ -94,4 +95,24 @@ export function mergeActivity(
     .flat()
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
     .slice(0, limit);
+}
+
+
+export type WorkoutMetricRow = {
+  source?: "planned" | "freestyle";
+  started_at: string;
+  performed_date?: string | null;
+  submitted_at?: string | null;
+  status: string;
+};
+
+export function workoutTrainingTimestamps(rows: WorkoutMetricRow[]): string[] {
+  return rows.filter((r) => r.status === "completed").map(workoutTrainingIso);
+}
+
+/** Unknown historical audit time stays unknown; it never becomes migration-day activity. */
+export function workoutSavedActivity(rows: Pick<WorkoutMetricRow, "status" | "submitted_at">[]): ActivityEvent[] {
+  return rows.filter((r) => r.status === "completed" && r.submitted_at).map((r) => ({
+    type: "workout", label: "Workout saved", at: r.submitted_at!,
+  }));
 }

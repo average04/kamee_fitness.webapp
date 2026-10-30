@@ -2,6 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanProgressInput } from "./plan";
 import type { SetWithExercise } from "./workoutDetail";
 import type { SetWithDate } from "./exerciseHistory";
+import { parseExerciseKey, type ExerciseKey } from "./exerciseIdentity";
+import { isMeasuredLiftingSet, type TrackingType } from "./oneRepMax";
+import { workoutDate, workoutTrainingIso } from "./workoutDate";
 
 export type Units = "metric" | "imperial";
 
@@ -42,6 +45,15 @@ export type WorkoutSessionRow = {
   status: "completed" | "abandoned" | "active";
   avg_hr: number | null;
   day_id: string | null;
+  source?: "planned" | "freestyle";
+  entry_mode?: "live" | "past" | null;
+  performed_date?: string | null;
+  timestamp_precision?: "instant" | "date" | null;
+  submitted_at?: string | null;
+  title?: string | null;
+  ended_at?: string | null;
+  max_hr?: number | null;
+  timezone?: string | null;
 };
 
 export type SessionSetRow = {
@@ -49,6 +61,14 @@ export type SessionSetRow = {
   plan_exercise_id: string | null;
   reps_done: number | null;
   weight: number | null;
+  exercise_key?: ExerciseKey;
+  occurrence_id?: string;
+  tracking_type?: TrackingType;
+  duration_seconds?: number | null;
+  name_snapshot?: string;
+  muscle_snapshot?: string[];
+  position?: number;
+  ordinal?: number;
 };
 
 export type TrackSessionRow = {
@@ -86,84 +106,105 @@ export type MeData = {
   dayTitleBySession: Record<string, string>;
   exerciseIdByPlanEx: Record<string, string>;
   nameByExercise: Record<string, string>;
+  muscleByExercise: Record<string, string>;
 };
 
-export async function loadMeData(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<MeData> {
-  const [profileRes, workoutsRes, tracksRes, streaksRes, weightsRes] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "display_name, avatar_url, units, target_weight_kg, target_date, weight_kg, is_premium, days_per_week",
-        )
-        .eq("id", userId)
-        .maybeSingle(),
-      supabase
-        .from("workout_sessions")
-        .select("id, started_at, duration_seconds, status, avg_hr, day_id")
-        .eq("user_id", userId)
-        .order("started_at", { ascending: true }),
-      supabase
-        .from("track_sessions")
-        .select(
-          "id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, elevation_loss_meters, avg_hr, max_hr, finished_at, created_at, route_points",
-        )
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("user_streaks")
-        .select(
-          "current_streak, longest_streak, track_current_streak, track_longest_streak",
-        )
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("weight_log")
-        .select("weight_kg, logged_at")
-        .eq("user_id", userId)
-        .order("logged_at", { ascending: true }),
-    ]);
+/** Page deterministic owner reads and keep ID filters within a modest request size. */
+async function readRows<T>(query: (from: number, to: number) => PromiseLike<{ data: unknown[] | null }>): Promise<T[]> {
+  const rows: T[] = [];
+  const pageSize = 500;
+  for (let from = 0; ; from += pageSize) {
+    const { data } = await query(from, from + pageSize - 1);
+    const page = (data ?? []) as T[];
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
 
-  const workouts = (workoutsRes.data ?? []) as WorkoutSessionRow[];
+async function readRelatedRows<T>(ids: string[], query: (ids: string[], from: number, to: number) => PromiseLike<{ data: unknown[] | null }>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    rows.push(...await readRows<T>((from, to) => query(chunk, from, to)));
+  }
+  return rows;
+}
+
+type WorkoutData = Pick<MeData, "workouts" | "sets" | "exerciseNames" | "dayTitleBySession" | "exerciseIdByPlanEx" | "nameByExercise" | "muscleByExercise">;
+async function loadWorkoutData(supabase: SupabaseClient, userId: string): Promise<WorkoutData> {
+  const workouts = await readRows<WorkoutSessionRow>((from, to) => supabase.from("workout_sessions")
+    .select("id, started_at, ended_at, duration_seconds, status, avg_hr, max_hr, day_id, source, entry_mode, performed_date, timestamp_precision, submitted_at, title, timezone")
+    .eq("user_id", userId).order("id").range(from, to).throwOnError());
 
   // Sets for this user's sessions (RLS scopes by session ownership).
   const sessionIds = workouts.map((w) => w.id);
   let sets: SessionSetRow[] = [];
   if (sessionIds.length) {
-    const setsRes = await supabase
-      .from("session_sets")
-      .select("session_id, plan_exercise_id, reps_done, weight")
-      .in("session_id", sessionIds);
-    sets = (setsRes.data ?? []) as SessionSetRow[];
+    sets = await readRelatedRows<SessionSetRow>(sessionIds, (ids, from, to) => supabase
+      .from("session_sets").select("session_id, plan_exercise_id, reps_done, weight")
+      .in("session_id", ids).order("id").range(from, to).throwOnError());
   }
 
-  // Resolve plan_exercise_id -> exercise name. Degrades to {} if RLS blocks.
+  // Resolve owner-referenced plan exercises into qualified catalog identities.
   const exerciseNames: Record<string, string> = {};
-  const exerciseIdByPlanEx: Record<string, string> = {};
+  const exerciseIdByPlanEx: Record<string, ExerciseKey> = {};
   const nameByExercise: Record<string, string> = {};
+  const muscleByExercise: Record<string, string> = {};
   const planExIds = [
     ...new Set(sets.map((s) => s.plan_exercise_id).filter(Boolean) as string[]),
   ];
   if (planExIds.length) {
-    const nameRes = await supabase
-      .from("plan_exercises")
-      .select("id, exercise_id, exercises(name)")
-      .in("id", planExIds);
-    for (const row of (nameRes.data ?? []) as Array<{
+    type PlanExercise = {
       id: string;
       exercise_id: string | null;
-      exercises: { name: string | null } | { name: string | null }[] | null;
-    }>) {
+      exercises: { name: string | null; primary_muscle?: string | null } | { name: string | null; primary_muscle?: string | null }[] | null;
+    };
+    const planExercises = await readRelatedRows<PlanExercise>(planExIds, (ids, from, to) => supabase
+      .from("plan_exercises").select("id, exercise_id, exercises(name, primary_muscle)")
+      .in("id", ids).order("id").range(from, to).throwOnError());
+    for (const row of planExercises) {
       const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
       const name = ex?.name ?? null;
-      if (name) exerciseNames[row.id] = name;
       if (row.exercise_id) {
-        exerciseIdByPlanEx[row.id] = row.exercise_id;
-        if (name) nameByExercise[row.exercise_id] = name;
+        const key = parseExerciseKey(row.exercise_id).key;
+        exerciseIdByPlanEx[`planned:${row.id}`] = key;
+        if (name) exerciseNames[key] = nameByExercise[key] = name;
+        if (ex?.primary_muscle) muscleByExercise[key] = ex.primary_muscle;
       }
+    }
+  }
+
+  sets = sets.map((row) => {
+    const key = row.plan_exercise_id ? exerciseIdByPlanEx[`planned:${row.plan_exercise_id}`] : undefined;
+    return { ...row, exercise_key: key, occurrence_id: row.plan_exercise_id ?? undefined, tracking_type: "weight_reps" };
+  });
+
+  // New children are bound to BOTH the authenticated owner and these owned parents.
+  if (sessionIds.length) {
+    type Occurrence = { id: string; session_id: string; source: "catalog" | "personal"; source_exercise_id: string; name_snapshot: string; tracking_type: TrackingType; muscle_snapshot: string[]; position: number };
+    type OccurrenceSet = { session_id: string; occurrence_id: string; ordinal: number; tracking_type: TrackingType; reps: number | null; weight_kg: number | null; duration_seconds: number | null };
+    const [occRows, setRows] = await Promise.all([
+      readRelatedRows<Occurrence>(sessionIds, (ids, from, to) => supabase.from("workout_occurrences")
+        .select("id, session_id, source, source_exercise_id, name_snapshot, tracking_type, muscle_snapshot, position")
+        .eq("user_id", userId).in("session_id", ids).order("id").range(from, to).throwOnError()),
+      readRelatedRows<OccurrenceSet>(sessionIds, (ids, from, to) => supabase.from("workout_occurrence_sets")
+        .select("session_id, occurrence_id, ordinal, tracking_type, reps, weight_kg, duration_seconds")
+        .eq("user_id", userId).in("session_id", ids).order("id").range(from, to).throwOnError()),
+    ]);
+    const occurrences = new Map(occRows.map((o) => [o.id, o]));
+    for (const row of setRows) {
+      const occ = occurrences.get(row.occurrence_id);
+      if (!occ || occ.session_id !== row.session_id || occ.tracking_type !== row.tracking_type) continue;
+      const key = parseExerciseKey(`${occ.source}:${occ.source_exercise_id}`).key;
+      // History uses immutable snapshots even if the definition was renamed, archived or removed.
+      exerciseNames[key] ??= occ.name_snapshot;
+      nameByExercise[key] ??= occ.name_snapshot;
+      if (occ.muscle_snapshot[0]) muscleByExercise[key] ??= occ.muscle_snapshot[0];
+      sets.push({ session_id: row.session_id, plan_exercise_id: null, exercise_key: key,
+        occurrence_id: occ.id, tracking_type: occ.tracking_type, reps_done: row.reps,
+        weight: row.weight_kg, duration_seconds: row.duration_seconds,
+        name_snapshot: occ.name_snapshot, muscle_snapshot: occ.muscle_snapshot,
+        position: occ.position, ordinal: row.ordinal });
     }
   }
 
@@ -173,12 +214,10 @@ export async function loadMeData(
     ...new Set(workouts.map((w) => w.day_id).filter(Boolean) as string[]),
   ];
   if (dayIds.length) {
-    const daysRes = await supabase
-      .from("plan_days")
-      .select("id, title")
-      .in("id", dayIds);
+    const days = await readRelatedRows<{ id: string; title: string | null }>(dayIds, (ids, from, to) => supabase
+      .from("plan_days").select("id, title").in("id", ids).order("id").range(from, to).throwOnError());
     const titleByDay = new Map(
-      ((daysRes.data ?? []) as { id: string; title: string | null }[]).map((d) => [
+      days.map((d) => [
         d.id,
         d.title ?? "Workout",
       ]),
@@ -190,17 +229,25 @@ export async function loadMeData(
     }
   }
 
+  for (const w of workouts) {
+    if (w.source === "freestyle") dayTitleBySession[w.id] = w.title?.trim() || "Freestyle workout";
+  }
+
+  return { workouts, sets, exerciseNames, dayTitleBySession, exerciseIdByPlanEx, nameByExercise, muscleByExercise };
+}
+
+export async function loadMeData(supabase: SupabaseClient, userId: string): Promise<MeData> {
+  const [profileRes, workoutData, tracksRes, streaksRes, weightsRes] = await Promise.all([
+    supabase.from("profiles").select("display_name, avatar_url, units, target_weight_kg, target_date, weight_kg, is_premium, days_per_week").eq("id", userId).maybeSingle(),
+    loadWorkoutData(supabase, userId),
+    supabase.from("track_sessions").select("id, mode, title, distance_meters, duration_seconds, elevation_gain_meters, elevation_loss_meters, avg_hr, max_hr, finished_at, created_at, route_points").eq("user_id", userId).order("created_at", { ascending: true }),
+    supabase.from("user_streaks").select("current_streak, longest_streak, track_current_streak, track_longest_streak").eq("user_id", userId).maybeSingle(),
+    supabase.from("weight_log").select("weight_kg, logged_at").eq("user_id", userId).order("logged_at", { ascending: true }),
+  ]);
   return {
-    profile: (profileRes.data ?? null) as ProfileRow | null,
-    workouts,
-    sets,
-    exerciseNames,
-    tracks: (tracksRes.data ?? []) as TrackSessionRow[],
-    streaks: (streaksRes.data ?? null) as StreakRow,
+    ...workoutData, profile: (profileRes.data ?? null) as ProfileRow | null,
+    tracks: (tracksRes.data ?? []) as TrackSessionRow[], streaks: (streaksRes.data ?? null) as StreakRow,
     weights: (weightsRes.data ?? []) as WeightRow[],
-    dayTitleBySession,
-    exerciseIdByPlanEx,
-    nameByExercise,
   };
 }
 
@@ -245,6 +292,9 @@ export type WorkoutDetailData = {
     durationSeconds: number | null;
     avgHr: number | null;
     maxHr: number | null;
+    performedDate: string;
+    timestampPrecision: "instant" | "date";
+    timezone: string | null;
   };
   dayTitle: string;
   ratingLabel: string | null;
@@ -255,252 +305,86 @@ export type WorkoutDetailData = {
   priorMax: Record<string, number>;
 };
 
-type RawSetRow = {
-  plan_exercise_id: string | null;
-  reps_done: number | null;
-  weight: number | null;
-};
-
-/** Map raw session_sets rows + a planEx→exercise map into SetWithExercise. */
-function toSets(
-  rows: RawSetRow[],
-  exByPlanEx: Map<string, { id: string; name: string }>,
-): SetWithExercise[] {
-  const out: SetWithExercise[] = [];
-  for (const r of rows) {
-    const ex = r.plan_exercise_id ? exByPlanEx.get(r.plan_exercise_id) : undefined;
-    if (!ex) continue;
-    out.push({ exerciseId: ex.id, reps: r.reps_done ?? 0, weightKg: r.weight ?? 0 });
-  }
-  return out;
+/** Keep nullable measurements intact at every consumer boundary. */
+export function toSets(rows: SessionSetRow[]): SetWithExercise[] {
+  return rows.filter((r) => r.exercise_key).map((r) => ({
+    exerciseId: r.exercise_key!, sessionId: r.session_id, occurrenceId: r.occurrence_id,
+    trackingType: r.tracking_type ?? "weight_reps", reps: r.reps_done, weightKg: r.weight,
+    durationSeconds: r.duration_seconds ?? null, position: r.position, ordinal: r.ordinal,
+    name: r.name_snapshot, primaryMuscle: r.muscle_snapshot?.[0],
+  }));
 }
 
 export async function loadWorkoutDetail(
-  supabase: SupabaseClient,
-  userId: string,
-  sessionId: string,
+  supabase: SupabaseClient, userId: string, sessionId: string,
 ): Promise<WorkoutDetailData | null> {
-  const { data: s } = await supabase
-    .from("workout_sessions")
-    .select(
-      "id, user_id, day_id, started_at, ended_at, duration_seconds, avg_hr, max_hr, status",
-    )
-    .eq("id", sessionId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!s) return null;
-  const sess = s as {
-    id: string;
-    day_id: string | null;
-    started_at: string;
-    ended_at: string | null;
-    duration_seconds: number | null;
-    avg_hr: number | null;
-    max_hr: number | null;
-  };
-
-  const [curRowsRes, fbRes, dayRes] = await Promise.all([
-    supabase
-      .from("session_sets")
-      .select("plan_exercise_id, reps_done, weight")
-      .eq("session_id", sessionId),
-    supabase
-      .from("workout_session_feedback")
-      .select("overall_rating")
-      .eq("session_id", sessionId)
-      .maybeSingle(),
-    sess.day_id
-      ? supabase.from("plan_days").select("title").eq("id", sess.day_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  const curRows = (curRowsRes.data ?? []) as RawSetRow[];
-
-  // Previous completed session of the same workout day.
-  let prevRows: RawSetRow[] = [];
-  if (sess.day_id) {
-    const { data: prevSession } = await supabase
-      .from("workout_sessions")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("day_id", sess.day_id)
-      .eq("status", "completed")
-      .lt("started_at", sess.started_at)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (prevSession) {
-      const { data } = await supabase
-        .from("session_sets")
-        .select("plan_exercise_id, reps_done, weight")
-        .eq("session_id", (prevSession as { id: string }).id);
-      prevRows = (data ?? []) as RawSetRow[];
-    }
-  }
-
-  // Resolve plan_exercise_id -> { exercise id, name } for all involved rows.
-  const planExIds = [
-    ...new Set(
-      [...curRows, ...prevRows]
-        .map((r) => r.plan_exercise_id)
-        .filter(Boolean) as string[],
-    ),
-  ];
-  const exByPlanEx = new Map<string, { id: string; name: string }>();
-  const muscleByExercise: Record<string, string> = {};
-  if (planExIds.length) {
-    const { data: pe } = await supabase
-      .from("plan_exercises")
-      .select("id, exercise_id, exercises(id, name, primary_muscle)")
-      .in("id", planExIds);
-    for (const row of (pe ?? []) as Array<{
-      id: string;
-      exercise_id: string;
-      exercises:
-        | { id: string; name: string | null; primary_muscle: string | null }
-        | { id: string; name: string | null; primary_muscle: string | null }[]
-        | null;
-    }>) {
-      const ex = Array.isArray(row.exercises) ? row.exercises[0] : row.exercises;
-      if (ex) {
-        exByPlanEx.set(row.id, { id: ex.id, name: ex.name ?? "Exercise" });
-        if (ex.primary_muscle) muscleByExercise[ex.id] = ex.primary_muscle;
-      }
-    }
-  }
-
-  const current = toSets(curRows, exByPlanEx);
-  const previous = toSets(prevRows, exByPlanEx);
-  const names: Record<string, string> = {};
-  for (const v of exByPlanEx.values()) names[v.id] = v.name;
-
-  // Prior all-time max weight per exercise BEFORE this session (for PRs).
+  // Resolve the owner boundary before reading any child or feedback data.
+  const { data: session } = await supabase.from("workout_sessions")
+    .select("id, started_at, ended_at, duration_seconds, avg_hr, max_hr, day_id, source, entry_mode, performed_date, timestamp_precision, submitted_at, title, status, timezone")
+    .eq("id", sessionId).eq("user_id", userId).maybeSingle().throwOnError();
+  if (!session) return null;
+  const sess = session as WorkoutSessionRow;
+  const data = await loadWorkoutData(supabase, userId);
+  const current = toSets(data.sets.filter((r) => r.session_id === sessionId));
+  const priorSessions = data.workouts.filter((w) => w.status === "completed" && w.id !== sessionId &&
+    (workoutDate(w) < workoutDate(sess) || (workoutDate(w) === workoutDate(sess) &&
+      w.timestamp_precision !== "date" && sess.timestamp_precision !== "date" && w.started_at < sess.started_at)));
+  const priorIds = new Set(priorSessions.map((w) => w.id));
+  const priorSets = toSets(data.sets.filter((r) => priorIds.has(r.session_id)));
   const priorMax: Record<string, number> = {};
-  const exIds = [...new Set(current.map((c) => c.exerciseId))];
-  if (exIds.length) {
-    const { data: peIds } = await supabase
-      .from("plan_exercises")
-      .select("id, exercise_id")
-      .in("exercise_id", exIds);
-    const exByPe = new Map(
-      ((peIds ?? []) as { id: string; exercise_id: string }[]).map((r) => [
-        r.id,
-        r.exercise_id,
-      ]),
-    );
-    if (exByPe.size) {
-      const { data: priorSessions } = await supabase
-        .from("workout_sessions")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("status", "completed")
-        .lt("started_at", sess.started_at);
-      const priorIds = ((priorSessions ?? []) as { id: string }[]).map((r) => r.id);
-      if (priorIds.length) {
-        const { data: priorSets } = await supabase
-          .from("session_sets")
-          .select("plan_exercise_id, weight")
-          .in("session_id", priorIds)
-          .in("plan_exercise_id", [...exByPe.keys()]);
-        for (const r of (priorSets ?? []) as {
-          plan_exercise_id: string | null;
-          weight: number | null;
-        }[]) {
-          const ex = r.plan_exercise_id ? exByPe.get(r.plan_exercise_id) : undefined;
-          if (!ex || r.weight == null) continue;
-          priorMax[ex] = Math.max(priorMax[ex] ?? 0, r.weight);
-        }
-      }
-    }
+  for (const row of priorSets) {
+    if (isMeasuredLiftingSet(row)) priorMax[row.exerciseId] = Math.max(priorMax[row.exerciseId] ?? 0, row.weightKg);
   }
-
-  const dayTitle = (dayRes.data as { title?: string | null } | null)?.title ?? "Workout";
-  const rating = fbRes.data as { overall_rating?: string } | null;
-  const ratingLabel =
-    rating && rating.overall_rating
-      ? RATING_LABEL[rating.overall_rating] ?? null
-      : null;
-
+  const previousSession = sess.day_id ? priorSessions.filter((w) => w.day_id === sess.day_id)
+    .sort((a, b) => workoutTrainingIso(b).localeCompare(workoutTrainingIso(a)))[0] : undefined;
+  const { data: feedback } = await supabase.from("workout_session_feedback").select("overall_rating")
+    .eq("session_id", sessionId).maybeSingle();
+  const rating = (feedback as { overall_rating?: string } | null)?.overall_rating;
   return {
-    session: {
-      id: sess.id,
-      startedAt: sess.started_at,
-      endedAt: sess.ended_at,
-      durationSeconds: sess.duration_seconds,
-      avgHr: sess.avg_hr,
-      maxHr: sess.max_hr,
-    },
-    dayTitle,
-    ratingLabel,
-    current,
-    previous,
-    names,
-    muscleByExercise,
-    priorMax,
+    session: { id: sess.id, startedAt: sess.started_at, endedAt: sess.ended_at ?? null,
+      durationSeconds: sess.duration_seconds, avgHr: sess.avg_hr, maxHr: sess.max_hr ?? null,
+      performedDate: workoutDate(sess), timestampPrecision: sess.timestamp_precision ?? "instant", timezone: sess.timezone ?? null },
+    dayTitle: data.dayTitleBySession[sess.id] ?? "Workout",
+    ratingLabel: rating ? RATING_LABEL[rating] ?? null : null,
+    current, previous: previousSession ? toSets(data.sets.filter((r) => r.session_id === previousSession.id)) : [],
+    names: data.nameByExercise, muscleByExercise: data.muscleByExercise, priorMax,
   };
 }
 
 export async function loadExerciseHistory(
-  supabase: SupabaseClient,
-  userId: string,
-  exerciseId: string,
-): Promise<{
-  name: string;
-  primaryMuscle: string | null;
-  demoImagePath: string | null;
-  sets: SetWithDate[];
-} | null> {
-  const { data: ex } = await supabase
-    .from("exercises")
-    .select("name, primary_muscle, demo_image_path")
-    .eq("id", exerciseId)
-    .maybeSingle();
-  if (!ex) return null;
-  const meta = ex as {
-    name: string | null;
-    primary_muscle: string | null;
-    demo_image_path: string | null;
-  };
-  const name = meta.name ?? "Exercise";
-  const primaryMuscle = meta.primary_muscle;
-  const demoImagePath = meta.demo_image_path;
-
-  const { data: peRows } = await supabase
-    .from("plan_exercises")
-    .select("id")
-    .eq("exercise_id", exerciseId);
-  const peIds = ((peRows ?? []) as { id: string }[]).map((r) => r.id);
-  if (!peIds.length) return { name, primaryMuscle, demoImagePath, sets: [] };
-
-  const { data: sessions } = await supabase
-    .from("workout_sessions")
-    .select("id, started_at")
-    .eq("user_id", userId)
-    .eq("status", "completed");
-  const dateById = new Map(
-    ((sessions ?? []) as { id: string; started_at: string }[]).map((s) => [
-      s.id,
-      s.started_at.slice(0, 10),
-    ]),
-  );
-  if (!dateById.size) return { name, primaryMuscle, demoImagePath, sets: [] };
-
-  const { data: setRows } = await supabase
-    .from("session_sets")
-    .select("session_id, reps_done, weight")
-    .in("plan_exercise_id", peIds)
-    .in("session_id", [...dateById.keys()]);
-
-  const sets: SetWithDate[] = [];
-  for (const r of (setRows ?? []) as {
-    session_id: string;
-    reps_done: number | null;
-    weight: number | null;
-  }[]) {
-    const dateIso = dateById.get(r.session_id);
-    if (!dateIso || r.weight == null) continue;
-    sets.push({ dateIso, reps: r.reps_done ?? 0, weightKg: r.weight });
+  supabase: SupabaseClient, userId: string, exerciseId: string,
+): Promise<{ name: string; primaryMuscle: string | null; demoImagePath: string | null; sets: SetWithDate[] } | null> {
+  let identity: ReturnType<typeof parseExerciseKey>;
+  try { identity = parseExerciseKey(exerciseId); } catch { return null; }
+  const data = await loadWorkoutData(supabase, userId);
+  const completed = new Map(data.workouts.filter((w) => w.status === "completed").map((w) => [w.id, w]));
+  const rows = data.sets.filter((r) => r.exercise_key === identity.key && completed.has(r.session_id));
+  const snapshot = rows.find((r) => r.name_snapshot);
+  let meta: { name: string; primary_muscle?: string | null; demo_image_path?: string | null; muscles?: string[] } | null = null;
+  if (identity.source === "catalog") {
+    const { data: ex } = await supabase.from("exercises").select("name, primary_muscle, demo_image_path")
+      .eq("id", identity.id).maybeSingle().throwOnError();
+    meta = ex;
+  } else if (!snapshot) {
+    // A private UUID is NEVER retried against the public catalog.
+    const { data: ex } = await supabase.from("personal_exercises").select("name, muscles")
+      .eq("id", identity.id).eq("user_id", userId).maybeSingle().throwOnError();
+    meta = ex;
   }
-  return { name, primaryMuscle, demoImagePath, sets };
+  if (!meta && !snapshot) return null;
+  return {
+    name: identity.source === "personal" && snapshot ? snapshot.name_snapshot! : meta?.name ?? snapshot?.name_snapshot ?? "Exercise",
+    primaryMuscle: meta?.primary_muscle ?? meta?.muscles?.[0] ?? snapshot?.muscle_snapshot?.[0] ?? null,
+    demoImagePath: identity.source === "catalog" ? meta?.demo_image_path ?? null : null,
+    sets: toSets(rows).map((r) => {
+      const session = completed.get(r.sessionId!)!;
+      return {
+        ...r, dateIso: workoutDate(session), source: session.source ?? "planned",
+        startedAt: session.started_at,
+        timestampPrecision: session.timestamp_precision ?? (session.source === "freestyle" ? "date" : "instant"),
+      };
+    }),
+  };
 }
 
 export async function loadTrackDetail(

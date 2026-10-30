@@ -40,10 +40,10 @@ export default function FeedItem({ item, units }: { item: Item; units: Units }) 
   const href = isWorkout ? `/me/workouts/${item.id}` : `/me/tracks/${item.id}`;
   const accent = isWorkout ? "text-leaf-400" : "text-teal-500";
   const metric = isWorkout
-    ? fmtVolume(item.volumeKg, units)
+    ? item.volumeKg == null ? "—" : fmtVolume(item.volumeKg, units)
     : fmtDistance(item.distanceM, units);
   const secondary = isWorkout
-    ? `${item.setCount} ${item.setCount === 1 ? "set" : "sets"} · ${fmtDuration(item.durationS)}`
+    ? `${item.setCount} ${item.setCount === 1 ? "set" : "sets"}${item.durationS == null ? "" : ` · ${fmtDuration(item.durationS)}`}`
     : `${fmtPaceFromMeters(item.distanceM, item.durationS, units)} · ${fmtDuration(item.durationS)}`;
 
   return (

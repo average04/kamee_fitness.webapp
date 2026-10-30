@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { workoutDate } from "@/lib/me/workoutDate";
 import { loadMeData } from "@/lib/me/queries";
 import { buildFeed } from "@/lib/me/feed";
 import BackLink from "@/components/me/BackLink";
@@ -30,7 +31,7 @@ export default async function DayPage({
   const units = data.profile?.units ?? "metric";
 
   const workouts = data.workouts.filter(
-    (w) => w.started_at.slice(0, 10) === date,
+    (w) => workoutDate(w) === date,
   );
   const tracks = data.tracks.filter(
     (t) => (t.finished_at ?? t.created_at).slice(0, 10) === date,

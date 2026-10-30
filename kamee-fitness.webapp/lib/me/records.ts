@@ -1,11 +1,10 @@
-import { epley1Rm } from "./oneRepMax";
+import { epley1Rm, isMeasuredLiftingSet, type SetMetrics } from "./oneRepMax";
 
-export type RecordSet = {
+export type RecordSet = SetMetrics & {
   exerciseId: string;
   name: string;
   dateIso: string;
-  reps: number;
-  weightKg: number;
+  sessionId?: string;
 };
 
 export type ExerciseRecord = {
@@ -31,6 +30,7 @@ export function buildRecords(sets: RecordSet[]): ExerciseRecord[] {
     }
   >();
   for (const s of sets) {
+    if ((s.trackingType ?? "weight_reps") !== "weight_reps") continue;
     const r =
       byEx.get(s.exerciseId) ??
       {
@@ -42,14 +42,14 @@ export function buildRecords(sets: RecordSet[]): ExerciseRecord[] {
         lastDoneIso: null,
       };
     r.name = s.name;
-    r.dates.add(s.dateIso);
+    r.dates.add(s.sessionId ?? s.dateIso);
     if (r.lastDoneIso == null || s.dateIso > r.lastDoneIso) r.lastDoneIso = s.dateIso;
-    if (s.weightKg > 0) {
+    if (isMeasuredLiftingSet(s) && s.weightKg > 0) {
       if (s.weightKg > r.prKg) {
         r.prKg = s.weightKg;
         r.prDateIso = s.dateIso;
       }
-      r.est1RmKg = Math.max(r.est1RmKg, epley1Rm(s.weightKg, s.reps));
+      r.est1RmKg = Math.max(r.est1RmKg, epley1Rm(s.weightKg, s.reps, s.trackingType) ?? 0);
     }
     byEx.set(s.exerciseId, r);
   }

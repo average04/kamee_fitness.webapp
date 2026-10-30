@@ -24,7 +24,6 @@ export default async function WorkoutDetailPage({
     loadUnits(supabase, user.id),
   ]);
   if (!detail) notFound();
-
   const summary = summarizeWorkoutDetail(
     detail.current,
     detail.previous,
@@ -33,12 +32,11 @@ export default async function WorkoutDetailPage({
     detail.muscleByExercise,
   );
   const startedAt = new Date(detail.session.startedAt);
-  const timeOfDay = startedAt.toLocaleTimeString("en-US", {
+  const timeOfDay = detail.session.timestampPrecision === "date" ? "—" : startedAt.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
-    timeZone: "UTC",
+    timeZone: detail.session.timezone ?? "UTC",
   });
-
   return (
     <main className="relative z-10 mx-auto max-w-3xl px-6 py-10">
       <BackLink />
@@ -47,7 +45,7 @@ export default async function WorkoutDetailPage({
           {detail.dayTitle}
         </h1>
         <p className="mt-1 text-sm text-muted">
-          {detail.session.startedAt.slice(0, 10)}
+          {detail.session.performedDate}
           {detail.ratingLabel ? ` · ${detail.ratingLabel}` : ""}
         </p>
         <div className="mt-4">
@@ -73,7 +71,7 @@ export default async function WorkoutDetailPage({
             ]}
           />
         </div>
-        <div className="mt-4 flex items-center gap-3">
+        {summary.exercises.some((e) => e.volumeKg != null) && <div className="mt-4 flex items-center gap-3">
           <span className="font-display text-xl font-bold text-leaf-400">
             {fmtVolume(summary.totalVolumeKg, units)}
           </span>
@@ -82,7 +80,7 @@ export default async function WorkoutDetailPage({
             format={(n) => fmtVolume(n, units)}
           />
           <span className="text-xs text-muted">total volume vs last time</span>
-        </div>
+        </div>}
       </header>
       <div className="mt-6">
         {summary.exercises.length ? (

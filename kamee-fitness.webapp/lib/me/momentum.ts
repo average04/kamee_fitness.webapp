@@ -1,3 +1,4 @@
+import { workoutTrainingIso } from "./workoutDate";
 import type { TrackSessionRow, WorkoutSessionRow } from "./queries";
 
 export type Momentum = {
@@ -30,7 +31,7 @@ export function buildMomentum(
   let workoutsThisWeek = 0;
   let workoutsLastWeek = 0;
   for (const w of completed) {
-    const t = Date.parse(w.started_at);
+    const t = Date.parse(workoutTrainingIso(w));
     if (Number.isNaN(t)) continue;
     if (last == null || t > last) last = t;
     if (t >= thisStart) workoutsThisWeek++;

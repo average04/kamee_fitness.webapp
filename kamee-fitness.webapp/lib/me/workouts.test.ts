@@ -21,6 +21,14 @@ const names = { pe1: "Bench Press", pe2: "Squat" };
 const streaks = { current_streak: 9, longest_streak: 14, track_current_streak: 0, track_longest_streak: 0 };
 
 describe("summarizeWorkouts", () => {
+  it("keeps same-name catalog and personal identities distinct in dashboard rankings", () => {
+    const result = summarizeWorkouts(workouts, [
+      { session_id: "s1", plan_exercise_id: null, exercise_key: "catalog:x", name_snapshot: "Press", reps_done: 5, weight: 50 },
+      { session_id: "s1", plan_exercise_id: null, exercise_key: "personal:x", name_snapshot: "Press", reps_done: 8, weight: 20 },
+    ], {}, null, ALL);
+    expect(result.topExercises).toHaveLength(2);
+    expect(result.prs.map((r) => r.weightKg)).toEqual([50, 20]);
+  });
   it("counts only completed sessions in range", () => {
     const all = summarizeWorkouts(workouts, sets, names, streaks, ALL);
     expect(all.sessions).toBe(2);

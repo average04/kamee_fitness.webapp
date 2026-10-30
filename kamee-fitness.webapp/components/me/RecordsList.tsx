@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exerciseHref } from "@/lib/me/exerciseIdentity";
 import type { ExerciseRecord } from "@/lib/me/records";
 import { fmtWeight, type Units } from "@/lib/me/units";
 import RowPendingArrow from "./RowPendingArrow";
@@ -15,7 +16,7 @@ export default function RecordsList({
       {records.map((r) => (
         <li key={r.exerciseId}>
           <Link
-            href={`/me/exercises/${r.exerciseId}`}
+            href={exerciseHref(r.exerciseId)}
             className="flex items-center justify-between gap-3 py-3 transition-colors hover:text-leaf-300"
           >
             <span className="min-w-0 truncate font-display font-semibold text-mist">

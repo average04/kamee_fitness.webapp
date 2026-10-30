@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/user/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { loadMeData, loadPlanProgress } from "@/lib/me/queries";
 import { parseRange, resolveWindow } from "@/lib/me/range";
-import { summarizeWorkouts } from "@/lib/me/workouts";
+import { summarizeWorkouts, workoutTimeDisplay } from "@/lib/me/workouts";
 import { summarizeTracks } from "@/lib/me/tracks";
 import { buildHeatmap } from "@/lib/me/heatmap";
 import { buildWeightSeries } from "@/lib/me/weight";
@@ -137,8 +137,7 @@ export default async function MePage({
                 accent="leaf"
               />
               <StatCard
-                label="Time trained"
-                value={fmtDuration(w.timeTrainedSeconds)}
+                {...workoutTimeDisplay(w, fmtDuration)}
               />
             </div>
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -158,7 +157,7 @@ export default async function MePage({
                   {w.topExercises.length ? (
                     <ul className="mt-2 space-y-1 text-sm text-mist/85">
                       {w.topExercises.map((e) => (
-                        <li key={e.name} className="flex justify-between gap-3">
+                        <li key={e.exerciseId ?? e.name} className="flex justify-between gap-3">
                           <span>{e.name}</span>
                           <span className="text-muted">{e.sets} sets</span>
                         </li>
@@ -175,7 +174,7 @@ export default async function MePage({
                   {w.prs.length ? (
                     <ul className="mt-2 space-y-1 text-sm text-mist/85">
                       {w.prs.map((p) => (
-                        <li key={p.name} className="flex justify-between gap-3">
+                        <li key={p.exerciseId ?? p.name} className="flex justify-between gap-3">
                           <span>{p.name}</span>
                           <span className="text-leaf-400">
                             {fmtWeight(p.weightKg, units)}
