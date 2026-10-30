@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import { validAdminUuid } from "@/lib/coaching/commerce-admin";
 import { parseRevision } from "@/lib/coaching/commerce";
@@ -307,6 +308,7 @@ function parseCaseResolution(
 }
 
 function actionError(error: unknown): string {
+  unstable_rethrow(error);
   const code =
     error !== null && typeof error === "object" && "code" in error
       ? error.code

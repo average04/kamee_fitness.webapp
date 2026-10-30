@@ -12,11 +12,17 @@ vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: mocks.server,
 }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminSupabase: mocks.client }));
-vi.mock("next/navigation", () => ({
-  redirect: (path: string) => {
-    throw new Error(`redirect:${path}`);
-  },
-}));
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return {
+    unstable_rethrow: actual.unstable_rethrow,
+    redirect: (path: string) => {
+      throw Object.assign(new Error(`redirect:${path}`), {
+        digest: `NEXT_REDIRECT;replace;${path};307;`,
+      });
+    },
+  };
+});
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 import { setCoachStatus } from "./actions";
 
@@ -43,6 +49,17 @@ afterEach(() => {
 });
 
 describe("coach status caller busy retry", () => {
+  it("preserves the framework login redirect when verified Auth disappears during status backoff", async () => {
+    mocks.rpc.mockResolvedValue({ error: { code: "55P03" } });
+    const pending = setCoachStatus(COACH, "suspended", "").then(value => ({ value }), error => ({ error }));
+    await vi.advanceTimersByTimeAsync(0);
+    mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    await vi.runAllTimersAsync();
+    const outcome = await pending;
+    expect("error" in outcome && outcome.error instanceof Error && outcome.error.message).toBe("redirect:/admin/login");
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(mocks.revalidate).not.toHaveBeenCalled();
+  });
   it("preserves the original status RPC arguments and invalidation on success", async () => {
     expect(await setCoachStatus(COACH, "suspended", " reviewed ")).toEqual({
       ok: true,

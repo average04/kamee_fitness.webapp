@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import {
   coerceCredentialEvidence,
@@ -192,6 +193,7 @@ export async function setCoachStatus(
       },
     );
   } catch (error) {
+    unstable_rethrow(error);
     const message =
       error !== null && typeof error === "object" && "message" in error &&
       typeof error.message === "string" ? error.message : "";
