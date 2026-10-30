@@ -2,6 +2,8 @@
 
 Status: **bounded hosted conflict, incomplete-submission and keyboard checks PASS**. This extends the earlier hosted-authoring receipt; it is not complete screen-reader or physical Safari acceptance.
 
+Later checkpoint: [hosted approval-flow acceptance](coach-approval-flow-2026-10-30.md) resolves the operator-access and disposable create/plan-cover/valid-submit/approve/retire prerequisites for one explicitly labelled fixture. The denial and pending-gate statements below describe this earlier checkpoint; full Preview authoring, avatar/profile-cover and physical acceptance remain distinct.
+
 ## Hosted target and preservation
 
 The existing authorized coach session used PR #12 Preview in desktop Chrome. The page exposed Netlify deploy `6ae3c937ba6a6629406d67e3`; public deploy metadata confirms `ready`, `deploy-preview`, branch `feat/coaching-refinements`, source `eb819d01be82398538c3d02053b9aff88b054e42`. The existing `test1` draft was used, without changing its content, cover, price, approval or listing state. Temporary browser tabs are closed after the checks.
