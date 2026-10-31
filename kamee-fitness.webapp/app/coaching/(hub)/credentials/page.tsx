@@ -2,7 +2,6 @@ import { PageIntro } from "@/components/coaching/PageIntro";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { CredentialsManager, type CredentialRow } from "@/components/coaching/CredentialsManager";
-import { BackLink } from "@/components/coaching/BackLink";
 
 export const metadata = { title: "Coach credentials" };
 
@@ -26,7 +25,6 @@ export default async function CredentialsPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink />
       <PageIntro title="Credentials" description="Optional. Supporting documents stay private." />
       <CredentialsManager
         coachId={user.id}

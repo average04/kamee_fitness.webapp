@@ -1,4 +1,5 @@
 // Mirrored from mobile lib/plans/runDayForm.ts; preserve native run/walk semantics.
+// Web authoring adds repetition bounds before expansion; the mobile mirror does not yet include this guard.
 import type { CardioPrescription } from './planCardio';
 type DayKind = 'workout' | 'rest' | 'active_recovery' | 'run' | 'hybrid';
 type Discipline = 'strength' | 'running';
@@ -119,6 +120,7 @@ function sessionMode(segments: SessionSegments): 'walk' | 'run' {
  *  'intervals' only when the legacy compile succeeds, guidance_config is the
  *  stripped 3-field object, target_seconds is the session total. */
 export function buildRunDayCardio(params: RunDayParams): BuiltRunDay {
+  if ('reps' in params) assertRunRepetitions(params.reps);
   const day = catalogDayFor(params);
   const legacy = compileToLegacyGuidance(day.segments);
   return {
@@ -135,6 +137,13 @@ export function buildRunDayCardio(params: RunDayParams): BuiltRunDay {
       sessionType: day.sessionType,
     },
   };
+}
+
+/** Bound author-entered repetitions before any segment expansion. */
+export function assertRunRepetitions(repetitions: number): void {
+  if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 100) {
+    throw new RangeError('Repetitions must be a whole number from 1 to 100.');
+  }
 }
 
 type RepeatGroup = { repeat: number; of: SegmentLeaf[] };

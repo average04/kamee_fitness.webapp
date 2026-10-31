@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 
 /** Return to the unified profile and setup page. */
 export function BackLink() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useId, useRef, useState } from "react";
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import {
   deleteCredential,
   setCredentialDocument,

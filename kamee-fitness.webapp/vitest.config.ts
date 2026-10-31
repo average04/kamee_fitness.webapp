@@ -9,6 +9,10 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    include: [
+      "lib/**/*.test.ts",
+      "app/admin/(panel)/coaching-conversations/actions.test.ts",
+      "app/admin/(panel)/coaches/actions.test.ts",
+    ],
   },
 });

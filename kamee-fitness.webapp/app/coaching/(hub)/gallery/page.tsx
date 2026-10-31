@@ -2,7 +2,6 @@ import { PageIntro } from "@/components/coaching/PageIntro";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { GalleryManager, type GalleryRow } from "@/components/coaching/GalleryManager";
-import { BackLink } from "@/components/coaching/BackLink";
 
 export const metadata = { title: "Coach gallery" };
 
@@ -30,7 +29,6 @@ export default async function GalleryPage() {
 
   return (
     <div className="space-y-6">
-      <BackLink />
       <PageIntro title="Gallery" description="Add 3 to 12 photos." />
       <GalleryManager
         coachId={user.id}

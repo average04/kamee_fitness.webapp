@@ -3,12 +3,15 @@ import { VideoLibrary } from "@/components/coaching/plans/VideoLibrary";
 import { requireCoach } from "@/lib/coaching/auth";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Video } from "@/lib/coaching/plans";
+
+export const metadata = { title: "Coaching video assets" };
+
 export default async function VideosPage() {
   const { status, user } = await requireCoach();
   if (status !== "approved")
     return (
       <PageIntro
-        title="Videos"
+        title="Video assets"
         description="You can upload videos once your coach profile is approved."
       />
     );
@@ -29,7 +32,7 @@ export default async function VideosPage() {
   return (
     <>
       <PageIntro
-        title="Videos"
+        title="Video assets"
         description="Upload once. Use in your plans and profile."
       />
       <VideoLibrary

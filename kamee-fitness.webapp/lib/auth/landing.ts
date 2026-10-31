@@ -16,6 +16,7 @@ export async function getSignInDestination(): Promise<string> {
   if (profileError) throw new Error("Could not load your account. Please retry.");
   if (profile?.role === "coach") {
     if (profile.coach_status === "invited") return "/coaching/invite";
+    if (profile.coach_status === "approved") return "/coaching/dashboard";
     if (isHubState(profile.coach_status)) return "/coaching/profile";
   }
   return "/me";
