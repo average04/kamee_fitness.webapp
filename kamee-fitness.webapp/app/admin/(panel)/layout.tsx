@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/auth";
 import { signOut } from "@/app/admin/actions";
+import { AuthBoundaryForm } from "@/components/auth/AuthBoundaryForm";
 
 export default async function PanelLayout({
   children,
@@ -45,11 +46,11 @@ export default async function PanelLayout({
         </nav>
         <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm text-zinc-400">
           <span className="break-all">{user.email}</span>
-          <form action={signOut}>
+          <AuthBoundaryForm action={signOut}>
             <button className="rounded-md border border-zinc-800 px-2 py-1 hover:border-zinc-600">
               Sign out
             </button>
-          </form>
+          </AuthBoundaryForm>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>

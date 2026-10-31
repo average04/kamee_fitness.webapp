@@ -418,3 +418,33 @@ input:disabled + .plan-cover-button { opacity:.5; cursor:wait; }
 .plan-item-actions button:not(:disabled):hover { background:var(--color-ink-900); border-color:var(--color-leaf-600); }
 .plan-item-actions button:focus-visible { outline:2px solid var(--color-leaf-500); outline-offset:3px; }
 @media(max-width:640px) { .plan-item-header { flex-direction:column; align-items:stretch; } .plan-item-header > h4, .plan-item-header > strong { padding-top:0; } .plan-item-actions { margin-left:0; justify-content:flex-start; } }
+
+/* Participant conversations reuse the coach shell and controls. */
+.coaching-workspace .coach-conversation { display:grid; gap:20px; min-width:0; max-width:880px; }
+.coaching-workspace .coach-conversation :is(button,summary,select,a) { min-height:44px; }
+.coaching-workspace .coach-conversation button { border:1px solid var(--coach-border); border-radius:10px; padding:10px 16px; text-align:center; }
+.coaching-workspace .coach-conversation :is(button,textarea,select,a,summary):focus-visible { outline:3px solid var(--color-leaf-500); outline-offset:3px; }
+.coaching-workspace .coach-conversation button:disabled { opacity:.5; cursor:default; }
+.coaching-workspace .coach-conversation :is(p,li,label,summary) { line-height:1.6; overflow-wrap:anywhere; }
+.coaching-workspace .coach-conversation :is(h2,h3) { font-weight:600; }
+.coaching-workspace .conversation-panel { display:grid; gap:12px; min-width:0; padding:18px; border:1px solid var(--coach-border); border-radius:14px; background:var(--color-ink-950); }
+.coaching-workspace details.conversation-panel { display:block; }
+.coaching-workspace details.conversation-panel[open] > * + * { margin-top:12px; }
+.coaching-workspace .conversation-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.coaching-workspace .conversation-transcript { min-width:0; height:min(60dvh,600px); min-height:220px; overflow-y:auto; overflow-anchor:none; overscroll-behavior:contain; padding:12px; border:1px solid var(--coach-border); border-radius:14px; }
+.coaching-workspace .conversation-transcript:focus-visible { outline:3px solid var(--color-leaf-500); outline-offset:3px; }
+.coaching-workspace .conversation-transcript ol, .coaching-workspace .conversation-roster { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
+.coaching-workspace .conversation-message { padding:16px; border-radius:12px; background:var(--color-ink-900); }
+.coaching-workspace .conversation-message-meta { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.coaching-workspace .conversation-message-meta time { font-size:12px; color:var(--color-muted); }
+.coaching-workspace .conversation-message-removed, .coaching-workspace .conversation-message-system { color:var(--color-muted); }
+.coaching-workspace .conversation-text { white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }
+.coaching-workspace .conversation-composer { display:grid; gap:12px; min-width:0; }
+.coaching-workspace .conversation-composer textarea { width:100%; resize:vertical; min-height:120px; font:inherit; }
+.coaching-workspace .conversation-composer > p { font-size:13px; color:var(--color-muted); }
+.coaching-workspace .conversation-selection { display:flex; align-items:center; gap:10px; min-height:44px; margin-top:12px; cursor:pointer; }
+.coaching-workspace .conversation-selection input { width:20px; height:20px; accent-color:var(--color-leaf-500); flex-shrink:0; }
+.coaching-workspace .conversation-roster a { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; padding:16px; border:1px solid var(--coach-border); border-radius:12px; }
+.coaching-workspace .conversation-roster strong { grid-column:1/-1; }
+@media(max-width:480px) { .coaching-workspace .conversation-panel { padding:12px; } .coaching-workspace .conversation-transcript { padding:8px; } .coaching-workspace .conversation-message { padding:12px; } .coaching-workspace .conversation-actions > button { flex:1 1 120px; } .coaching-workspace .conversation-roster a { grid-template-columns:minmax(0,1fr); } }
+@media(prefers-reduced-motion:reduce) { .coaching-workspace .coach-conversation * { scroll-behavior:auto; transition:none; animation:none; } }
