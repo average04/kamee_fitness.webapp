@@ -18,7 +18,7 @@ import { isDeleteConfirmation } from "@/lib/account-deletion";
  */
 
 export type DeletionActionState =
-  | { ok: true; purgeAfter: string | null }
+  | { ok: true; purgeAfter: string | null; cleanupAccountId: string }
   | { ok: false; error: string }
   | null;
 
@@ -54,7 +54,7 @@ export async function requestAccountDeletion(
   // before the purge date is how they cancel.
   await supabase.auth.signOut();
   revalidatePath("/delete-account");
-  return { ok: true, purgeAfter: (data?.purge_after as string | undefined) ?? null };
+  return { ok: true, purgeAfter: (data?.purge_after as string | undefined) ?? null, cleanupAccountId: user.id };
 }
 
 export async function cancelAccountDeletion(): Promise<DeletionActionState> {

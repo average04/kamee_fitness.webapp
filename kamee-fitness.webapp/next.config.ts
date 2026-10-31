@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
+import { configuredLocalLoginOrigin } from "./lib/auth/local-login-origin";
 
 // Supabase Storage host for the public exercise-demos bucket (next/image).
 const supabaseHost = (() => {
@@ -11,6 +12,8 @@ const supabaseHost = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  // Keep the opt-in loopback alias redirect absolute; Next otherwise relativizes it.
+  skipProxyUrlNormalize: configuredLocalLoginOrigin(process.env.NODE_ENV, process.env.SITE_URL) !== null,
   // Allow .mdx files to be treated as routable/importable page-like modules.
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   experimental: {

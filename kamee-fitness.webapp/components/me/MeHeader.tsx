@@ -2,6 +2,7 @@ import { signOut } from "@/app/me/actions";
 import { avatarSrc } from "@/lib/me/avatars";
 import type { Range } from "@/lib/me/range";
 import RangeToggle from "./RangeToggle";
+import { AuthBoundaryForm } from "@/components/auth/AuthBoundaryForm";
 
 export default function MeHeader({
   name,
@@ -51,11 +52,11 @@ export default function MeHeader({
       </div>
       <div className="flex items-center gap-3">
         <RangeToggle range={range} from={from} to={to} />
-        <form action={signOut}>
+        <AuthBoundaryForm action={signOut}>
           <button className="rounded-full border border-white/12 px-3 py-1.5 text-xs text-muted hover:text-mist">
             Sign out
           </button>
-        </form>
+        </AuthBoundaryForm>
       </div>
     </header>
   );

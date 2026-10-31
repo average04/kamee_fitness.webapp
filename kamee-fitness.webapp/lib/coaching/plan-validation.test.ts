@@ -16,6 +16,17 @@ const plan = () =>
     meals: newMeals(),
   }) as unknown as PlanDocument;
 describe("review regressions", () => {
+  it.each([null, undefined])("saves a legacy %s level as Any level during an unrelated summary edit", (level) => {
+    const p = Object.assign(plan(), { level, summary: "Summary-only edit" });
+    expect(draftPayload(p).level).toBe("none");
+    expect(draftPayload(p).summary).toBe("Summary-only edit");
+  });
+  it.each(["none", "beginner", "intermediate", "advanced", ""])(
+    "preserves an explicit level %j in the save payload",
+    (level) => {
+      expect(draftPayload(Object.assign(plan(), { level })).level).toBe(level);
+    },
+  );
   it("rejects a 600 calorie day before the atomic save", () => {
     const p = plan();
     p.meals!.days[0].kcal = 600;

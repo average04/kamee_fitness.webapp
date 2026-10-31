@@ -160,7 +160,7 @@ export function OrderControls({
           Duplicate
         </button>
       )}
-    <button type="button" className="plan-secondary text-red-400" aria-label={`Remove ${label}`} onClick={remove}>Remove</button>
+    <button type="button" className="plan-danger" aria-label={`Remove ${label}`} onClick={remove}>Remove</button>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "@/lib/coaching/autosave";
 import { mergeGalleryState, planGalleryUploads, type GalleryRow } from "@/lib/coaching/gallery";
 import { buildPublicStorageUrl } from "@/lib/coaching/storage";
+import { preparePhotoForUpload } from "@/lib/coaching/prepare-photo";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { Field } from "./Field";
 import { SaveIndicator } from "./SaveIndicator";
@@ -201,12 +202,20 @@ export function GalleryManager({
     file: File,
     path: string,
   ): Promise<string | null> {
+    let prepared: Awaited<ReturnType<typeof preparePhotoForUpload>>;
+    try {
+      prepared = await preparePhotoForUpload(file, "gallery");
+    } catch (e) {
+      return e instanceof Error ? e.message : "Could not prepare the photo. Please retry.";
+    }
+    // A browser without WebP encoding may have produced PNG or JPEG instead.
+    const uploadPath = path.replace(/\.(jpg|png|webp)$/, `.${prepared.extension}`);
     try {
       const { error: uploadError } = await supabase.storage
         .from("social-photos")
-        .upload(path, file, { upsert: false, contentType: file.type });
+        .upload(uploadPath, prepared.file, { upsert: false, contentType: prepared.file.type });
       if (uploadError) return "Could not upload the photo. Please retry.";
-      const result = await addGalleryPhoto(path);
+      const result = await addGalleryPhoto(uploadPath);
       if (!result.message) return null;
       // The object is already in storage but no row references it --
       // best-effort cleanup so it doesn't linger as an orphan. Minor
@@ -214,7 +223,7 @@ export function GalleryManager({
       // (add) failure as the primary message rather than replacing it.
       let cleanupFailed = false;
       try {
-        const { error: removeError } = await supabase.storage.from("social-photos").remove([path]);
+        const { error: removeError } = await supabase.storage.from("social-photos").remove([uploadPath]);
         cleanupFailed = !!removeError;
       } catch {
         cleanupFailed = true;
@@ -298,7 +307,7 @@ export function GalleryManager({
       </h2>
       <p id={`${addInputId}-hint`} className="text-sm text-muted">
         Select several photos at once. On a computer, hold Ctrl (Windows) or Command (Mac)
-        to select individual photos, or Shift to select a range. JPEG, PNG or WebP, up to 5 MB each.
+        to select individual photos, or Shift to select a range. JPEG, PNG or WebP, up to 25 MB each; photos are resized before upload.
       </p>
 
       {error && (
@@ -402,7 +411,7 @@ export function GalleryManager({
             : photos.length >= MAX_PHOTOS
               ? "12 of 12"
               : "+ Select photos"}
-          {photos.length === 0 && <span className="max-w-xs px-4 text-xs leading-relaxed text-muted">JPEG, PNG or WebP &middot; up to 5 MB each.</span>}
+          {photos.length === 0 && <span className="max-w-xs px-4 text-xs leading-relaxed text-muted">JPEG, PNG or WebP &middot; up to 25 MB each.</span>}
         </label>
       </div>
     </div>

@@ -1,0 +1,13 @@
+@font-face { font-family:QAOnest; src:url('@qa-onest') format('truetype'); font-weight:600; }
+@font-face { font-family:QAHanken; src:url('@qa-hanken') format('truetype'); font-weight:400; }
+:root { --font-coach-display:QAOnest; --font-hanken:QAHanken; --font-onest:QAOnest; }
+body { margin:0; background:var(--color-ink-950); color:var(--color-mist); font-family:QAHanken,sans-serif; }
+.qa-shell { padding:20px; }
+.qa-toolbar { display:grid; gap:12px; max-width:1200px; padding-bottom:24px; }
+.qa-toolbar > div { display:flex; flex-wrap:wrap; gap:8px; }
+.qa-toolbar button { min-height:44px; padding:8px 12px; border:1px solid var(--color-ink-600); border-radius:8px; }
+.qa-viewport { max-width:100%; margin:auto; padding:12px; border:1px dashed var(--color-ink-500); }
+.qa-persona { color:var(--color-muted); margin-bottom:18px; }
+.qa-large { font-size:24px; }
+.qa-evidence { margin:24px auto; max-width:960px; overflow-wrap:anywhere; }
+.qa-evidence pre { white-space:pre-wrap; }

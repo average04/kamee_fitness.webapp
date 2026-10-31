@@ -26,10 +26,16 @@ describe("default sign-in destination", () => {
     getUser.mockResolvedValue({ data: { user: null }, error: null });
     expect(await getSignInDestination()).toBe("/login");
   });
-  it.each(["onboarding", "in_review", "changes_requested", "approved", "suspended"])("routes %s coaches to onboarding", async (status) => {
+  it.each(["onboarding", "in_review", "changes_requested", "suspended"])("routes %s coaches to onboarding", async (status) => {
     getUser.mockResolvedValue({ data: { user: { id: "coach-id", email: "coach@kamee.local" } }, error: null });
     maybeSingle.mockResolvedValue({ data: { role: "coach", coach_status: status }, error: null });
     expect(await getSignInDestination()).toBe("/coaching/profile");
+    expect(eq).toHaveBeenCalledWith("id", "coach-id");
+  });
+  it("routes approved coaches to their business overview", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "coach-id", email: "coach@kamee.local" } }, error: null });
+    maybeSingle.mockResolvedValue({ data: { role: "coach", coach_status: "approved" }, error: null });
+    expect(await getSignInDestination()).toBe("/coaching/dashboard");
     expect(eq).toHaveBeenCalledWith("id", "coach-id");
   });
   it("routes invited coaches to acceptance", async () => {

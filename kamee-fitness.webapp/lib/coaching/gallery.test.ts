@@ -72,12 +72,18 @@ describe("planGalleryUploads", () => {
     for (const u of uploads) expect(isOwnGalleryPath(u.path, uid)).toBe(true);
   });
 
-  it("skips wrong types and oversize files, and says which", () => {
-    const { uploads, problems } = planGalleryUploads([img("doc.pdf", "application/pdf"), img("big.jpg", "image/jpeg", 6 * 1024 * 1024), img("ok.jpg")], uid, 0, 12);
+  it("admits sources above the final upload limit so conversion can reduce them", () => {
+    const { uploads, problems } = planGalleryUploads([img("large.jpg", "image/jpeg", 6 * 1024 * 1024)], uid, 0, 12);
+    expect(uploads.map((u) => u.file.name)).toEqual(["large.jpg"]);
+    expect(problems).toEqual([]);
+  });
+
+  it("skips wrong types and sources over 25 MiB, and says which", () => {
+    const { uploads, problems } = planGalleryUploads([img("doc.pdf", "application/pdf"), img("big.jpg", "image/jpeg", 25 * 1024 * 1024 + 1), img("ok.jpg")], uid, 0, 12);
     expect(uploads.map((u) => u.file.name)).toEqual(["ok.jpg"]);
     expect(problems).toHaveLength(2);
     expect(problems[0]).toMatch(/^doc\.pdf: /);
-    expect(problems[1]).toMatch(/^big\.jpg: .*5 MB/);
+    expect(problems[1]).toMatch(/^big\.jpg: .*25 MB/);
   });
 
   it("stops at the gallery cap and reports how many were left out", () => {

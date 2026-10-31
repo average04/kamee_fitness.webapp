@@ -45,7 +45,7 @@ export function VideoLibrary({
         a.target !== "_blank" &&
         a.href !== location.href &&
         !confirm(
-          "Leave this upload? You can resume from Videos with the same file.",
+          "Leave this upload? You can resume from Video assets with the same file.",
         )
       ) {
         e.preventDefault();

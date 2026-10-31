@@ -5,6 +5,7 @@ import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { safeNextPath } from "@/lib/safe-next";
 import { signInErrorMessage } from "@/lib/auth/sign-in-errors";
 import { isLocalDevelopmentAuth } from "@/lib/auth/local-auth";
+import { startTurnstileVerification, type VerificationState } from "@/lib/auth/turnstile-verification";
 import { RequiredMark } from "@/components/RequiredMark";
 
 function usesLocalAuth() {
@@ -13,27 +14,6 @@ function usesLocalAuth() {
 
 const TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "0x4AAAAAADSfFsj2UkEr0f3Z";
-const TURNSTILE_SRC =
-  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (
-        el: HTMLElement,
-        opts: {
-          sitekey: string;
-          callback: (token: string) => void;
-          "error-callback"?: () => void;
-          "expired-callback"?: () => void;
-          appearance?: "always" | "execute" | "interaction-only";
-          theme?: "auto" | "light" | "dark";
-        },
-      ) => string;
-      reset: (id?: string) => void;
-    };
-  }
-}
 
 /**
  * Email one-time-code sign-in (existing accounts only), shared by /login and
@@ -65,67 +45,57 @@ export function EmailCodeSignIn({
   const email = invitedEmail ?? enteredEmail;
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [verification, setVerification] = useState<VerificationState | null>(null);
+  const [verificationAttempt, setVerificationAttempt] = useState(0);
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const widgetEl = useRef<HTMLDivElement>(null);
-  const widgetId = useRef<string | null>(null);
+  const verificationSession = useRef<ReturnType<typeof startTurnstileVerification> | null>(null);
 
   useEffect(() => {
     if (usesLocalAuth()) return;
-    function render() {
-      if (!window.turnstile || !widgetEl.current || widgetId.current) return;
-      widgetId.current = window.turnstile.render(widgetEl.current, {
-        sitekey: TURNSTILE_SITE_KEY,
-        appearance: "interaction-only",
-        theme,
-        callback: (token) => setCaptchaToken(token),
-        "error-callback": () => setCaptchaToken(null),
-        "expired-callback": () => setCaptchaToken(null),
-      });
-    }
-    if (window.turnstile) {
-      render();
-      return;
-    }
-    let script = document.querySelector<HTMLScriptElement>(`script[src="${TURNSTILE_SRC}"]`);
-    if (!script) {
-      script = document.createElement("script");
-      script.src = TURNSTILE_SRC;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-    script.addEventListener("load", render);
-    return () => script?.removeEventListener("load", render);
-  }, [theme]);
+    if (!widgetEl.current) return;
+    const session = startTurnstileVerification(widgetEl.current, {
+      sitekey: TURNSTILE_SITE_KEY, hostname: window.location.hostname, theme, onChange: setVerification,
+    });
+    verificationSession.current = session;
+    return () => {
+      session.dispose();
+      if (verificationSession.current === session) verificationSession.current = null;
+    };
+  }, [theme, verificationAttempt]);
 
   async function onSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!captchaToken && !usesLocalAuth()) {
-      setMessage("Still verifying you're human — give it a moment and retry.");
+    const usesLocal = usesLocalAuth();
+    const captchaToken = verificationSession.current?.consumeToken();
+    if (!captchaToken && !usesLocal) {
+      setMessage(verification?.phase === "error" ? verification.message : "Complete verification before requesting your sign-in email.");
       return;
     }
     setStatus("sending");
     setMessage(null);
-    const supabase = createBrowserSupabase();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(resolveNext())}`,
-        captchaToken: captchaToken ?? undefined,
-      },
-    });
-    if (widgetId.current && window.turnstile) {
-      window.turnstile.reset(widgetId.current);
-      setCaptchaToken(null);
-    }
-    if (error) {
+    try {
+      const supabase = createBrowserSupabase();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(resolveNext())}`,
+          captchaToken: captchaToken ?? undefined,
+        },
+      });
+      if (error) {
+        setStatus("error");
+        setMessage(signInErrorMessage(error.message));
+      } else {
+        setStatus("sent");
+      }
+    } catch {
       setStatus("error");
-      setMessage(signInErrorMessage(error.message));
-    } else {
-      setStatus("sent");
+      setMessage("Could not request your sign-in email. Check your connection and retry.");
+    } finally {
+      if (!usesLocal) setVerificationAttempt((value) => value + 1);
     }
   }
 
@@ -164,9 +134,21 @@ export function EmailCodeSignIn({
           className="w-full rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm outline-none focus:border-leaf-600"
         />
         <div ref={widgetEl} />
+        {verification && (
+          <div className="space-y-2">
+            <p role={verification.phase === "error" ? "alert" : "status"} aria-live="polite" className={`text-sm ${verification.phase === "error" ? "text-red-400" : "text-muted"}`}>
+              {verification.message}
+            </p>
+            {verification.phase === "error" && (
+              <button type="button" disabled={status === "sending"} onClick={() => { setMessage(null); setVerificationAttempt((value) => value + 1); }} className="rounded-lg border border-white/20 px-3 py-2 text-sm disabled:opacity-50">
+                Retry verification
+              </button>
+            )}
+          </div>
+        )}
         <button
           type="submit"
-          disabled={status === "sending"}
+          disabled={status === "sending" || (!!verification && verification.phase !== "verified")}
           className="w-full rounded-lg bg-leaf-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-leaf-500"
         >
           {status === "sending" ? "Sending…" : sendLabel}

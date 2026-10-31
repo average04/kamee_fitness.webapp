@@ -16,6 +16,13 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+When using a hosted Supabase project locally, use a hostname allowed by its
+Cloudflare Turnstile widget. Set `SITE_URL=http://localhost:3000` in your ignored
+local environment file to redirect local `127.0.0.1` login and coaching page
+requests to `localhost` on the same port. This redirect runs only in development
+and preserves the requested path and query. Hosted sign-in requires a real
+verification token and sends login codes to the account's actual email inbox.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

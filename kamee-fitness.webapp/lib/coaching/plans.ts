@@ -181,6 +181,13 @@ export const dayKeys = (kind: Meals["keyed_by"]) =>
   kind === "weekday"
     ? ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
     : ["long_run", "long_run_eve", "run", "strength", "rest"];
+export function mealDayName(dayKey: string): string {
+  const position = dayKeys("weekday").indexOf(dayKey);
+  return position >= 0 ? `Day ${position + 1}` : dayKey.replaceAll("_", " ");
+}
+export function mealDayLabel(day: Pick<MealDay, "day_key" | "label">): string {
+  return day.label === day.day_key ? mealDayName(day.day_key) : day.label;
+}
 export const newMeals = (): Meals => ({
   lineage_key: crypto.randomUUID(),
   title: "Meals",
@@ -191,7 +198,7 @@ export const newMeals = (): Meals => ({
     lineage_key: crypto.randomUUID(),
     day_key,
     shape: "steady",
-    label: day_key,
+    label: mealDayName(day_key),
     note: "",
     meals: [],
   })),
