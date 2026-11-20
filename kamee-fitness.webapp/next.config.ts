@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
 import { configuredLocalLoginOrigin } from "./lib/auth/local-login-origin";
+import { coachingPreviewBuildExposure } from "./lib/coaching/conversation/preview-build";
 
 // Supabase Storage host for the public exercise-demos bucket (next/image).
 const supabaseHost = (() => {
@@ -12,6 +13,17 @@ const supabaseHost = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  // Bake the same sanitized exposure value into server and browser bundles.
+  // Never publish a service credential or trust a browser-supplied rollout tier.
+  env: {
+    NEXT_PUBLIC_COACHING_EXPOSURE: coachingPreviewBuildExposure({
+      context: process.env.CONTEXT,
+      requested: process.env.KAMEE_COACHING_PREVIEW,
+      localQa: process.env.KAMEE_COACHING_LOCAL_QA,
+      siteUrl: process.env.SITE_URL,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    }),
+  },
   // Keep the opt-in loopback alias redirect absolute; Next otherwise relativizes it.
   skipProxyUrlNormalize: configuredLocalLoginOrigin(process.env.NODE_ENV, process.env.SITE_URL) !== null,
   // Allow .mdx files to be treated as routable/importable page-like modules.

@@ -80,7 +80,11 @@ export function createBrowserConversationRuntime(expectedAccountId: string, opti
       const session = await verifiedSession(); assertVerified();
       if (!active) throw new ConversationActivityCancelledError();
       const request = createConversationHttpRequest({ actor, baseUrl: options.url ?? "", anonKey: options.anonKey ?? "", authorization: `Bearer ${session.access_token}`, fetchImpl: options.fetch });
-      return { actor, token: session.access_token, request: async (...args: Parameters<typeof request>) => { assertVerified(); const result = await request(...args); assertVerified(); return result; } };
+      const participantEpoch = verificationEpoch;
+      return { actor, token: session.access_token,
+        participant: { baseUrl: options.url ?? "", anonKey: options.anonKey ?? "", fetch: options.fetch ?? fetch,
+          assertCurrent() { assertVerified(); if (!active || participantEpoch !== verificationEpoch) throw new ConversationActivityCancelledError(); } },
+        request: async (...args: Parameters<typeof request>) => { assertVerified(); const result = await request(...args); assertVerified(); return result; } };
     },
     dispose() { retire(); stopBoundary(); subscription.unsubscribe(); },
   };

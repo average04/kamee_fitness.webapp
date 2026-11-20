@@ -6,6 +6,7 @@ import { createSessionConversationJournal } from "@/lib/coaching/conversation/jo
 import { createConversationController, type ConversationController } from "@/lib/coaching/conversation/generated/conversationController";
 import { createConversationLifecycle } from "@/lib/coaching/conversation/lifecycle";
 import { ConversationView } from "./ConversationView";
+import { CoachProposals } from "../proposals/CoachProposals";
 
 type CoachConversationProps = { accountId: string; attemptId: string };
 
@@ -15,7 +16,7 @@ export function CoachConversation(props: CoachConversationProps) {
 }
 
 function CoachConversationSession({ accountId, attemptId }: CoachConversationProps) {
-  const [resource, setResource] = useState<{ controller: ConversationController; retry(): Promise<void> } | null>(null);
+  const [resource, setResource] = useState<{ controller: ConversationController; runtime: ReturnType<typeof createBrowserConversationRuntime>; retry(): Promise<void> } | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!COACHING_CONVERSATIONS_ENABLED) return;
@@ -35,12 +36,13 @@ function CoachConversationSession({ accountId, attemptId }: CoachConversationPro
       const retry = () => lifecycle.update({ focused: document.hasFocus(), visible: document.visibilityState === "visible", online: navigator.onLine });
       const signal = () => { void retry(); };
       window.addEventListener("focus", signal); window.addEventListener("blur", signal); window.addEventListener("online", signal); window.addEventListener("offline", signal); document.addEventListener("visibilitychange", signal);
-      setResource({ controller: conversation, retry }); signal();
+      setResource({ controller: conversation, runtime, retry }); signal();
       cleanup = () => { window.removeEventListener("focus", signal); window.removeEventListener("blur", signal); window.removeEventListener("online", signal); window.removeEventListener("offline", signal); document.removeEventListener("visibilitychange", signal); stopVerification(); lifecycle.dispose(); conversation.dispose(); runtime.dispose(); };
     }).catch(() => { cleanup?.(); if (!disposed) setFailed(true); });
     return () => { disposed = true; cleanup?.(); };
   }, [accountId, attemptId]);
   if (!COACHING_CONVERSATIONS_ENABLED) return <p>Conversations are not available yet.</p>;
   if (!resource) return <p role="status">{failed ? "Conversation recovery storage is unavailable. Enable this site's storage and reload to retry." : "Checking your account…"}</p>;
-  return <ConversationView key={`${accountId}:${attemptId}`} controller={resource.controller} onRetry={resource.retry} />;
+  return <><ConversationView key={`${accountId}:${attemptId}`} controller={resource.controller} onRetry={resource.retry} />
+    <CoachProposals accountId={accountId} attemptId={attemptId} runtime={resource.runtime} conversation={resource.controller} /></>;
 }

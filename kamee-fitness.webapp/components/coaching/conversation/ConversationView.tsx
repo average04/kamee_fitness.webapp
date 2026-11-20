@@ -82,7 +82,7 @@ export function ConversationView({ controller, onRetry = () => controller.refres
     {state.authorityPaused ? <p role="status">Your sign-in could not be verified. Conversations are paused. {state.journalReady ? "Your draft and delivery recovery are kept here." : "Draft recovery has not loaded yet. Editing is disabled until your account and recovery are checked."} <button onClick={() => void onRetry()}>Retry</button></p> : state.error && <p role="alert">{state.error} <button disabled={state.loading} onClick={() => void onRetry()}>Retry</button></p>}
     {!state.authorityPaused && state.policy && <details className="conversation-panel"><summary>{availability?.viewerRole === "buyer" ? `Review sharing with ${state.policy.coachName}` : "Review sharing for this enrollment"}</summary>
       <p className="conversation-text">{state.policy.body}</p>
-      <p>Messages are stored on Kamee&apos;s servers. Sharing includes the authorized plan and schedule summary below. Private Kamy chats stay separate. Shared Kamy and plan proposals are unavailable.</p>
+      <p>Messages are stored on Kamee&apos;s servers. Sharing includes the authorized plan and schedule summary below. Private Kamy chats stay separate. Shared Kamy is unavailable. Plan proposals require separate consent.</p>
       {knownConversation && (availability?.reason === "consent_required" || availability?.reason === "suspended") && <button disabled={state.busy} onClick={() => void controller.confirmConsent(state.policy)}>Review and confirm sharing</button>}
     </details>}
     {context && <section className="conversation-panel" aria-labelledby="shared-context-title">

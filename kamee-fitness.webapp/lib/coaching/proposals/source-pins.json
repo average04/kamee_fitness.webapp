@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "canonical": {
+    "src/lib/coaching/proposalTypes.ts": "709031caeed3dfd6337b8fc0329a5261a082327c606dde740432d68b6c9a9f80",
+    "src/api/coachingProposals.ts": "4999c1c21cf5246c76751e99f056eb70ab7668a316e363999fae153d6d8d0685"
+  },
+  "pureRegionSha256": "85edb99499024aefd8f8ef014c9133bcbd3ec241334256ccc4e42437d8956de5",
+  "generated": {
+    "types.ts": "0d1fbccff1104fd22dbc4082d39eea7cffc5298a7acaea0e2399a118e44ef53b",
+    "api.ts": "371cded0d667e25b259245dbf4a6a31ed8025c36483d2cebc99f8865de711fbd"
+  }
+}

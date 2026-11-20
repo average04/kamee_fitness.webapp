@@ -52,7 +52,7 @@ describe("conversation presentation markup (no DOM interaction claim)", () => {
   });
   it("offers consent only in eligible states and identifies the unavailable shared features without naming the coach as their counterpart", () => {
     const f = fixture(); f.state.policy = { accountId, enrollmentAttemptId: attempt, policyVersion: "v1", contentHash: "a".repeat(64), body: "Attempt terms", coachName: "Coach Self" };
-    expect(f.html()).not.toContain("Review and confirm sharing"); expect(f.html()).not.toContain("sharing with Coach Self"); expect(f.html()).toContain("Shared Kamy and plan proposals are unavailable");
+    expect(f.html()).not.toContain("Review and confirm sharing"); expect(f.html()).not.toContain("sharing with Coach Self"); expect(f.html()).toContain("Shared Kamy is unavailable"); expect(f.html()).toContain("Plan proposals require separate consent");
     f.state.availability!.reason = "consent_required"; expect(f.html()).toContain("Review and confirm sharing");
   });
   it("keeps unknown delivery copyable with duplicate warnings and explicit dismissal", () => {
