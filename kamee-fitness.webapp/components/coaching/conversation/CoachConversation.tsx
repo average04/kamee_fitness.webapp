@@ -43,6 +43,7 @@ function CoachConversationSession({ accountId, attemptId }: CoachConversationPro
   }, [accountId, attemptId]);
   if (!COACHING_CONVERSATIONS_ENABLED) return <p>Conversations are not available yet.</p>;
   if (!resource) return <p role="status">{failed ? "Conversation recovery storage is unavailable. Enable this site's storage and reload to retry." : "Checking your account…"}</p>;
-  return <><ConversationView key={`${accountId}:${attemptId}`} controller={resource.controller} onRetry={resource.retry} />
-    <CoachProposals accountId={accountId} attemptId={attemptId} runtime={resource.runtime} conversation={resource.controller} /></>;
+  return <ConversationView controller={resource.controller} onRetry={resource.retry} planUpdates={
+    <CoachProposals accountId={accountId} attemptId={attemptId} runtime={resource.runtime} conversation={resource.controller} />
+  } />;
 }

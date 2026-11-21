@@ -47,27 +47,27 @@ export function CoachClientsView({ controller, onRetry = () => controller.initia
   if (state.retired) return <p role="status">Your account session changed. Reload to continue.</p>;
   if (state.authorityPaused) return <p role="status">Your sign-in could not be verified. Conversations are paused. <button onClick={() => void onRetry()}>Retry</button></p>;
   if (!state.ready && !state.policy && !state.error) return <p role="status">Checking your account…</p>;
-  return <section className="coach-conversation">
-    <PageIntro title="Clients" description="Human coaching conversations for each enrollment." />
+  return <section className="coach-conversation coach-clients">
+    <PageIntro title="Clients" description="Open an enrollment to message your client or review plan updates." />
     {state.error && <p role="alert">{state.error} <button onClick={() => void onRetry()}>Retry</button></p>}
-    <section className="conversation-panel" aria-labelledby="service-policy-title">
-      <h2 id="service-policy-title">Conversation service</h2>
-      {state.policy ? <>
-        <details><summary>Review service policy</summary><p className="conversation-text">{state.policy.body}</p></details>
-        <button disabled={state.busy} onClick={() => void controller.acceptPolicy()}>Accept service policy</button>
-        {state.accepted && <p role="status">Service policy accepted.</p>}
-      </> : <p>Service policy is unavailable.</p>}
-      <p>Service availability and sharing in each conversation are separate choices.</p>
-      <div className="conversation-actions"><button disabled={state.busy} onClick={() => void controller.setService(true)}>Make available</button><button disabled={state.busy} onClick={() => void controller.setService(false)}>Pause availability</button></div>
-      {state.serviceFeedback && <p role="status">{state.serviceFeedback}</p>}
-    </section>
     <section className="conversation-panel" aria-labelledby="conversation-list-title">
       <h2 id="conversation-list-title">Conversations</h2>
       {state.loading && state.items.length === 0 ? <p role="status">Loading conversations…</p> : state.ready && !state.error && state.items.length === 0 ? <p>No coach conversations on this page.</p> : null}
       <ul className="conversation-roster">{state.items.map(item => <li key={item.conversationId}>
-        <CoachLink href={`/coaching/clients/${item.enrollmentAttemptId}`}><strong>Conversation</strong><span>{conversationReasonLabel(item.availability.reason)}</span><span>{item.unreadCount} unread</span></CoachLink>
+        <CoachLink href={`/coaching/clients/${item.enrollmentAttemptId}`}><div><strong>Conversation</strong><p>{conversationReasonLabel(item.availability.reason)}</p></div><span className="conversation-unread">{item.unreadCount} unread</span></CoachLink>
       </li>)}</ul>
       <div className="conversation-actions"><button disabled={state.loading && state.items.length === 0} onClick={() => void controller.page()}>First page</button>{state.nextAfterId && <button disabled={state.loading && state.items.length === 0} onClick={() => void controller.page(state.nextAfterId)}>Next conversations</button>}</div>
     </section>
+    <details className="conversation-panel conversation-service">
+      <summary>Service policy and availability</summary>
+      {state.policy ? <details className="conversation-policy"><summary>Review service policy</summary>
+        <p className="conversation-text">{state.policy.body}</p>
+        <button disabled={state.busy} onClick={() => void controller.acceptPolicy()}>Accept service policy</button>
+        {state.accepted && <p role="status">Service policy accepted.</p>}
+      </details> : <p>Service policy is unavailable.</p>}
+      <p>Choose whether to offer conversations. Sharing is confirmed separately for each enrollment.</p>
+      <div className="conversation-actions"><button disabled={state.busy} onClick={() => void controller.setService(true)}>Make available</button><button disabled={state.busy} onClick={() => void controller.setService(false)}>Pause availability</button></div>
+      {state.serviceFeedback && <p role="status">{state.serviceFeedback}</p>}
+    </details>
   </section>;
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CoachClientsView } from "@/components/coaching/conversation/CoachClients";
@@ -26,6 +27,18 @@ function fixture() {
   return { api, controller, captureWith(value: () => Promise<typeof api>) { capture = value; }, retire() { valid = false; boundary(); } };
 }
 describe("real coach clients", () => {
+  it("offers the enrollment before service setup and keeps availability commands inside an explicit disclosure", async () => {
+    const f = fixture();
+    f.api.roster = async () => ({ accountId, items: [rosterItem(true)], nextAfterId: null });
+    await f.controller.initialize();
+    const dom = new JSDOM(renderToStaticMarkup(createElement(CoachClientsView, { controller: f.controller })));
+    const doc = dom.window.document, link = doc.querySelector("a")!;
+    const availability = [...doc.querySelectorAll("button")].find(b => b.textContent === "Make available")!;
+    expect(link.compareDocumentPosition(availability) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(availability.closest("details:not([open])")).not.toBeNull();
+    expect(doc.querySelector('[role="switch"]')).toBeNull();
+    dom.window.close(); f.controller.dispose();
+  });
   it("keeps genuine empty results empty and service acceptance separate from commands", async () => {
     const f = fixture(); await f.controller.initialize();
     expect(f.controller.getSnapshot()).toMatchObject({ items: [], error: null, policy, serviceFeedback: null, accepted: false });
