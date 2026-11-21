@@ -68,6 +68,7 @@ function TargetEditor({ target, add, blocked }: { target: ProposalEditTarget; ad
   const slot = target.strength.find(s => s.selector.slotId === slotId), valid = enrollmentDate.safeParse(date).success && date !== target.occurrence.scheduledDate;
   return <fieldset disabled={blocked}><legend>Scheduled {target.occurrence.scheduledDate} in this enrollment’s time zone</legend>
     <label>New date<input type="date" className="coach-input" value={date} onChange={e => setDate(e.target.value)} /></label>
+    <p>Choose a future date in this enrollment’s time zone. Today and past dates aren’t available.</p>
     <button type="button" disabled={!valid} onClick={() => add({ kind: "move_occurrence", selector: target.occurrence, newDate: date })}>Add date change</button>
     <div className="conversation-actions">{target.strength.slice(0, count).map(s => <button type="button" key={s.selector.slotId} onClick={() => setSlot(s.selector.slotId)}>Edit {s.label}</button>)}
       {count < target.strength.length && <button type="button" onClick={() => setCount(n => n + 20)}>More exercises</button>}
@@ -139,7 +140,7 @@ export function CoachProposals({ accountId, attemptId, runtime, conversation }: 
     try { journal = createProposalJournal({ actor: runtime.actor, target, storage: window.sessionStorage }); controller = createCoachProposalsController({ actor: runtime.actor, target, isCurrent, newRequestId: () => crypto.randomUUID(), capture: () => captureBrowserProposalsApi(runtime), journal }); }
     catch { return; }
     current.current = controller;
-    const update = () => { const active = isCurrent() && document.hasFocus() && document.visibilityState === "visible" && navigator.onLine; controller.setActive(active); if (active) void controller.initialize(); };
+    const update = () => { const active = isCurrent() && document.hasFocus() && document.visibilityState === "visible" && navigator.onLine; controller.setActive(active); if (active) void controller.initialize({ background: true }); };
     const stop = runtime.subscribeBoundary(() => controller.dispose());
     const stopVerification = runtime.subscribeVerification(verified => { if (!verified) controller.setActive(false); });
     const getDays: GetDays = async after => {

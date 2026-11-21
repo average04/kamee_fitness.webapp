@@ -16,9 +16,9 @@ export function createCoachProposalsController(ports: { actor: ConversationActor
   const check = (g = generation) => { if (!current() || g !== generation) throw Error("proposal_scope_changed"); };
   const publish = (next: Partial<CoachProposalsSnapshot>) => { if (!current()) return; state = { ...state, ...next }; for (const listener of listeners) listener(); };
   const resetPrivate = () => { state = { ...empty, pending: !!pending, message: recoveryFailed ? "Proposal recovery could not be read. Keep this tab and retry." : null }; for (const listener of listeners) listener(); };
-  async function run(work: (api: CoachingProposalsApi, g: number) => Promise<void>) {
+  async function run(work: (api: CoachingProposalsApi, g: number) => Promise<void>, preserveMessage = false) {
     if (!current() || running) return;
-    running = true; const g = generation; publish({ busy: true, message: null });
+    running = true; const g = generation; publish({ busy: true, ...(preserveMessage ? {} : { message: null }) });
     try { const api = await ports.capture(); check(g); await work(api, g); }
     catch { if (current() && g === generation) publish({ consent: null, page: null, detail: null, targets: null, preview: null, message: "Proposals are unavailable. Check your account and retry." }); }
     finally { running = false; if (g === generation) publish({ busy: false }); }
@@ -97,7 +97,7 @@ export function createCoachProposalsController(ports: { actor: ConversationActor
     getSnapshot: () => current() ? state : empty,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     setActive(value: boolean) { if (active === value) return; active = value; generation++; resetPrivate(); },
-    async initialize() { if (!current()) return; try { recover(); } catch { publish({ message: "Proposal recovery could not be read. Keep this tab and retry." }); return; } await run(load); },
+    async initialize({ background = false }: { background?: boolean } = {}) { if (!current()) return; try { recover(); } catch { publish({ message: "Proposal recovery could not be read. Keep this tab and retry." }); return; } await run(load, background); },
     async retry() { if (!current()) return; try { recover(); } catch { return; } if (pending) await execute(); else await run(load); },
     async consentTo(action: "accept" | "revoke", displayed?: NonNullable<ProposalConsent["disclosure"]>) {
       const consent = state.consent; if (!current() || !consent?.grantId) return;

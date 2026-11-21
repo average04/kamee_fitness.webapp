@@ -47,6 +47,8 @@ describe("rendered coach proposal form", () => {
   it("edits an actual authorized day and displays server before/after before explicit Send", async () => {
     const f = await mount(true); await f.click("Day 1");
     const date = document.querySelector<HTMLInputElement>('input[type="date"]')!;
+    expect(document.body.textContent).toContain("Choose a future date in this enrollment’s time zone. Today and past dates aren’t available.");
+    expect(date.getAttribute("min")).toBeNull();
     await act(async () => { Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!.call(date, "2026-11-25"); date.dispatchEvent(new dom.window.Event("input", { bubbles: true })); date.dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
     await f.click("Add date change"); await f.click("Preview changes");
     expect(document.body.textContent).toContain("Before"); expect(document.body.textContent).toContain("After"); expect(document.body.textContent).toContain("2026-11-25");
@@ -95,6 +97,15 @@ async function mountParticipant() {
   return { runtime, snapshot, api, capture, button };
 }
 describe("actual proposal mount scope fences", () => {
+  it("keeps mutation feedback when the actual automatic focus refresh runs", async () => {
+    const f = await mountParticipant();
+    try {
+      await act(async () => f.button().click());
+      expect(document.body.textContent).toContain("Proposal consent saved.");
+      await act(async () => window.dispatchEvent(new dom.window.Event("focus")));
+      expect(document.body.textContent).toContain("Proposal consent saved.");
+    } finally { f.runtime.dispose(); }
+  });
   it("denies a rendered consent handler immediately when C1 authority changes before React rerenders", async () => {
     const f = await mountParticipant(); expect(f.button()).toBeDefined();
     f.snapshot.availability!.controlRevision = "2";

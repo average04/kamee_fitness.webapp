@@ -55,6 +55,9 @@ describe("coach proposal participant flow", () => {
     f.api.preview.mockImplementationOnce(async () => { expect(f.storage.size).toBe(1); throw new TypeError("lost response"); });
     const changes = [structuredClone(operation)]; await c.createPreview(changes, "Original");
     changes[0].newDate = "2026-12-01"; expect(c.getSnapshot().pending).toBe(true);
+    await c.initialize({ background: true });
+    expect(c.getSnapshot().message).toBe("The result is unconfirmed. Check the same request.");
+    expect(f.api.preview).toHaveBeenCalledTimes(1);
     await c.createPreview([operation], "Different"); expect(f.api.preview).toHaveBeenCalledTimes(1);
     c.dispose(); const recovered = f.make(); await recovered.initialize(); await recovered.retry();
     expect(f.api.preview).toHaveBeenCalledTimes(2); expect(f.api.preview.mock.calls[1]).toEqual(f.api.preview.mock.calls[0]);
@@ -110,5 +113,29 @@ describe("coach proposal participant flow", () => {
     await c.consentTo("accept", f.consent().disclosure);
     expect(c.getSnapshot().message).toBe("Proposal consent saved.");
     c.dispose();
+  });
+  it("keeps a definitive preview refusal through background refresh, then clears it on successful manual retry", async () => {
+    const f = fixture(); f.accept(); const c = f.make(); await c.initialize();
+    f.api.preview.mockRejectedValueOnce({ code: "PT409" });
+    await c.createPreview([operation], null);
+    expect(c.getSnapshot().pending).toBe(false); expect(f.storage.size).toBe(0);
+    expect(c.getSnapshot().message).toBe("That request is no longer available. Review current proposals.");
+    await c.initialize({ background: true });
+    expect(c.getSnapshot().ready).toBe(true);
+    expect(c.getSnapshot().message).toBe("That request is no longer available. Review current proposals.");
+    expect(f.api.preview).toHaveBeenCalledTimes(1);
+    await c.retry(); expect(c.getSnapshot().message).toBeNull();
+    expect(f.api.preview).toHaveBeenCalledTimes(1);
+  });
+  it("keeps successful mutation feedback during background refresh but not manual refresh or activity reset", async () => {
+    const f = fixture(), c = f.make(); await c.initialize();
+    await c.consentTo("accept", f.consent().disclosure);
+    await c.initialize({ background: true });
+    expect(c.getSnapshot().message).toBe("Proposal consent saved.");
+    await c.initialize(); expect(c.getSnapshot().message).toBeNull();
+    await c.createPreview([operation], null); expect(c.getSnapshot().message).toBe("Preview ready.");
+    c.setActive(false); expect(c.getSnapshot().message).toBeNull();
+    c.setActive(true); await c.initialize({ background: true });
+    expect(c.getSnapshot().message).toBeNull();
   });
 });
