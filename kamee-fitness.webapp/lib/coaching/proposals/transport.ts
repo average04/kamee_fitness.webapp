@@ -16,7 +16,8 @@ export async function captureBrowserProposalsApi(runtime: ReturnType<typeof crea
       const abort = () => controller.abort(); outer?.addEventListener("abort", abort, { once: true });
       const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new CoachingProposalError("transport_unavailable")); }, 15000); });
       const work = (async () => {
-        const response = await port.fetch(root.origin + "/rest/v1/rpc/" + name, { method: "POST", redirect: "error", signal: controller.signal,
+        const fetchImpl = port.fetch;
+        const response = await fetchImpl(root.origin + "/rest/v1/rpc/" + name, { method: "POST", redirect: "error", signal: controller.signal,
           headers: { Authorization: `Bearer ${captured.token}`, apikey: port.anonKey, "Content-Type": "application/json" }, body: JSON.stringify(args) });
         port.assertCurrent();
         const text = await response.text(); port.assertCurrent();

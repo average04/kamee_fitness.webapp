@@ -48,4 +48,14 @@ describe("verified browser proposal transport", () => {
     const f = fixture(), api = await captureBrowserProposalsApi(f.runtime); f.change(); f.returnToA();
     await expect(api.consent(target)).rejects.toThrow(); await expect(captureBrowserProposalsApi(f.runtime)).rejects.toThrow(); expect(f.fetcher).not.toHaveBeenCalled(); f.runtime.dispose();
   });
+  it("calls a browser-brand-sensitive fetch without binding the participant port", async () => {
+    const f = fixture();
+    f.fetcher.mockImplementation(function (this: unknown) {
+      expect(this).toBeUndefined();
+      return Promise.resolve(new Response(JSON.stringify(f.wire)));
+    });
+    const api = await captureBrowserProposalsApi(f.runtime);
+    await expect(api.consent(target)).resolves.toMatchObject({ accountId: f.wire.accountId, participant: "coach" });
+    expect(f.fetcher).toHaveBeenCalledTimes(1); f.runtime.dispose();
+  });
 });

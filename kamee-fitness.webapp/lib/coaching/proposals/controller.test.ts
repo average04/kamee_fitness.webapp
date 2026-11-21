@@ -102,4 +102,13 @@ describe("coach proposal participant flow", () => {
     await c.createPreview([operation], null); expect(c.getSnapshot().pending).toBe(true); expect(c.getSnapshot().preview).toBeNull();
     await c.retry(); expect(f.api.preview.mock.calls[1]).toEqual(f.api.preview.mock.calls[0]); expect(c.getSnapshot().pending).toBe(false); clear.mockRestore();
   });
+  it("clears a prior failed refresh only on a new current operation and preserves consent feedback", async () => {
+    const f = fixture(), c = f.make();
+    f.api.consent.mockRejectedValueOnce(new Error("SYNTHETIC-LOAD-FAILURE"));
+    await c.initialize(); expect(c.getSnapshot().message).toBe("Proposals are unavailable. Check your account and retry.");
+    await c.initialize(); expect(c.getSnapshot().ready).toBe(true); expect(c.getSnapshot().message).toBeNull();
+    await c.consentTo("accept", f.consent().disclosure);
+    expect(c.getSnapshot().message).toBe("Proposal consent saved.");
+    c.dispose();
+  });
 });

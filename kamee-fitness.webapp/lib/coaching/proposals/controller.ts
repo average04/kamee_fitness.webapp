@@ -18,7 +18,7 @@ export function createCoachProposalsController(ports: { actor: ConversationActor
   const resetPrivate = () => { state = { ...empty, pending: !!pending, message: recoveryFailed ? "Proposal recovery could not be read. Keep this tab and retry." : null }; for (const listener of listeners) listener(); };
   async function run(work: (api: CoachingProposalsApi, g: number) => Promise<void>) {
     if (!current() || running) return;
-    running = true; const g = generation; publish({ busy: true });
+    running = true; const g = generation; publish({ busy: true, message: null });
     try { const api = await ports.capture(); check(g); await work(api, g); }
     catch { if (current() && g === generation) publish({ consent: null, page: null, detail: null, targets: null, preview: null, message: "Proposals are unavailable. Check your account and retry." }); }
     finally { running = false; if (g === generation) publish({ busy: false }); }
