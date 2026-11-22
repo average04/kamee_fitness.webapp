@@ -227,7 +227,7 @@ function ConversationWorkspace({ controller, state, hideHistory, hidePolicy, onR
           </section>}
         </section>
         <section className="conversation-panel" role="tabpanel" id={idFor("Safety")} aria-labelledby={idFor("Safety") + "-tab"} hidden={currentSurface !== "Safety"}>
-          <h2>Safety</h2>
+          <h2 className="sr-only">Safety</h2>
           {!knownConversation && <p>Safety controls are available when this conversation can be verified.</p>}
           {knownConversation && <>
             <section className="conversation-section" aria-labelledby="report-title"><h3 id="report-title">Report messages</h3><p>Reporting is separate from blocking.</p>
