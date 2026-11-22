@@ -16,6 +16,7 @@ const blockText = { idle: "", sending: "Updating block…", blocked: "This perso
 type ViewProps = { controller: ConversationController; onRetry?: () => Promise<void>; planUpdates?: ReactNode };
 type Surface = "Messages" | "Plan updates" | "Sharing" | "Safety";
 const wideQuery = "(min-width: 1100px)";
+const dayFormat = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 function subscribeWidth(notify: () => void) {
   const media = window.matchMedia?.(wideQuery);
   media?.addEventListener("change", notify);
@@ -131,7 +132,9 @@ function ConversationWorkspace({ controller, state, hideHistory, hidePolicy, onR
       <div><h1>{context ? (availability?.viewerRole === "coach" ? context.buyerName : context.coachName) : "Conversation"}</h1>
         {context && <p className="conversation-plan-name">{context.planTitle}</p>}
       </div>
-      {!state.authorityPaused && <p role="status" className="conversation-state">{statusLabel}</p>}
+      {!state.authorityPaused && <p role="status" className="conversation-state" data-open={availability?.reason === "active" || undefined}>
+        {availability?.reason === "active" ? <><span aria-hidden="true">Open</span><span className="sr-only">{statusLabel}</span></> : statusLabel}
+      </p>}
     </header>
     <div className="conversation-navigation" role="tablist" aria-label="Conversation workspace" ref={nav}>
       {surfaces.map((name, i) => <button key={name} role="tab" type="button" id={idFor(name) + "-tab"}
@@ -168,25 +171,40 @@ function ConversationWorkspace({ controller, state, hideHistory, hidePolicy, onR
             if (!atBottom) { rememberAnchor(); controller.pinHistory(); }
           }}>
             {!state.authorityPaused && !state.error && messages.length === 0 && <p className="conversation-empty">{checkingAccount || state.loading ? "Loading messages…" : canSend ? "Send a message to start the conversation." : "No messages to show."}</p>}
-            <ol>{messages.map(message => <li key={message.id} data-message-id={message.id}>
-              <article className={`conversation-message conversation-message-${message.kind}${message.kind === "text" && message.author === availability?.viewerRole ? " conversation-message-own" : ""}`}>
-                {message.kind === "text" ? <><div className="conversation-message-meta"><strong>{message.author === "coach" ? "Coach" : "Client"}</strong><time dateTime={message.createdAt}>{message.createdAt.slice(0, 16).replace("T", " ")} UTC</time></div><p className="conversation-text" data-sequence={message.sequence}>{message.body}</p>
-                  {reportMode && <label className="conversation-selection"><input type="checkbox" checked={reportIds.includes(message.id)} disabled={state.pendingReport !== null || (!reportIds.includes(message.id) && reportIds.length >= 20)} onChange={event => setSelected(current => event.target.checked ? [...current, message.id] : current.filter(id => id !== message.id))} />Select {message.author === "coach" ? "coach" : "client"} message for report</label>}</> : <p data-sequence={message.sequence}>{conversationMessageLabel(message)}</p>}
-              </article>
-            </li>)}</ol>
+            <ol>{messages.map((message, index) => {
+              const previous = messages[index - 1];
+              const date = message.createdAt.slice(0, 10);
+              const newDay = date !== previous?.createdAt.slice(0, 10);
+              const sameAuthor = !newDay && message.kind === "text" && previous?.kind === "text" && previous.author === message.author;
+              return <li key={message.id} data-message-id={message.id}>
+                {newDay && <div className="conversation-day"><time dateTime={date}>{dayFormat.format(new Date(date))} UTC</time></div>}
+                <article className={`conversation-message conversation-message-${message.kind}${message.kind === "text" && message.author === availability?.viewerRole ? " conversation-message-own" : ""}`}>
+                  {message.kind === "text" ? <>
+                    <div className="conversation-message-meta">
+                      <span className={sameAuthor ? "sr-only" : undefined}>{message.author === "coach" ? "Coach" : "Client"}</span>
+                      <time dateTime={message.createdAt}><span className="sr-only">{date} </span>{message.createdAt.slice(11, 16)}<span className="sr-only"> UTC</span></time>
+                    </div>
+                    <p className="conversation-text" data-sequence={message.sequence}>{message.body}</p>
+                    {reportMode && <label className="conversation-selection"><input type="checkbox" checked={reportIds.includes(message.id)} disabled={state.pendingReport !== null || (!reportIds.includes(message.id) && reportIds.length >= 20)} onChange={event => setSelected(current => event.target.checked ? [...current, message.id] : current.filter(id => id !== message.id))} />Select {message.author === "coach" ? "coach" : "client"} message for report</label>}
+                  </> : <p data-sequence={message.sequence}>{conversationMessageLabel(message)}</p>}
+                </article>
+              </li>;
+            })}</ol>
           </div>
           {!canSend && availability && <p>New messages are unavailable for this enrollment.</p>}
           <form className="conversation-composer" onSubmit={event => { event.preventDefault(); if (!state.journalReady || !validMessage || !canSend || state.busy || state.pendingSend || failedCopyBlocksSend) return; void controller.sendDraft().then(() => composer.current?.focus()); }}>
             <label htmlFor={composerId}>Message</label>
             <textarea ref={composer} id={composerId} className="coach-input" rows={2} placeholder="Write a message…" value={state.draft} disabled={!state.journalReady} onChange={event => { if (state.journalReady) void controller.setDraft(event.target.value); }} aria-invalid={state.draft.length > 0 && !validMessage} aria-describedby={`${composerId}-help ${composerId}-validation`} />
-            <details className="conversation-draft-info"><summary>Draft and delivery recovery</summary><p id={`${composerId}-help`}>Plain text, up to 2,000 characters. Draft and delivery recovery survive refresh in this tab, but not closing the tab or clearing browser data.</p></details>
             {!state.journalReady && !state.authorityPaused && <p role="status">Draft recovery has not loaded yet. Editing is disabled until your account and recovery are checked.</p>}
             <p className="conversation-counter">{[...state.draft].length}/2,000 characters</p>
             <p id={`${composerId}-validation`}>{state.draft.length > 0 && !validMessage ? "Use 1–2,000 nonblank characters and remove unsupported characters." : ""}</p>
             {!state.draftSaved && <p role="status">This draft has not been saved. Keep or copy the text before leaving.</p>}
             {failedCopyBlocksSend && <p>Keep or dismiss the earlier unsent copy before sending another message.</p>}
-            <div className="conversation-actions"><button className="coach-primary" type="submit" disabled={!state.journalReady || !canSend || state.busy || state.pendingSend !== null || !validMessage || failedCopyBlocksSend}>Send message</button>
+            <div className="conversation-compose-footer">
+              <div className="conversation-actions"><button className="coach-primary" type="submit" disabled={!state.journalReady || !canSend || state.busy || state.pendingSend !== null || !validMessage || failedCopyBlocksSend}>Send message</button>
               {state.pendingSend && <><button type="button" disabled={state.busy || state.authorityPaused} onClick={() => void controller.retryDelivery()}>Retry delivery check</button><button type="button" disabled={state.busy} onClick={() => setStopConfirmationFor(pendingRequestId)}>Stop checking delivery</button></>}</div>
+              <details className="conversation-draft-info"><summary>Draft and delivery recovery</summary><p id={`${composerId}-help`}>Plain text, up to 2,000 characters. Draft and delivery recovery survive refresh in this tab, but not closing the tab or clearing browser data.</p></details>
+            </div>
             {stopConfirmation && state.pendingSend && <div role="group" aria-label="Confirm stop checking delivery"><p>Delivery remains unknown. This message may already have been delivered. Sending it again could create a duplicate. The original text will stay available to keep or copy.</p><button type="button" disabled={state.busy} onClick={() => { void controller.stopCheckingDelivery().then(() => { setStopConfirmationFor(null); composer.current?.focus(); }); }}>Confirm stop checking</button><button type="button" onClick={() => setStopConfirmationFor(null)}>Keep checking</button></div>}
             <p role="status" aria-live="polite">{deliveryText[state.delivery]}</p>
             {state.pendingSend && <details><summary>Original message awaiting confirmation</summary><p className="conversation-text">{state.pendingSend.input.body}</p></details>}
@@ -201,7 +219,7 @@ function ConversationWorkspace({ controller, state, hideHistory, hidePolicy, onR
           {policy && <section className="conversation-section"><h3>{availability?.viewerRole === "buyer" ? `Review sharing with ${policy.coachName}` : "Review sharing for this enrollment"}</h3>
             <p className="conversation-text">{policy.body}</p>
             <p>Messages are stored on Kamee&apos;s servers. Sharing includes the authorized plan and schedule summary below. Private Kamy chats stay separate. Shared Kamy is unavailable. Plan proposals require separate consent.</p>
-            {knownConversation && (availability?.reason === "consent_required" || availability?.reason === "suspended") && <button disabled={state.busy} onClick={() => void controller.confirmConsent(policy)}>Review and confirm sharing</button>}
+            {knownConversation && (availability?.reason === "consent_required" || availability?.reason === "suspended") && <button className="coach-primary" disabled={state.busy} onClick={() => void controller.confirmConsent(policy)}>Review and confirm sharing</button>}
           </section>}
           {context && <section className="conversation-section" aria-labelledby="shared-context-title">
             <h2 id="shared-context-title">Shared context</h2><h3>{context.planTitle}</h3><p>{context.buyerName} · {context.coachName}</p>
@@ -216,12 +234,12 @@ function ConversationWorkspace({ controller, state, hideHistory, hidePolicy, onR
               <button disabled={state.pendingReport !== null || !availability?.capabilities.canReadHistory} onClick={() => { setReportMode(true); selectSurface("Messages"); }}>Select messages to report</button>
               <p>{reportIds.length} of 20 messages selected</p><label htmlFor={categoryId}>Report category</label>
               <select id={categoryId} className="coach-input" value={category} disabled={state.pendingReport !== null} onChange={event => setCategory(event.target.value as ConversationReportCategory)}>{categories.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-              <div className="conversation-actions"><button disabled={state.busy || state.pendingReport !== null || reportIds.length === 0 || availability?.capabilities.canReadHistory !== true} onClick={() => completeReport(controller.report(reportIds, category))}>Submit report</button>
+              <div className="conversation-actions"><button className="coach-primary" disabled={state.busy || state.pendingReport !== null || reportIds.length === 0 || availability?.capabilities.canReadHistory !== true} onClick={() => completeReport(controller.report(reportIds, category))}>Submit report</button>
                 {state.pendingReport && <button disabled={state.busy} onClick={() => completeReport(controller.retryReport())}>Retry report check</button>}</div><p role="status">{reportText[state.reportFeedback]}</p>
             </section>
             <section className="conversation-section" aria-labelledby="block-title"><h3 id="block-title" ref={blockHeading} tabIndex={-1}>Block controls</h3>
               <p>Blocking affects communication with this person across Kamee and removes follows in both directions. Unblocking restores neither follows nor sharing. The other person&apos;s block may still apply.</p>
-              <div className="conversation-actions"><button ref={blockButton} disabled={state.busy} onClick={() => setBlockCommand(true)}>Block this person</button><button ref={unblockButton} disabled={state.busy} onClick={() => setBlockCommand(false)}>Unblock this person</button></div>
+              <div className="conversation-actions"><button className="conversation-quiet" ref={blockButton} disabled={state.busy} onClick={() => setBlockCommand(true)}>Block this person</button><button className="conversation-quiet" ref={unblockButton} disabled={state.busy} onClick={() => setBlockCommand(false)}>Unblock this person</button></div>
               {blockCommand !== null && <div role="group" aria-label="Confirm global block change"><p>{blockCommand ? "Confirm blocking this person across Kamee?" : "Confirm removing your block across Kamee?"}</p><div className="conversation-actions"><button disabled={state.busy} onClick={() => { const blocked = blockCommand; setBlockCommand(null); blockHeading.current?.focus(); void controller.block(blocked).then(() => window.requestAnimationFrame(() => (blocked ? blockButton : unblockButton).current?.focus())); }}>Confirm {blockCommand ? "Block" : "Unblock"}</button><button onClick={() => { const blocked = blockCommand; setBlockCommand(null); (blocked ? blockButton : unblockButton).current?.focus(); }}>Cancel</button></div></div>}
               <p role="status">{blockText[state.blockFeedback]}</p>
             </section>

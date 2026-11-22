@@ -37,10 +37,12 @@ function StrengthEditor({ slot, blocked, add }: { slot: ProposalEditTarget["stre
   if (repsEditable && r !== null && String(r) !== slot.reps) changes.repCount = r;
   if (pause !== slot.restSeconds) changes.restSeconds = pause;
   const invalid = s === null || (repsEditable && reps !== "" && r === null) || (rest !== "" && pause === null);
-  return <fieldset disabled={blocked}><legend>{slot.label}</legend><p>{strength(slot)}</p>
-    <label>Sets (1–30)<input className="coach-input" inputMode="numeric" value={sets} onChange={e => setSets(e.target.value)} maxLength={2} /></label>
-    {repsEditable && <label>Repetitions (1–999)<input className="coach-input" inputMode="numeric" value={reps} onChange={e => setReps(e.target.value)} maxLength={3} /></label>}
-    <label>Rest seconds (blank for unspecified)<input className="coach-input" inputMode="numeric" value={rest} onChange={e => setRest(e.target.value)} maxLength={4} /></label>
+  return <fieldset disabled={blocked}><legend className="sr-only">{slot.label}</legend><p className="proposal-prescription">Current · {strength(slot)}</p>
+    <div className="proposal-rep-fields">
+      <label>Sets (1–30)<input className="coach-input" inputMode="numeric" value={sets} onChange={e => setSets(e.target.value)} maxLength={2} /></label>
+      {repsEditable && <label>Repetitions (1–999)<input className="coach-input" inputMode="numeric" value={reps} onChange={e => setReps(e.target.value)} maxLength={3} /></label>}
+    </div>
+    <label>Rest seconds (0–3,600)<input className="coach-input" inputMode="numeric" value={rest} onChange={e => setRest(e.target.value)} maxLength={4} /><small>Leave blank for unspecified rest.</small></label>
     {invalid && <p role="status">Use the ranges shown beside each field.</p>}
     <button type="button" disabled={invalid || !Object.keys(changes).length} onClick={() => add({ kind: "edit_strength_slot", selector: slot.selector, changes })}>Add strength change</button>
   </fieldset>;
@@ -66,13 +68,15 @@ function OutdoorEditor({ outdoor, add, blocked }: { outdoor: NonNullable<Proposa
 function TargetEditor({ target, add, blocked }: { target: ProposalEditTarget; add: Add; blocked: boolean }) {
   const [date, setDate] = useState(target.occurrence.scheduledDate), [slotId, setSlot] = useState<string | null>(null), [count, setCount] = useState(20);
   const slot = target.strength.find(s => s.selector.slotId === slotId), valid = enrollmentDate.safeParse(date).success && date !== target.occurrence.scheduledDate;
-  return <fieldset disabled={blocked}><legend>Scheduled {target.occurrence.scheduledDate} in this enrollment’s time zone</legend>
-    <label>New date<input type="date" className="coach-input" value={date} onChange={e => setDate(e.target.value)} /></label>
-    <p>Choose a future date in this enrollment’s time zone. Today and past dates aren’t available.</p>
-    <button type="button" disabled={!valid} onClick={() => add({ kind: "move_occurrence", selector: target.occurrence, newDate: date })}>Add date change</button>
-    <div className="conversation-actions">{target.strength.slice(0, count).map(s => <button type="button" key={s.selector.slotId} onClick={() => setSlot(s.selector.slotId)}>Edit {s.label}</button>)}
+  return <fieldset disabled={blocked}><legend className="sr-only">Scheduled {target.occurrence.scheduledDate} in this enrollment’s time zone</legend>
+    <details className="proposal-reschedule" open={!target.strength.length && !target.outdoor}><summary>Reschedule this day</summary>
+      <div><label>New date<input type="date" className="coach-input" value={date} onChange={e => setDate(e.target.value)} /></label>
+        <p>Choose a future date in this enrollment’s time zone. Today and past dates aren’t available.</p>
+        <button type="button" disabled={!valid} onClick={() => add({ kind: "move_occurrence", selector: target.occurrence, newDate: date })}>Add date change</button></div>
+    </details>
+    <div className="conversation-actions proposal-exercises">{target.strength.slice(0, count).map(s => <button type="button" key={s.selector.slotId} aria-pressed={slotId === s.selector.slotId} onClick={() => setSlot(s.selector.slotId)}>Edit {s.label}</button>)}
       {count < target.strength.length && <button type="button" onClick={() => setCount(n => n + 20)}>More exercises</button>}
-      {target.outdoor && <button type="button" onClick={() => setSlot("outdoor")}>Edit outdoor intervals</button>}</div>
+      {target.outdoor && <button type="button" aria-pressed={slotId === "outdoor"} onClick={() => setSlot("outdoor")}>Edit outdoor intervals</button>}</div>
     {slot && <StrengthEditor key={slot.selector.slotId} slot={slot} add={add} blocked={blocked} />}
     {slotId === "outdoor" && target.outdoor && <OutdoorEditor outdoor={target.outdoor} add={add} blocked={blocked} />}
   </fieldset>;
@@ -95,9 +99,9 @@ function Editor({ controller, days, getDays }: { controller: CoachProposalsContr
     setChanges(values => [...values.filter(v => proposalOperationKey(v) !== key), change]); controller.discardPreview(); setProblem(null);
   };
   return <section className="proposal-editor" aria-label="Create proposal"><h3>Propose a change</h3>
-    <p>Choose a scheduled day, then preview your changes before sending them to your client. Started workouts keep their frozen prescriptions.</p>
+    <p>Choose a day to edit. Workouts already started keep their original prescriptions.</p>
     <h4>Scheduled day</h4>
-    <div className="conversation-actions">{selectable.map(day => <button type="button" key={day.scheduleRowId} disabled={blocked}
+    <div className="proposal-days">{selectable.map(day => <button type="button" key={day.scheduleRowId} disabled={blocked}
       aria-pressed={state.targets?.occurrence.scheduleRowId === day.scheduleRowId} onClick={() => void controller.choose(day.scheduleRowId)}>
       {day.dayLabel}{day.scheduledDate && <small>{day.scheduledDate}</small>}</button>)}</div>
     {getDays && schedule.loading && <p role="status">Loading scheduled days…</p>}
@@ -112,7 +116,7 @@ function Editor({ controller, days, getDays }: { controller: CoachProposalsContr
     {state.targets && <TargetEditor key={state.targets.occurrence.scheduleRowId} target={state.targets} blocked={blocked} add={add} />}
     {!!changes.length && <h4>Changes to preview</h4>}
     <ol>{changes.map((change, i) => <li key={proposalOperationKey(change)}>{labels[change.kind]} · {change.selector.scheduledDate} <button type="button" disabled={blocked} onClick={() => { setChanges(v => v.filter(c => proposalOperationKey(c) !== proposalOperationKey(change))); controller.discardPreview(); }}>Remove change {i + 1}</button></li>)}</ol>
-    {!!changes.length && <><label>Note to your client (optional)<textarea className="coach-input" value={note} disabled={blocked} maxLength={4000} onChange={e => { setNote(e.target.value); controller.discardPreview(); }} /></label><button type="button" disabled={blocked} onClick={() => void controller.createPreview(changes, note.trim() ? note : null)}>Preview changes</button></>}
+    {!!changes.length && <><label>Note to your client (optional)<textarea className="coach-input" value={note} disabled={blocked} maxLength={4000} onChange={e => { setNote(e.target.value); controller.discardPreview(); }} /></label><button className={state.preview ? undefined : "coach-primary"} type="button" disabled={blocked} onClick={() => void controller.createPreview(changes, note.trim() ? note : null)}>Preview changes</button></>}
     {problem && <p role="alert">{problem}</p>}
     {state.preview && <section className="proposal-preview" aria-label="Review server preview"><h3>Review before sending</h3>{state.preview.note && <p className="conversation-text">{state.preview.note}</p>}<Changes changes={state.preview.changes} /><button className="coach-primary" type="button" disabled={blocked} onClick={() => void controller.sendPreview()}>Send proposal</button></section>}
   </section>;
@@ -124,7 +128,7 @@ export function CoachProposalView({ controller, days = [], getDays }: { controll
   const history = state.page?.proposals.filter(row => row.state !== "pending") ?? [];
   const row = (p: NonNullable<typeof state.page>["proposals"][number]) => <article className="proposal-row" key={p.proposalId}>
     <div><h4>{status[p.state]}</h4><p><time dateTime={p.createdAt}>{p.createdAt.slice(0, 10)}</time> · {[...new Set(p.operationLabels)].map(k => labels[k]).join(" · ")}</p></div>
-    <button type="button" disabled={blocked} onClick={() => void controller.review(p.proposalId)}>Review proposal</button>
+    <button className="conversation-quiet" type="button" aria-label={`Review proposal: ${status[p.state]}, ${p.createdAt.slice(0, 10)}`} disabled={blocked} onClick={() => void controller.review(p.proposalId)}>Review</button>
     {state.detail?.proposalId === p.proposalId && <section className="proposal-preview" aria-label="Proposal details">
       {state.detail.note && <p className="conversation-text">{state.detail.note}</p>}
       {state.detail.changes ? <Changes changes={state.detail.changes} /> : <p>{state.detail.operationLabels.map(k => labels[k]).join(" · ")}</p>}
@@ -134,7 +138,7 @@ export function CoachProposalView({ controller, days = [], getDays }: { controll
   </article>;
   return <section className="coach-conversation conversation-panel proposal-panel" aria-label="Plan updates">
     <h2>Plan updates</h2>
-    <p>Your client reviews each proposal in the app and chooses whether to apply it.</p>
+    <p>Your client reviews each proposal and chooses whether to apply it.</p>
     {state.message && <p className="conversation-notice" role="status" aria-live="polite">{state.message}</p>}
     {!state.ready && !state.message && <p role="status">Checking plan updates…</p>}
     {state.pending && <section className="proposal-recovery"><h3>Previous request</h3>
@@ -146,7 +150,7 @@ export function CoachProposalView({ controller, days = [], getDays }: { controll
     {consent?.disclosure && !consent.consentActive && <section className="conversation-section"><h3>Proposal consent</h3>
       <p>Plan updates require separate consent from message sharing.</p>
       <p className="conversation-text">{consent.disclosure.text}</p>
-      <button type="button" disabled={blocked} onClick={() => void controller.consentTo("accept", consent.disclosure!)}>Allow plan proposals</button></section>}
+      <button className="coach-primary" type="button" disabled={blocked} onClick={() => void controller.consentTo("accept", consent.disclosure!)}>Allow plan proposals</button></section>}
     {canEdit && <Editor key={`${editor.expectedControlRevision}/${editor.expectedEffectiveRevision}/${consent.grantId}/${consent.consentGeneration}`} controller={controller} days={days} getDays={getDays} />}
     {state.ready && !editor && !pending.length && !(consent?.disclosure && !consent.consentActive) && <p>New proposals are unavailable for this enrollment.</p>}
     {state.page && <section className="proposal-history"><h3>History</h3>
@@ -155,8 +159,8 @@ export function CoachProposalView({ controller, days = [], getDays }: { controll
     </section>}
     {consent?.consentActive && <details className="conversation-policy"><summary>Proposal consent</summary>
       <p>You have allowed proposals for this enrollment.</p>
-      <button type="button" disabled={blocked} onClick={() => void controller.consentTo("revoke")}>Withdraw proposal consent</button></details>}
-    {!state.pending && <button className="proposal-refresh" type="button" disabled={state.busy} onClick={() => void controller.initialize()}>Refresh proposals</button>}
+      <button className="conversation-quiet" type="button" disabled={blocked} onClick={() => void controller.consentTo("revoke")}>Withdraw proposal consent</button></details>}
+    {!state.pending && <button className="conversation-quiet" type="button" disabled={state.busy} onClick={() => void controller.initialize()}>Refresh proposals</button>}
   </section>;
 }
 export function CoachProposals({ accountId, attemptId, runtime, conversation }: { accountId: string; attemptId: string; runtime: ReturnType<typeof createBrowserConversationRuntime>; conversation: ConversationController }) {

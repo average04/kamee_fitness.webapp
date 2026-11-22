@@ -54,9 +54,11 @@ export function CoachClientsView({ controller, onRetry = () => controller.initia
       <h2 id="conversation-list-title">Conversations</h2>
       {state.loading && state.items.length === 0 ? <p role="status">Loading conversations…</p> : state.ready && !state.error && state.items.length === 0 ? <p>No coach conversations on this page.</p> : null}
       <ul className="conversation-roster">{state.items.map(item => <li key={item.conversationId}>
-        <CoachLink href={`/coaching/clients/${item.enrollmentAttemptId}`}><div><strong>Conversation</strong><p>{conversationReasonLabel(item.availability.reason)}</p></div><span className="conversation-unread">{item.unreadCount} unread</span></CoachLink>
+        <CoachLink href={`/coaching/clients/${item.enrollmentAttemptId}`}><div><strong>Conversation</strong><p>{conversationReasonLabel(item.availability.reason)}</p></div>
+          <span className="conversation-unread" data-unread={item.unreadCount !== "0" || undefined}>{item.unreadCount} unread</span>
+        </CoachLink>
       </li>)}</ul>
-      <div className="conversation-actions"><button disabled={state.loading && state.items.length === 0} onClick={() => void controller.page()}>Refresh conversations</button>{state.nextAfterId && <button disabled={state.loading && state.items.length === 0} onClick={() => void controller.page(state.nextAfterId)}>Next conversations</button>}</div>
+      <div className="conversation-actions"><button className="conversation-quiet" disabled={state.loading && state.items.length === 0} onClick={() => void controller.page()}>Refresh conversations</button>{state.nextAfterId && <button disabled={state.loading && state.items.length === 0} onClick={() => void controller.page(state.nextAfterId)}>Next conversations</button>}</div>
     </section>
     <details className="conversation-panel conversation-service">
       <summary>Service policy and availability</summary>

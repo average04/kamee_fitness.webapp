@@ -4,12 +4,13 @@ import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { COACH_WORKSPACE_SECTIONS, getCoachWorkspaceNavigation } from "@/lib/coaching/navigation";
+import { COACHING_CONVERSATIONS_ENABLED } from "@/lib/coaching/conversation/flags";
 
 export function HubNav() {
   const pathname = usePathname();
   const { section } = getCoachWorkspaceNavigation(pathname);
   return (
-    <nav className="coach-nav" aria-label="Coach workspace">
+    <nav className="coach-nav" aria-label="Coach workspace" data-client-workspace={(COACHING_CONVERSATIONS_ENABLED && section.id === "clients") || undefined}>
       {COACH_WORKSPACE_SECTIONS.map((area) => (
         <Link key={area.id} href={area.href} aria-current={section.id === area.id ? "location" : undefined}>
           <svg className="coach-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

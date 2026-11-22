@@ -54,6 +54,7 @@ describe("rendered coach proposal form", () => {
   it("edits an actual authorized day and displays server before/after before explicit Send", async () => {
     const f = await mount(true); await f.click("Day 1");
     const date = document.querySelector<HTMLInputElement>('input[type="date"]')!;
+    expect(date.closest("details")?.open).toBe(true);
     expect(document.body.textContent).toContain("Choose a future date in this enrollment’s time zone. Today and past dates aren’t available.");
     expect(date.getAttribute("min")).toBeNull();
     await act(async () => { Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!.call(date, "2026-11-25"); date.dispatchEvent(new dom.window.Event("input", { bubbles: true })); date.dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
@@ -73,6 +74,30 @@ describe("rendered coach proposal form", () => {
     await f.click("Day 1"); await f.click("Edit Squat"); await input("Sets", "31"); expect(f.button("Add strength change").disabled).toBe(true);
     await input("Sets", "3"); await input("Repetitions", "12"); await input("Rest seconds", "60"); await f.click("Add strength change"); await f.click("Preview changes");
     expect(f.api.preview).toHaveBeenCalledWith(expect.objectContaining({ changes: [{ kind: "edit_strength_slot", selector, changes: { sets: 3, repCount: 12, restSeconds: 60 } }] }));
+  });
+  it("keeps an unstaged date edit when the coach closes the date controls to inspect an exercise", async () => {
+    const f = await mount(true);
+    const selector = { ...occurrence, blockId: id(31), blockLineageKey: id(32), slotId: id(33), slotLineageKey: id(34) };
+    f.api.editTargets.mockResolvedValueOnce({ ...target, occurrence, scheduledTime: null, strength: [
+      { selector, label: "Squat", trackingType: "weight_reps", sets: 2, reps: "8", restSeconds: 30 },
+    ], outdoor: null } as never);
+    await f.click("Day 1");
+    const date = document.querySelector<HTMLInputElement>('input[type="date"]')!;
+    const details = date.closest("details")!;
+    const toggle = () => act(async () => details.querySelector("summary")!.click());
+    expect(details.open).toBe(false);
+    await toggle();
+    expect(details.open).toBe(true);
+    await input("New date", "2026-11-26");
+    await toggle();
+    await f.click("Edit Squat");
+    expect(details.open).toBe(false);
+    expect(f.button("Edit Squat").getAttribute("aria-pressed")).toBe("true");
+    await toggle();
+    expect(date.value).toBe("2026-11-26");
+    expect(f.button("Add date change").disabled).toBe(false);
+    expect(f.api.preview).not.toHaveBeenCalled();
+    expect(f.api.send).not.toHaveBeenCalled();
   });
   it("keeps interval structure and rejects zero seconds before an actual preview request", async () => {
     const f = await mount(true), selector = { ...occurrence, cardioId: id(35), cardioLineageKey: id(36) };
