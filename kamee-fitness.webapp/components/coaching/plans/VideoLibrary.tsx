@@ -7,6 +7,21 @@ import { VideoPlayer } from "./PlanPreview";
 import { subscribeAuthBoundary } from "@/lib/auth-boundary";
 import { setIntroductionVideo } from "@/app/coaching/(hub)/profile/introduction-actions";
 
+function LocalVideoPreview({ file }: { file: File }) {
+  const player = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const element = player.current;
+    if (!element) return;
+    const url = URL.createObjectURL(file);
+    element.src = url;
+    return () => {
+      element.removeAttribute("src");
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+  return <video ref={player} aria-label="Selected video preview" controls muted playsInline preload="metadata" className="aspect-video w-full max-w-md rounded-xl bg-black object-contain" />;
+}
+
 export function VideoLibrary({
   initial,
   initialIntroId,
@@ -30,6 +45,7 @@ export function VideoLibrary({
   const [mutating, setMutating] = useState(false);
   const [messageError, setMessageError] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [source, setSource] = useState<"upload" | "library">("upload");
   const [candidateId, setCandidateId] = useState("");
   const [retired, setRetired] = useState(false);
   const choiceId = useId();
@@ -40,6 +56,8 @@ export function VideoLibrary({
   const surface = useRef<HTMLElement | null>(null);
   const upload = useRef<Upload | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const titleEdited = useRef(false);
+  const inventoryRead = useRef(0);
   const [hasUpload, setHasUpload] = useState(false);
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
   const [db] = useState(createBrowserSupabase);
@@ -49,6 +67,10 @@ export function VideoLibrary({
   const ready = videos.filter(video => video.status === "ready" && !video.retired_at);
   const current = videos.find(video => video.id === introId);
   const candidate = ready.find(video => video.id === candidateId);
+  const fileError = file && (file.type !== "video/mp4" || file.size > 50 * 1024 * 1024)
+    ? "Choose an MP4 video up to 50 MB."
+    : null;
+  const uploadReady = Boolean(file && !fileError && title.trim());
   function setWorking(value: boolean) {
     working.current = value;
     setBusy(value);
@@ -69,6 +91,7 @@ export function VideoLibrary({
     setIntroId(null);
     setFile(null);
     setTitle("");
+    titleEdited.current = false;
     setCaption("");
     setRetired(true);
   }, []);
@@ -136,21 +159,28 @@ export function VideoLibrary({
   }, [hasUpload, busy, retired]);
   async function refresh(generation = lifetime.current.generation) {
     if (!live(generation)) return;
+    const request = ++inventoryRead.current;
+    try {
     const { data, error } = await db
       .from("coaching_videos")
       .select("*")
       .is("retired_at", null)
       .order("created_at", { ascending: false });
-    if (!live(generation)) return;
+    if (!live(generation) || request !== inventoryRead.current) return;
     if (error) throw error;
     setVideos((data ?? []) as Video[]);
+    } catch (error) {
+      if (!live(generation) || request !== inventoryRead.current) return;
+      throw error;
+    }
   }
-  async function finalize(id: string) {
+  async function finalize(id: string, useAsIntroduction = false) {
     const generation = lifetime.current.generation;
     if (!live(generation) || working.current || mutation.current || upload.current) return;
     setWorking(true);
     setMessageError(false);
     setMessage("Validating video…");
+    let validated = false;
     try {
       const { data, error } = await db.functions.invoke(
         "finalize-coaching-video",
@@ -161,10 +191,28 @@ export function VideoLibrary({
         throw new Error(
           data?.error ?? "Validation failed. Check the video status and retry.",
         );
-      setMessage("Video ready.");
+      validated = true;
+      if (useAsIntroduction) {
+        if (!ownerId) throw new Error("Reload this page before changing your introduction video.");
+        setMessage("Saving your introduction…");
+        const result = await setIntroductionVideo(ownerId, id);
+        if (!live(generation)) return;
+        if (!result.ok) throw new Error(result.error);
+        setIntroId(id);
+        setCandidateId("");
+        setExpanded(false);
+        setSource("upload");
+        setMessage("Introduction video updated.");
+      } else setMessage("Video ready.");
     } catch (e) {
       if (!live(generation)) return;
+      if (validated && useAsIntroduction) {
+        setSource("library");
+        setCandidateId(id);
+        setExpanded(true);
+      }
       setMessage(e instanceof Error ? e.message : "Validation failed");
+      setMessageError(true);
     } finally {
       if (live(generation)) {
         try {
@@ -176,7 +224,7 @@ export function VideoLibrary({
       }
     }
   }
-  async function begin(existing?: Video) {
+  async function begin(existing?: Video, useAsIntroduction = false) {
     const generation = lifetime.current.generation;
     if (!live(generation) || working.current || mutation.current || upload.current) return;
     setMessageError(false);
@@ -255,6 +303,8 @@ export function VideoLibrary({
         },
         onSuccess: () => {
           if (!live(generation) || upload.current !== tus || mutation.current) return;
+          // The validation phase owns its lock and inventory from this point.
+          inventoryRead.current++;
           upload.current = null;
           setWorking(false);
           setHasUpload(false);
@@ -262,8 +312,9 @@ export function VideoLibrary({
           setFile(null);
           if (fileInput.current) fileInput.current.value = "";
           setTitle("");
+          titleEdited.current = false;
           setCaption("");
-          void finalize(video.id);
+          void finalize(video.id, useAsIntroduction);
         },
       });
       upload.current = tus;
@@ -273,7 +324,13 @@ export function VideoLibrary({
       if (!live(generation)) return;
       if (previous[0]) tus.resumeFromPreviousUpload(previous[0]);
       tus.start();
-      await refresh(generation);
+      try {
+        await refresh(generation);
+      } catch {
+        // An optional inventory read cannot release a newer validation lock.
+        if (live(generation) && upload.current === tus)
+          setMessage("Your upload is continuing. The video list could not be refreshed.");
+      }
     } catch (e) {
       if (!live(generation)) return;
       setMessage(e instanceof Error ? e.message : "Could not start upload");
@@ -368,6 +425,14 @@ export function VideoLibrary({
       setIntroId(id);
       setCandidateId("");
       setExpanded(false);
+      if (introduction) {
+        setFile(null);
+        if (fileInput.current) fileInput.current.value = "";
+        setTitle("");
+        titleEdited.current = false;
+        setCaption("");
+        setSource("upload");
+      }
       setMessage(id ? "Introduction video updated." : "Introduction video removed. The video is still in your library.");
     } catch (e) {
       if (!live(generation)) return;
@@ -381,48 +446,64 @@ export function VideoLibrary({
     }
   }
   if (retired) return <p role="status" className="coach-panel text-sm text-muted">Sign in again to manage your videos.</p>;
+  const videoDetails = <div className="plan-stack">
+    <label className="plan-field">
+      Video title (required)
+      <input className="coach-input" value={title} maxLength={120} onChange={(e) => { titleEdited.current = true; setTitle(e.target.value); }} disabled={locked} />
+    </label>
+    <label className="plan-field">
+      Caption (optional)
+      <input className="coach-input" value={caption} maxLength={200} onChange={(e) => setCaption(e.target.value)} disabled={locked} />
+    </label>
+  </div>;
   const uploadForm = (
     <div className="plan-stack">
-        <p className="coach-panel-description">
+        <div className="plan-stack rounded-xl border border-white/10 bg-ink-950 p-4 sm:p-5">
+          {file ? <div className="min-w-0 space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Selected video</p>
+            <p className="text-sm font-medium text-mist [overflow-wrap:anywhere]">{file.name}</p>
+            <p className="text-xs text-muted">{(file.size / (1024 * 1024)).toFixed(1)} MB</p>
+          </div> : <p className="text-sm text-mist">Choose a video from your device to get started.</p>}
+          {file && !fileError && introduction && <LocalVideoPreview file={file} />}
+          <div>
+            <button type="button" className={`${file ? "plan-secondary" : "coach-primary"} ${controlClass}`} disabled={locked} onClick={() => fileInput.current?.click()}>
+              {file ? "Change video" : "Choose video"}
+            </button>
+          </div>
+          <p className="text-xs leading-relaxed text-muted">
           MP4 · H.264 · Up to 10 minutes and 50 MB
-        </p>
-        <label>
-          Title
-          <input
-            className="coach-input"
-            value={title}
-            maxLength={120}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={locked}
-          />
-        </label>
-        <label>
-          Caption
-          <input
-            className="coach-input"
-            value={caption}
-            maxLength={200}
-            onChange={(e) => setCaption(e.target.value)}
-            disabled={locked}
-          />
-        </label>
+          </p>
+          {fileError && <p role="alert" className="text-sm text-red-400">{fileError}</p>}
+        </div>
         <input
           ref={fileInput}
           aria-label="Choose MP4 video"
           type="file"
           accept="video/mp4"
-          className={`w-full min-w-0 ${controlClass}`}
+          className="hidden"
           disabled={locked}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const selected = e.target.files?.[0] ?? null;
+            setFile(selected);
+            if (selected && introduction && !titleEdited.current && selected.type === "video/mp4" && selected.size <= 50 * 1024 * 1024) {
+              setTitle(selected.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 120) || "My introduction");
+            }
+            setMessage("");
+            setMessageError(false);
+          }}
         />
+        {introduction ? file && !fileError && <details>
+          <summary className={`${controlClass} cursor-pointer text-sm text-mist`}>Edit video details</summary>
+          <div className="pt-3">{videoDetails}</div>
+        </details> : videoDetails}
         <div className="plan-order">
           <button
             type="button"
-            className={`plan-primary ${controlClass}`}
-            disabled={locked || paused}
-            onClick={() => begin()}
+            className={`coach-primary ${controlClass}`}
+            disabled={locked || paused || !uploadReady}
+            onClick={() => begin(undefined, introduction)}
           >
-            Upload video
+            {introduction ? "Upload and use as introduction" : "Upload video"}
           </button>
           {hasUpload && (
             <button
@@ -453,6 +534,9 @@ export function VideoLibrary({
             </button>
           )}
         </div>
+        {!hasUpload && !busy && <p className="text-xs leading-relaxed text-muted">
+          {!file ? "Choose a video first." : fileError ? "Choose another video to continue." : !title.trim() ? "Add a video title to continue." : introduction ? introId ? "Your current intro stays until the new video is ready." : "This video will become your profile introduction when it is ready." : "Upload this video to your library."}
+        </p>}
         {(busy || paused) && (
           <progress aria-label="Upload progress" value={progress} max={100}>
             {progress}%
@@ -464,7 +548,7 @@ export function VideoLibrary({
         <article key={v.id} className={introduction ? "plan-stack border-t border-white/10 pt-4" : "coach-panel plan-stack"}>
           <div className="plan-card">
             <div>
-              <h2>{v.title}</h2>
+              <h2 className="[overflow-wrap:anywhere]">{v.title}</h2>
               <p className="coach-panel-description">
                 {v.status}
                 {v.duration_seconds
@@ -504,18 +588,18 @@ export function VideoLibrary({
                   type="button"
                   className={`plan-secondary ${controlClass}`}
                   disabled={locked || !file}
-                  onClick={() => begin(v)}
+                  onClick={() => begin(v, introduction)}
                 >
-                  Resume with selected file
+                  {introduction ? "Resume and use as introduction" : "Resume with selected file"}
                 </button>
               )}
               <button
                 type="button"
                 className={`plan-secondary ${controlClass}`}
                 disabled={locked || v.id === activeUploadId}
-                onClick={() => finalize(v.id)}
+                onClick={() => finalize(v.id, introduction)}
               >
-                Retry validation
+                {introduction ? "Retry and use as intro" : "Retry validation"}
               </button>
             </div>
           )}
@@ -531,21 +615,42 @@ export function VideoLibrary({
       <p className="coach-panel-description">Help members get to know you and your coaching approach. A short introduction works well.</p>
       {introId ? (
         <div role="group" aria-label="Current introduction video" className="plan-stack">
-          <p className="text-sm font-medium text-mist">{current?.title ?? "Your current introduction"}</p>
+          <p className="text-sm font-medium text-mist [overflow-wrap:anywhere]">{current?.title ?? "Your current introduction"}</p>
           <VideoPlayer key={introId} id={introId} />
           <div>
             <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked || !ownerId} onClick={() => changeIntro(null)}>Remove introduction video</button>
           </div>
         </div>
       ) : <p className="text-sm text-muted">No introduction video added yet.</p>}
-      <div>
-        <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} aria-expanded={expanded} aria-controls={choiceId} onClick={() => setExpanded(value => !value)}>
-          {introId ? "Change introduction video" : "Add introduction video"}
+      {introId && <div>
+        <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} aria-expanded={expanded} aria-controls={choiceId} onClick={() => {
+          setExpanded(value => !value);
+          setSource("upload");
+          setFile(null);
+          setTitle("");
+          titleEdited.current = false;
+          setCaption("");
+          setCandidateId("");
+        }}>
+          {expanded ? "Cancel change" : "Change introduction video"}
         </button>
-      </div>
-      {expanded && (
+      </div>}
+      {(!introId || expanded) && (
         <div id={choiceId} className="plan-stack border-t border-white/10 pt-5">
-          {ready.length > 0 && <><label className="plan-stack text-sm text-mist">
+          {source === "upload" ? <>
+            {uploadForm}
+            {ready.length > 0 && <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+              <span className="text-sm text-muted">Already uploaded one?</span>
+              <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} onClick={() => {
+                setSource("library");
+                setFile(null);
+                setTitle("");
+                titleEdited.current = false;
+                setCaption("");
+              }}>Choose from library</button>
+            </div>}
+          </> : <>
+          <label className="plan-stack text-sm text-mist">
             Choose from your videos
             <select className={`coach-input ${controlClass}`} aria-label="Choose an introduction video" disabled={locked} value={candidateId} onChange={event => setCandidateId(event.target.value)}>
               <option value="">Choose a ready video</option>
@@ -554,12 +659,9 @@ export function VideoLibrary({
           </label>
           {candidate && <div role="group" aria-label="Selected video preview" className="plan-stack"><VideoPlayer key={candidate.id} id={candidate.id} /></div>}
           <div>
-            <button type="button" className={`plan-primary ${controlClass}`} disabled={locked || !ownerId || !candidate || candidate.id === introId} onClick={() => candidate && changeIntro(candidate.id)}>Use as introduction video</button>
+            <button type="button" className={`coach-primary ${controlClass}`} disabled={locked || !ownerId || !candidate || candidate.id === introId} onClick={() => candidate && changeIntro(candidate.id)}>Use this video</button>
           </div></>}
-          {ready.length > 0 ? <details className="plan-stack">
-            <summary className={`inline-flex cursor-pointer items-center text-sm text-mist ${controlClass}`}>Upload a new video</summary>
-            <div className="pt-3">{uploadForm}</div>
-          </details> : uploadForm}
+          {source === "library" && <div><button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} onClick={() => { setSource("upload"); setCandidateId(""); }}>Upload a new video</button></div>}
           {assetCards}
         </div>
       )}
