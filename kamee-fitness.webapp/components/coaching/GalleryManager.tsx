@@ -22,7 +22,6 @@ import { SaveIndicator } from "./SaveIndicator";
 export type { GalleryRow } from "@/lib/coaching/gallery";
 
 const MAX_PHOTOS = 12;
-const MIN_RECOMMENDED = 3;
 
 export function GalleryManager({
   coachId,
@@ -303,7 +302,7 @@ export function GalleryManager({
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-mist">
-        Gallery * · {photos.length} of {MAX_PHOTOS} · at least {MIN_RECOMMENDED} required for approval
+        Gallery (optional) · {photos.length} of {MAX_PHOTOS}
       </h2>
       <p id={`${addInputId}-hint`} className="text-sm text-muted">
         Select several photos at once. On a computer, hold Ctrl (Windows) or Command (Mac)

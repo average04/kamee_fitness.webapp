@@ -329,18 +329,16 @@ function stringArray(v: unknown): string[] | null {
 }
 
 /**
- * The items the coach checklist shows, in order. Credentials are optional
- * (migration 20260913100900), so "credential" is not one of them; its label
- * stays in MISSING_LABELS below only so a database without that migration
- * still produces readable copy.
+ * The required items the coach checklist shows, in order. Photos and
+ * credentials are optional; legacy server keys keep readable labels below.
  */
-export const CHECKLIST_KEYS = ["headline", "about", "gallery", "terms"] as const;
+export const CHECKLIST_KEYS = ["headline", "about", "terms"] as const;
 
 /**
  * Copy for the "what's missing" checklist, keyed by what the approval RPC
  * reports. `profile` is a parent/meta key (the RPC returns it when the
  * `coaching_profiles` row itself is missing or unreadable, not as an
- * ongoing per-field flag) -- Checklist.tsx excludes it from the 7 rendered
+ * ongoing per-field flag) -- Checklist.tsx excludes it from the rendered
  * items, but it still needs a label here since `submitProfile`'s
  * `incomplete:<keys>` mapping falls back to the raw key when one is
  * missing from this table (fix round 1 minor).
@@ -352,6 +350,6 @@ export const MISSING_LABELS: Record<string, string> = {
   avatar: "Upload a profile photo",
   cover: "Upload a cover photo",
   credential: "Add at least one credential",
-  gallery: "Add at least 3 gallery photos",
+  gallery: "Review your gallery photos",
   terms: "Accept the coach terms",
 };

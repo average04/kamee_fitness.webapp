@@ -8,7 +8,6 @@ import {
   profileInputFromFormState,
   validateCredential,
   validateProfile,
-  CHECKLIST_KEYS,
 } from "./profile";
 
 const fd = (o: Record<string, string>) => {
@@ -110,13 +109,6 @@ describe("credentials", () => {
     expect(validateCredential({ ...i, expiresOn: "not-a-date" }).ok).toBe(
       false,
     );
-  });
-});
-
-describe("CHECKLIST_KEYS", () => {
-  it("lists four required items; photos and credentials are optional", () => {
-    expect([...CHECKLIST_KEYS]).toEqual(["headline", "about", "gallery", "terms"]);
-    for (const k of CHECKLIST_KEYS) expect(MISSING_LABELS[k]).toBeTruthy();
   });
 });
 

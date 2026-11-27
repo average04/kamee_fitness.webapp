@@ -1,6 +1,6 @@
 import { CHECKLIST_KEYS, MISSING_LABELS } from "@/lib/coaching/profile";
 
-// The explicit required-item list (credentials are optional). "profile" is a
+// The explicit required-item list (photos and credentials are optional). "profile" is a
 // parent/meta key the RPC returns when the row itself is missing -- handled
 // below as "everything is missing", never rendered as its own row.
 const KEYS: readonly string[] = CHECKLIST_KEYS;
@@ -9,8 +9,7 @@ export function Checklist({ missing }: { missing: string[] }) {
   const missingSet = new Set(missing);
   // The RPC's `profile` key is a parent/meta flag (the row itself is
   // missing or unreadable), not one of the listed items. Treat it as
-  // "everything is missing" rather than letting the absence of the other 6
-  // literal keys read as "7 of 7 complete".
+  // "everything is missing" rather than reading the absent field keys as complete.
   const allMissing = missingSet.has("profile");
   const doneCount = allMissing ? 0 : KEYS.filter((k) => !missingSet.has(k)).length;
 
