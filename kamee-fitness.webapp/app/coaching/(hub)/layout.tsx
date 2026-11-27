@@ -1,36 +1,36 @@
-import { CoachLink as Link } from "@/components/coaching/CoachLink";
-import Image from "next/image";
+import { redirect } from "next/navigation";
 import { requireCoach } from "@/lib/coaching/auth";
+import { getPortalSession } from "@/lib/auth/portal-session";
 import { COACH_STATUS_LABEL } from "@/lib/coaching/states";
-import { HubLocation, HubNav, HubSectionNav } from "@/components/coaching/HubNav";
+import { HubLocation, HubSectionNav } from "@/components/coaching/HubNav";
 import { CoachSignOut } from "@/components/coaching/CoachSignOut";
+import { PortalShell } from "@/components/portal/PortalShell";
 
 export default async function CoachingHubLayout({ children }: { children: React.ReactNode }) {
   const { status } = await requireCoach();
+  const session = await getPortalSession();
+  if (!session) redirect("/login");
   return (
-    <div className="coach-shell">
-      <aside className="coach-sidebar">
-        <Link href="/coaching" className="coach-brand" aria-label="Kamee coaching home">
-          <Image src="/adaptive-icon.png" width={38} height={38} className="coach-brand-mark" alt="" />
-          <span>Kamee<small>COACHING</small></span>
-        </Link>
-        <p className="coach-sidebar-label">Workspace</p>
-        <HubNav />
-        <CoachSignOut className="coach-signout" />
-      </aside>
+    <PortalShell
+      access={{ isAdmin: session.isAdmin, canUseCoachHub: session.canUseCoachHub, coachStatus: session.coachStatus, defaultDestination: session.defaultDestination }}
+      email={session.user.email ?? null}
+      surface="coach"
+      contentElement="div"
+      skipTargetId="coach-content"
+      signOut={<CoachSignOut />}
+    >
       <div className="coach-main">
         <header className="coach-topbar">
           <HubLocation />
           <div className="coach-topbar-actions">
             <span className="coach-status">{COACH_STATUS_LABEL[status] ?? status}</span>
-            <CoachSignOut className="coach-mobile-signout" buttonClassName="text-xs text-muted" />
           </div>
         </header>
-        <main id="coach-content" className="coach-content">
+        <main id="coach-content" className="coach-content" tabIndex={-1}>
           <HubSectionNav />
           {children}
         </main>
       </div>
-    </div>
+    </PortalShell>
   );
 }

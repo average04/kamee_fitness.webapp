@@ -1,14 +1,16 @@
-"use client";
-
-import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { redirect } from "next/navigation";
 import { EmailCodeSignIn } from "@/components/auth/EmailCodeSignIn";
+import { getVerifiedPortalUser } from "@/lib/auth/portal-session";
+import { getSignInDestination } from "@/lib/auth/landing";
 import styles from "./login.module.css";
 
-function LoginForm() {
-  const params = useSearchParams();
+export default async function LoginPage({ searchParams }: {
+  searchParams: Promise<{ next?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  if (await getVerifiedPortalUser()) redirect(await getSignInDestination(params.next));
 
   return (
     <main className={styles.page}>
@@ -39,9 +41,8 @@ function LoginForm() {
             <h1 id="login-title">Welcome back.</h1>
             <p className={styles.intro}>A little consistency goes a long way.<br />Sign in with the email you use in the app.</p>
             <div className={styles.form}>
-              {params.get("error") === "not-authorized" && <p role="alert" className="mt-4 text-sm text-red-300">That account is not authorized for the admin panel.</p>}
-              {params.get("error") === "auth" && <p role="alert" className="mt-4 text-sm text-red-300">Sign-in link was invalid or expired. Try again.</p>}
-              <EmailCodeSignIn next={params.get("next")} fallbackNext="/auth/landing" sendLabel="Email me a sign-in link" />
+              {params.error === "auth" && <p role="alert" className="mt-4 text-sm text-red-300">Sign-in link was invalid or expired. Try again.</p>}
+              <EmailCodeSignIn next={params.next ?? null} fallbackNext="/auth/landing" sendLabel="Email me a sign-in link" />
             </div>
             <p className={styles.explanation}>Use the link or the six-digit code in your email.<br />No password needed here.</p>
             <div className={styles.newAccount}>
@@ -57,13 +58,5 @@ function LoginForm() {
         <nav aria-label="Legal"><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></nav>
       </footer>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
   );
 }

@@ -140,7 +140,7 @@ describe("selected conversation case Server Actions", () => {
         },
       ]) {
         mocks.getUser.mockResolvedValue({ data: { user }, error: null });
-        await expect(action(input())).rejects.toThrow("redirect:/admin/login");
+        await expect(action(input())).rejects.toThrow(user ? "redirect:/auth/landing" : "redirect:/admin/login");
         expect(mocks.client).not.toHaveBeenCalled();
         expect(mocks.rpc).not.toHaveBeenCalled();
       }
@@ -508,7 +508,7 @@ describe("conversation operator Server Actions", () => {
       ]) {
         mocks.getUser.mockResolvedValue({ data: { user }, error: null });
         await expect(action(grantInput())).rejects.toThrow(
-          "redirect:/admin/login",
+          user ? "redirect:/auth/landing" : "redirect:/admin/login",
         );
         expect(mocks.client).not.toHaveBeenCalled();
         expect(mocks.rpc).not.toHaveBeenCalled();
@@ -916,7 +916,7 @@ describe.skipIf(process.env.C1B_WEB_LOCAL_ADAPTER !== "1")(ownedWebSuite, () => 
             }
             case "nonallowlisted_before_service": {
               for (const action of [() => grantConversation(input), () => readConversationCase({ caseId })])
-                await expect(h.invoke<unknown>("nonAllowlisted", action)).rejects.toThrow("redirect:/admin/login?error=not-authorized");
+                await expect(h.invoke<unknown>("nonAllowlisted", action)).rejects.toThrow("redirect:/auth/landing");
               ownedCheck(h.verifiedIds.length === 2 && h.verifiedIds.every(id => id === h.context.nonAllowlisted.userId));
               ownedCheck(mocks.client.mock.calls.length === 0 && rpcObservations().length === 0);
               break;

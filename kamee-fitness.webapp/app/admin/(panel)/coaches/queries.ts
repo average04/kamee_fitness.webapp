@@ -1,7 +1,9 @@
 import "server-only";
 
+import { requireAdmin } from "@/lib/admin/auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { CoachStatus } from "@/lib/coaching/states";
+import { isUuid } from "@/lib/coaching/uuid";
 
 /**
  * Reads for the admin Coaches pages. Every query uses the service-role
@@ -202,6 +204,25 @@ export type CoachDetail = {
   invite: CoachInviteSummary | null;
   missing: string[];
 };
+
+/** Null means unavailable; no Auth user, metadata or provider error leaves this reader. */
+export type CoachAccountEmail = { email: string | null };
+
+/** Privileged exact-target lookup, used only on the admin coach-detail page. */
+export async function loadCoachAccountEmail(id: string): Promise<CoachAccountEmail> {
+  // Keep the real authorization gate outside the catch so its redirect propagates.
+  await requireAdmin();
+  if (!isUuid(id)) return { email: null };
+
+  try {
+    const db = createAdminSupabase();
+    const { data, error } = await db.auth.admin.getUserById(id);
+    if (error) return { email: null };
+    return { email: data.user?.email?.trim() || null };
+  } catch {
+    return { email: null };
+  }
+}
 
 /**
  * M1 (fix round 1): every one of these reads throws on its own error

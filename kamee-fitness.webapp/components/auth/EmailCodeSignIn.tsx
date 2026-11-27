@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { safeNextPath } from "@/lib/safe-next";
+import { safePortalNext } from "@/lib/auth/portal-access";
 import { signInErrorMessage } from "@/lib/auth/sign-in-errors";
 import { isLocalDevelopmentAuth } from "@/lib/auth/local-auth";
 import { startTurnstileVerification, type VerificationState } from "@/lib/auth/turnstile-verification";
@@ -19,11 +19,11 @@ const TURNSTILE_SITE_KEY =
  * Email one-time-code sign-in (existing accounts only), shared by /login and
  * the coach invite page. Sends a magic link + 6-digit code; the link lands on
  * /auth/callback?next=..., the code signs in on this page. Either way the
- * visitor ends up at `next` (same-origin only, via safeNextPath).
+ * visitor's continuation is checked against their verified portal role.
  */
 export function EmailCodeSignIn({
   next,
-  fallbackNext = "/me",
+  fallbackNext = "/auth/landing",
   sendLabel = "Send magic link / code",
   theme = "dark",
   invitedEmail,
@@ -36,8 +36,8 @@ export function EmailCodeSignIn({
 }) {
   // Resolved lazily (not at render time) because it needs window.location.origin,
   // which is unavailable during this client component's server-side render pass.
-  function resolveNext(): string {
-    return safeNextPath(next, window.location.origin, fallbackNext);
+  function resolveNext(): string | null {
+    return safePortalNext(next, window.location.origin) ?? safePortalNext(fallbackNext, window.location.origin);
   }
   const emailId = useId();
   const codeId = useId();
@@ -77,11 +77,12 @@ export function EmailCodeSignIn({
     setMessage(null);
     try {
       const supabase = createBrowserSupabase();
+      const continuation = resolveNext();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(resolveNext())}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback${continuation ? `?next=${encodeURIComponent(continuation)}` : ""}`,
           captchaToken: captchaToken ?? undefined,
         },
       });
@@ -114,7 +115,10 @@ export function EmailCodeSignIn({
       setMessage(signInErrorMessage(error.message));
       return;
     }
-    window.location.href = resolveNext();
+    const continuation = resolveNext();
+    // A document navigation ensures the server resolver reads the new auth cookies.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `/auth/landing${continuation ? `?next=${encodeURIComponent(continuation)}` : ""}`;
   }
 
   return (

@@ -82,7 +82,7 @@ describe("coach status caller busy retry", () => {
       error: null,
     });
     await expect(setCoachStatus(COACH, "suspended", "")).rejects.toThrow(
-      "redirect:/admin/login",
+      "redirect:/auth/landing",
     );
     expect(mocks.client).not.toHaveBeenCalled();
   });

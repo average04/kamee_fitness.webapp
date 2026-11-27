@@ -44,6 +44,11 @@ export function VideoLibrary({
         a &&
         a.target !== "_blank" &&
         a.href !== location.href &&
+        // Fragment navigation stays in this document, including the portal's
+        // skip link. Route and query changes still leave the upload screen.
+        !(a.origin === location.origin &&
+          a.pathname === location.pathname &&
+          a.search === location.search) &&
         !confirm(
           "Leave this upload? You can resume from Video assets with the same file.",
         )

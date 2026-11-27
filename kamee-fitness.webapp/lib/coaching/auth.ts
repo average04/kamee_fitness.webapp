@@ -1,10 +1,11 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { HUB_STATES, type CoachStatus } from "./states";
+import { getPortalSession } from "@/lib/auth/portal-session";
+import type { ProfileRole } from "@/lib/auth/portal-access";
 
-export type ProfileRole = "user" | "coach" | "admin";
+export type { ProfileRole } from "@/lib/auth/portal-access";
 
 export const getCoachSession = cache(
   async (): Promise<{
@@ -12,20 +13,12 @@ export const getCoachSession = cache(
     status: CoachStatus;
     role: ProfileRole | null;
   }> => {
-    const supabase = await createServerSupabase();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { user: null, status: "none", role: null };
-    const { data } = await supabase
-      .from("profiles")
-      .select("role, coach_status")
-      .eq("id", user.id)
-      .maybeSingle();
+    const session = await getPortalSession();
+    if (!session) return { user: null, status: "none", role: null };
     return {
-      user,
-      status: (data?.coach_status as CoachStatus) ?? "none",
-      role: (data?.role as ProfileRole) ?? null,
+      user: session.user,
+      status: session.coachStatus,
+      role: session.profileRole,
     };
   },
 );
@@ -44,8 +37,7 @@ export async function requireCoach(
     if (allowed.includes("invited")) return { user, status };
     redirect("/coaching/invite");
   }
-  if (role !== "coach" || !allowed.includes(status)) {
-    redirect("/coaching/not-a-coach");
-  }
+  if (role !== "coach" || !HUB_STATES.includes(status)) redirect("/auth/landing");
+  if (!allowed.includes(status)) redirect("/auth/landing");
   return { user, status };
 }
