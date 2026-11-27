@@ -8,7 +8,6 @@ import {
   profileInputFromFormState,
   validateCredential,
   validateProfile,
-  CHECKLIST_KEYS,
 } from "./profile";
 
 const fd = (o: Record<string, string>) => {
@@ -113,13 +112,6 @@ describe("credentials", () => {
   });
 });
 
-describe("CHECKLIST_KEYS", () => {
-  it("lists four required items; photos and credentials are optional", () => {
-    expect([...CHECKLIST_KEYS]).toEqual(["headline", "about", "gallery", "terms"]);
-    for (const k of CHECKLIST_KEYS) expect(MISSING_LABELS[k]).toBeTruthy();
-  });
-});
-
 describe("MISSING_LABELS", () => {
   it("covers every key the RPC can return", () => {
     for (const k of [
@@ -149,11 +141,11 @@ const row = {
 };
 
 describe("profileFormStateFromRow", () => {
-  it("maps a coaching_profiles row into editable string fields", () => {
+  it("maps a coaching_profiles row into editable fields without serializing specialties", () => {
     expect(profileFormStateFromRow(row)).toEqual({
       headline: "Run coach",
       about: "y".repeat(80),
-      specialties: "5k, marathon",
+      specialties: ["5k", "marathon"],
       yearsExperience: "7",
       languages: "en, fil",
       locationLabel: "Cebu",
@@ -178,7 +170,7 @@ describe("profileFormStateFromRow", () => {
     });
     expect(s.headline).toBe("");
     expect(s.about).toBe("");
-    expect(s.specialties).toBe("");
+    expect(s.specialties).toEqual([]);
     expect(s.yearsExperience).toBe("");
     expect(s.instagram).toBe("");
     expect(s.website).toBe("");
@@ -201,10 +193,22 @@ describe("profileInputFromFormState", () => {
     });
   });
 
-  it("trims comma lists and drops blanks", () => {
+  it("still trims the language comma list and drops blanks", () => {
     const s = profileFormStateFromRow(row);
-    const i = profileInputFromFormState({ ...s, specialties: " 5k, marathon ,, ultra " });
-    expect(i.specialties).toEqual(["5k", "marathon", "ultra"]);
+    const i = profileInputFromFormState({ ...s, languages: " en, fil ,, fr " });
+    expect(i.languages).toEqual(["en", "fil", "fr"]);
+  });
+
+  it("preserves legacy specialty spelling, whitespace and commas through unrelated saves", () => {
+    const s = profileFormStateFromRow({
+      ...row,
+      specialties: [" running ", "RUNNING", "Strength, balance", "Legacy coaching"],
+    });
+    const i = profileInputFromFormState({ ...s, headline: "New headline" });
+    expect(i.specialties).toEqual([" running ", "RUNNING", "Strength, balance", "Legacy coaching"]);
+    expect(coerceProfileInput(i)?.specialties).toEqual([
+      " running ", "RUNNING", "Strength, balance", "Legacy coaching",
+    ]);
   });
 
   it("omits blank socials rather than sending empty strings", () => {
@@ -246,11 +250,11 @@ describe("coerceProfileInput", () => {
     responseDays: 2,
   };
 
-  it("accepts a well-formed shape: trims strings, drops empty array items, rebuilds socials from only instagram/website", () => {
+  it("validates specialty strings losslessly while trimming other fields and rebuilding socials", () => {
     expect(coerceProfileInput(validRaw)).toEqual({
       headline: "Run coach",
       about: "y".repeat(80),
-      specialties: ["5k", "marathon"],
+      specialties: ["5k", " marathon ", ""],
       yearsExperience: 7,
       languages: ["en", "fil"],
       locationLabel: "Cebu",

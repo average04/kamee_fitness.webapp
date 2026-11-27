@@ -45,7 +45,7 @@ export default function Header() {
             Blog
           </Link>
           <a
-            href="/me"
+            href="/auth/landing"
             className="whitespace-nowrap text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-muted transition-colors hover:text-mist sm:text-xs sm:tracking-[0.16em]"
           >
             Log in

@@ -37,7 +37,7 @@ export default async function PreviewPage() {
       )}
       {status === "in_review" && <p role="status" className="coach-panel">Submitted. Your profile is awaiting review.</p>}
       {data ? (
-        <><CoachProfileView data={data as CoachingProfileJson} />{data.intro_video_id && <div className="coach-panel"><h2>Intro video</h2><VideoPlayer id={data.intro_video_id} /></div>}</>
+        <><CoachProfileView data={data as CoachingProfileJson} />{data.intro_video_id && <div className="coach-panel"><h2>Introduction video</h2><VideoPlayer key={data.intro_video_id} id={data.intro_video_id} /></div>}</>
       ) : (
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-muted">
           Complete your profile to preview it.

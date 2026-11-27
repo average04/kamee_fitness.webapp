@@ -6,7 +6,7 @@ export function CreatePlan() {
   const [state, action, pending] = useActionState(createPlan, {});
   return (
     <form action={action} className="coach-panel plan-stack">
-      <h2>Create plan</h2>
+      <h2>Plan basics</h2>
       <label>
         Title
         <input

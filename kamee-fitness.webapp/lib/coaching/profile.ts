@@ -154,15 +154,14 @@ export function validateCredential(
 
 /**
  * View-model for the hub's autosaving profile form: every field as a plain
- * string/primitive so inputs stay uncontrolled-free and comma lists can be
- * edited freely (trailing commas, in-progress words) without the array
- * round-tripping fighting the caret. `profileInputFromFormState` converts
- * back to the shape `saveProfile`/`validateProfile` expect.
+ * string/primitive, except specialties which stay as a lossless array for
+ * checkbox/custom selection. Languages remain an editable comma list.
+ * `profileInputFromFormState` converts to `saveProfile`/`validateProfile` input.
  */
 export type ProfileFormState = {
   headline: string;
   about: string;
-  specialties: string;
+  specialties: string[];
   yearsExperience: string;
   languages: string;
   locationLabel: string;
@@ -189,7 +188,7 @@ export function profileFormStateFromRow(row: ProfileRowLike): ProfileFormState {
   return {
     headline: row.headline ?? "",
     about: row.about ?? "",
-    specialties: row.specialties.join(", "),
+    specialties: [...row.specialties],
     yearsExperience: row.years_experience != null ? String(row.years_experience) : "",
     languages: row.languages.join(", "),
     locationLabel: row.location_label ?? "",
@@ -223,7 +222,7 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
     // "filled in" to the checklist or to validateProfile's length checks.
     headline: s.headline.trim(),
     about: s.about.trim(),
-    specialties: splitList(s.specialties),
+    specialties: [...s.specialties],
     yearsExperience: intOrNull(s.yearsExperience),
     languages: splitList(s.languages),
     locationLabel: s.locationLabel.trim(),
@@ -239,7 +238,9 @@ export function profileInputFromFormState(s: ProfileFormState): ProfileInput {
  * just the TS-typed `ProfileInput` our own client sends. This never trusts
  * the caller: every field is type-checked (strings, arrays of strings,
  * finite numbers or exactly `null`, booleans strictly `true`/`false`),
- * strings are trimmed (array items are trimmed and empties dropped), and
+ * strings are trimmed (language items are trimmed and empties dropped).
+ * Specialty labels are type-checked but preserved exactly, so unrelated
+ * saves cannot rewrite legacy spelling, whitespace or embedded commas; and
  * `socials` is rebuilt from only `instagram`/`website` so an attacker can't
  * smuggle extra keys into the jsonb column. Unknown keys are dropped: in
  * particular a `termsAccepted` field is ignored, because coach terms are
@@ -253,7 +254,7 @@ export function coerceProfileInput(raw: unknown): ProfileInput | null {
   const headline = trimmedString(r.headline);
   const about = trimmedString(r.about);
   const locationLabel = trimmedString(r.locationLabel);
-  const specialties = trimmedStringArray(r.specialties);
+  const specialties = stringArray(r.specialties);
   const languages = trimmedStringArray(r.languages);
   if (
     headline === null ||
@@ -321,19 +322,23 @@ function trimmedStringArray(v: unknown): string[] | null {
   return out;
 }
 
+/** Legacy specialty labels are stored verbatim; only explicit editor additions are normalized. */
+function stringArray(v: unknown): string[] | null {
+  if (!Array.isArray(v) || !v.every((item) => typeof item === "string")) return null;
+  return [...v];
+}
+
 /**
- * The items the coach checklist shows, in order. Credentials are optional
- * (migration 20260913100900), so "credential" is not one of them; its label
- * stays in MISSING_LABELS below only so a database without that migration
- * still produces readable copy.
+ * The required items the coach checklist shows, in order. Photos and
+ * credentials are optional; legacy server keys keep readable labels below.
  */
-export const CHECKLIST_KEYS = ["headline", "about", "gallery", "terms"] as const;
+export const CHECKLIST_KEYS = ["headline", "about", "terms"] as const;
 
 /**
  * Copy for the "what's missing" checklist, keyed by what the approval RPC
  * reports. `profile` is a parent/meta key (the RPC returns it when the
  * `coaching_profiles` row itself is missing or unreadable, not as an
- * ongoing per-field flag) -- Checklist.tsx excludes it from the 7 rendered
+ * ongoing per-field flag) -- Checklist.tsx excludes it from the rendered
  * items, but it still needs a label here since `submitProfile`'s
  * `incomplete:<keys>` mapping falls back to the raw key when one is
  * missing from this table (fix round 1 minor).
@@ -345,6 +350,6 @@ export const MISSING_LABELS: Record<string, string> = {
   avatar: "Upload a profile photo",
   cover: "Upload a cover photo",
   credential: "Add at least one credential",
-  gallery: "Add at least 3 gallery photos",
+  gallery: "Review your gallery photos",
   terms: "Accept the coach terms",
 };

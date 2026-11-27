@@ -1,7 +1,8 @@
 import { PageIntro } from "@/components/coaching/PageIntro";
-import Link from "next/link";
+import { CoachLink as Link } from "@/components/coaching/CoachLink";
 import { requireCoach } from "@/lib/coaching/auth";
 import { loadHub } from "@/lib/coaching/queries";
+import { loadCoachingSpecialtyOptions } from "@/lib/coaching/specialty-options-query";
 import { Checklist } from "@/components/coaching/Checklist";
 import { CoverUpload } from "@/components/coaching/CoverUpload";
 import { ProfileForm } from "@/components/coaching/ProfileForm";
@@ -10,12 +11,19 @@ import { SubmitBlock } from "@/components/coaching/SubmitBlock";
 import { CoachTermsAcceptance } from "@/components/coaching/CoachTermsAcceptance";
 import { coachTermsState } from "@/lib/coaching/terms";
 import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
+import { IntroductionVideoSection } from "@/components/coaching/IntroductionVideoSection";
+import { createServerSupabase } from "@/lib/supabase/server";
+import type { Video } from "@/lib/coaching/plans";
 
 export const metadata = { title: "Your coach profile" };
 
 export default async function CoachProfilePage() {
   const { user, status } = await requireCoach();
-  const hub = await loadHub(user.id);
+  const [hub, specialtyOptions, videoInventory] = await Promise.all([
+    loadHub(user.id),
+    loadCoachingSpecialtyOptions(),
+    status === "approved" ? loadVideos() : Promise.resolve({ videos: [], error: null }),
+  ]);
   const onboarding = ["onboarding", "in_review", "changes_requested"].includes(status);
   const readOnly = status === "in_review";
   const terms = coachTermsState(hub.profile, hub.currentTerms, {
@@ -42,12 +50,18 @@ export default async function CoachProfilePage() {
         </div>
       )}
 
-      <div className="coach-onboarding-grid">
+      <div className={onboarding ? "coach-onboarding-grid" : undefined}>
         <div className="space-y-6">
           <DisplayNameForm current={hub.displayName} readOnly={readOnly} />
           <CoverUpload kind="avatar" userId={user.id} current={hub.avatarPhotoPath} readOnly={readOnly} />
           <CoverUpload userId={user.id} current={hub.profile.cover_image_path} readOnly={readOnly} />
-          <ProfileForm profile={hub.profile} readOnly={readOnly} />
+          <ProfileForm
+            profile={hub.profile}
+            readOnly={readOnly}
+            specialtyOptions={specialtyOptions.options}
+            specialtyOptionsError={specialtyOptions.error}
+          />
+          <IntroductionVideoSection status={status} videos={videoInventory.videos} inventoryError={videoInventory.error} introId={hub.profile.intro_video_id} ownerId={user.id} />
           <CoachTermsAcceptance state={terms} />
           {onboarding && <nav className="flex justify-end" aria-label="Next onboarding step">
             <Link
@@ -59,16 +73,25 @@ export default async function CoachProfilePage() {
           </nav>}
           <SubmitBlock missing={hub.missing} status={status} />
         </div>
-        <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
-          {onboarding && <Checklist missing={hub.missing} />}
-          <div className="coach-panel">
-            <h2>More profile details</h2>
-            <Link href="/coaching/gallery" className="coach-resource"><strong>Gallery <span aria-hidden="true">&#8599;</span></strong></Link>
-            <Link href="/coaching/credentials" className="coach-resource"><strong>Credentials <span aria-hidden="true">&#8599;</span></strong></Link>
-            <Link href="/coaching/preview" className="coach-resource"><strong>Preview profile <span aria-hidden="true">&#8599;</span></strong></Link>
-          </div>
-        </aside>
+        {onboarding && (
+          <aside className="coach-onboarding-aside" aria-label="Profile setup guide">
+            <Checklist missing={hub.missing} />
+          </aside>
+        )}
       </div>
     </div>
   );
+}
+
+async function loadVideos(): Promise<{ videos: Video[]; error: string | null }> {
+  try {
+    const db = await createServerSupabase();
+    const { data, error } = await db.from("coaching_videos").select("*").is("retired_at", null).order("created_at", { ascending: false });
+    if (error) throw error;
+    return { videos: (data ?? []) as Video[], error: null };
+  } catch {
+    // Optional inventory must not disable the main profile editor. Core session
+    // and profile failures still propagate through requireCoach and loadHub.
+    return { videos: [], error: "Introduction videos could not be loaded." };
+  }
 }

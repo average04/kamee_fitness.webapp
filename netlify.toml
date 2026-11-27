@@ -12,6 +12,13 @@
 [build.environment]
   # Next.js 16 requires Node 20+.
   NODE_VERSION = "20"
+  KAMEE_COACHING_PREVIEW = "false"
+
+[context.deploy-preview.environment]
+  KAMEE_COACHING_PREVIEW = "true"
+
+[context.production.environment]
+  KAMEE_COACHING_PREVIEW = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

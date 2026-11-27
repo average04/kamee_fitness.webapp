@@ -32,7 +32,7 @@ export function WeekSchedule({ week, exercises, videos, onChange }: {
         const session = week.days[index];
         return <button key={name} type="button" aria-label={`${name}: ${session ? kinds[session.day_kind] : "Unscheduled"}`}
           aria-pressed={selected === index} aria-controls={panelId} onClick={() => setSelected(index)}>
-          <span aria-hidden="true" className="plan-weekday-letter">{name}</span>
+          <span aria-hidden="true" className="plan-day-label">{name}</span>
           <span aria-hidden="true" className="plan-weekday-status">{session ? kinds[session.day_kind] : "+"}</span>
           <span aria-hidden="true" className={`plan-day-mark ${session && session.day_kind !== "rest" ? "has-session" : ""}`} />
         </button>;
@@ -43,7 +43,7 @@ export function WeekSchedule({ week, exercises, videos, onChange }: {
       <div key={calendarDays[selected]} className="plan-stack plan-session-enter">
         <div className="flex items-center justify-between gap-3">
           <h3 className="plan-selected-day">{calendarDays[selected]}</h3>
-          {day && day.day_kind !== "rest" && <button type="button" className="plan-secondary text-red-400"
+          {day && day.day_kind !== "rest" && <button type="button" className="plan-danger"
             onClick={() => {
               if (confirm(`Remove all activities from ${calendarDays[selected]}? Other days will stay unchanged.`))
                 setDay({ ...newDay("rest"), lineage_key: day.lineage_key });

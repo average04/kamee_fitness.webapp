@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HUB_STATES } from "./states";
+vi.mock("server-only", () => ({}));
 
 // React's `cache()` memoizes per render-request via AsyncLocalStorage in
 // Next.js; outside that context (plain vitest) it would just memoize forever
@@ -22,17 +23,19 @@ vi.mock("next/navigation", () => ({
 const mocks = vi.hoisted(() => ({
   user: null as { id: string } | null,
   profile: null as { role: string; coach_status: string } | null,
+  authError: null as Error | null,
+  profileError: null as Error | null,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: async () => ({
     auth: {
-      getUser: async () => ({ data: { user: mocks.user } }),
+      getUser: async () => ({ data: { user: mocks.user }, error: mocks.authError }),
     },
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: mocks.profile }),
+          maybeSingle: async () => ({ data: mocks.profile, error: mocks.profileError }),
         }),
       }),
     }),
@@ -48,6 +51,8 @@ async function expectRedirect(p: Promise<unknown>, url: string) {
 beforeEach(() => {
   mocks.user = null;
   mocks.profile = null;
+  mocks.authError = null;
+  mocks.profileError = null;
 });
 
 describe("requireCoach", () => {
@@ -82,21 +87,38 @@ describe("requireCoach", () => {
     });
   }
 
-  it("redirects a coach with a revoked status to /coaching/not-a-coach", async () => {
+  it("redirects a coach with a revoked status to their member landing", async () => {
     mocks.user = { id: "u1" };
     mocks.profile = { role: "coach", coach_status: "revoked" };
-    await expectRedirect(requireCoach(), "/coaching/not-a-coach");
+    await expectRedirect(requireCoach(), "/auth/landing");
   });
 
-  it("redirects a non-coach role even with an in-hub status to /coaching/not-a-coach", async () => {
+  it("redirects a non-coach role even with an in-hub status to their own landing", async () => {
     mocks.user = { id: "u1" };
     mocks.profile = { role: "user", coach_status: "onboarding" };
-    await expectRedirect(requireCoach(), "/coaching/not-a-coach");
+    await expectRedirect(requireCoach(), "/auth/landing");
   });
 
-  it("redirects to /coaching/not-a-coach when the allow-list excludes the current state", async () => {
+  it("redirects to the role landing when the allow-list excludes the current state", async () => {
     mocks.user = { id: "u1" };
     mocks.profile = { role: "coach", coach_status: "approved" };
-    await expectRedirect(requireCoach(["onboarding"]), "/coaching/not-a-coach");
+    await expectRedirect(requireCoach(["onboarding"]), "/auth/landing");
+  });
+  it.each(["onboarding", "in_review", "changes_requested", "suspended"])("keeps %s coaches out of approved-only routes while returning them to setup", async (status) => {
+    mocks.user = { id: "u1" };
+    mocks.profile = { role: "coach", coach_status: status };
+    await expectRedirect(requireCoach(["approved"]), "/auth/landing");
+  });
+  it("rejects a returned user when Auth verification also reports an error", async () => {
+    mocks.user = { id: "u1" };
+    mocks.profile = { role: "coach", coach_status: "approved" };
+    mocks.authError = new Error("invalid session");
+    await expectRedirect(requireCoach(), "/login?next=/coaching");
+  });
+  it("fails closed when a profile response contains an error and privileged data", async () => {
+    mocks.user = { id: "u1" };
+    mocks.profile = { role: "coach", coach_status: "approved" };
+    mocks.profileError = new Error("profile unavailable");
+    await expect(requireCoach()).rejects.toThrow("Could not load your account");
   });
 });

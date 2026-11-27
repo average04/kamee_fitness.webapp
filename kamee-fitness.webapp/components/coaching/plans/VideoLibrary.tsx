@@ -1,16 +1,37 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Upload } from "tus-js-client";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import type { Video } from "@/lib/coaching/plans";
 import { VideoPlayer } from "./PlanPreview";
+import { subscribeAuthBoundary } from "@/lib/auth-boundary";
+import { setIntroductionVideo } from "@/app/coaching/(hub)/profile/introduction-actions";
+
+function LocalVideoPreview({ file }: { file: File }) {
+  const player = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const element = player.current;
+    if (!element) return;
+    const url = URL.createObjectURL(file);
+    element.src = url;
+    return () => {
+      element.removeAttribute("src");
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+  return <video ref={player} aria-label="Selected video preview" controls muted playsInline preload="metadata" className="aspect-video w-full max-w-md rounded-xl bg-black object-contain" />;
+}
 
 export function VideoLibrary({
   initial,
   initialIntroId,
+  mode = "library",
+  ownerId,
 }: {
   initial: Video[];
   initialIntroId: string | null;
+  mode?: "library" | "introduction";
+  ownerId?: string;
 }) {
   const [introId, setIntroId] = useState(initialIntroId);
   const [videos, setVideos] = useState(initial);
@@ -21,19 +42,76 @@ export function VideoLibrary({
   const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [mutating, setMutating] = useState(false);
+  const [messageError, setMessageError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [source, setSource] = useState<"upload" | "library">("upload");
+  const [candidateId, setCandidateId] = useState("");
+  const [retired, setRetired] = useState(false);
+  const choiceId = useId();
+  // Refs lock same-event duplicate clicks before React commits disabled controls.
+  const working = useRef(false);
+  const mutation = useRef(false);
+  const lifetime = useRef({ active: true, generation: 0 });
+  const surface = useRef<HTMLElement | null>(null);
   const upload = useRef<Upload | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const titleEdited = useRef(false);
+  const inventoryRead = useRef(0);
   const [hasUpload, setHasUpload] = useState(false);
   const [activeUploadId, setActiveUploadId] = useState<string | null>(null);
-  const db = createBrowserSupabase();
-  useEffect(
-    () => () => {
-      void upload.current?.abort();
-    },
-    [],
-  );
+  const [db] = useState(createBrowserSupabase);
+  const introduction = mode === "introduction";
+  const locked = busy || mutating || hasUpload;
+  const controlClass = "min-h-11 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-leaf-500";
+  const ready = videos.filter(video => video.status === "ready" && !video.retired_at);
+  const current = videos.find(video => video.id === introId);
+  const candidate = ready.find(video => video.id === candidateId);
+  const fileError = file && (file.type !== "video/mp4" || file.size > 50 * 1024 * 1024)
+    ? "Choose an MP4 video up to 50 MB."
+    : null;
+  const uploadReady = Boolean(file && !fileError && title.trim());
+  function setWorking(value: boolean) {
+    working.current = value;
+    setBusy(value);
+  }
+  function live(generation: number) {
+    return lifetime.current.active && lifetime.current.generation === generation;
+  }
+  const retirePrivateState = useCallback(() => {
+    if (!lifetime.current.active) return;
+    lifetime.current.active = false;
+    lifetime.current.generation++;
+    // Hide synchronously before a sign-out form can submit or another account
+    // can render. Async callbacks also fail their captured generation check.
+    if (surface.current) surface.current.hidden = true;
+    void upload.current?.abort().catch(() => {});
+    upload.current = null;
+    setVideos([]);
+    setIntroId(null);
+    setFile(null);
+    setTitle("");
+    titleEdited.current = false;
+    setCaption("");
+    setRetired(true);
+  }, []);
   useEffect(() => {
-    if (!hasUpload && !busy) return;
+    const lifetimeState = lifetime.current;
+    lifetimeState.active = true;
+    const unsubscribe = subscribeAuthBoundary(retirePrivateState);
+    const auth = db.auth.onAuthStateChange?.((event, session) => {
+      if (event === "SIGNED_OUT" || (ownerId && session && session.user.id !== ownerId) || (ownerId && event === "INITIAL_SESSION" && !session)) retirePrivateState();
+    });
+    return () => {
+      unsubscribe();
+      auth?.data.subscription.unsubscribe();
+      lifetimeState.active = false;
+      lifetimeState.generation++;
+      void upload.current?.abort().catch(() => {});
+    };
+  }, [db, ownerId, retirePrivateState]);
+  useEffect(() => {
+    if (retired || (!hasUpload && !busy)) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
@@ -44,8 +122,13 @@ export function VideoLibrary({
         a &&
         a.target !== "_blank" &&
         a.href !== location.href &&
+        // Fragment navigation stays in this document, including the portal's
+        // skip link. Route and query changes still leave the upload screen.
+        !(a.origin === location.origin &&
+          a.pathname === location.pathname &&
+          a.search === location.search) &&
         !confirm(
-          "Leave this upload? You can resume from Videos with the same file.",
+          "Leave this upload? You can resume from Video assets with the same file.",
         )
       ) {
         e.preventDefault();
@@ -73,37 +156,78 @@ export function VideoLibrary({
       document.removeEventListener("click", click, true);
       navigation?.removeEventListener("navigate", traverse);
     };
-  }, [hasUpload, busy]);
-  async function refresh() {
+  }, [hasUpload, busy, retired]);
+  async function refresh(generation = lifetime.current.generation) {
+    if (!live(generation)) return;
+    const request = ++inventoryRead.current;
+    try {
     const { data, error } = await db
       .from("coaching_videos")
       .select("*")
       .is("retired_at", null)
       .order("created_at", { ascending: false });
+    if (!live(generation) || request !== inventoryRead.current) return;
     if (error) throw error;
     setVideos((data ?? []) as Video[]);
+    } catch (error) {
+      if (!live(generation) || request !== inventoryRead.current) return;
+      throw error;
+    }
   }
-  async function finalize(id: string) {
-    setBusy(true);
+  async function finalize(id: string, useAsIntroduction = false) {
+    const generation = lifetime.current.generation;
+    if (!live(generation) || working.current || mutation.current || upload.current) return;
+    setWorking(true);
+    setMessageError(false);
     setMessage("Validating video…");
+    let validated = false;
     try {
       const { data, error } = await db.functions.invoke(
         "finalize-coaching-video",
         { body: { id } },
       );
+      if (!live(generation)) return;
       if (error || data?.error)
         throw new Error(
           data?.error ?? "Validation failed. Check the video status and retry.",
         );
-      setMessage("Video ready.");
+      validated = true;
+      if (useAsIntroduction) {
+        if (!ownerId) throw new Error("Reload this page before changing your introduction video.");
+        setMessage("Saving your introduction…");
+        const result = await setIntroductionVideo(ownerId, id);
+        if (!live(generation)) return;
+        if (!result.ok) throw new Error(result.error);
+        setIntroId(id);
+        setCandidateId("");
+        setExpanded(false);
+        setSource("upload");
+        setMessage("Introduction video updated.");
+      } else setMessage("Video ready.");
     } catch (e) {
+      if (!live(generation)) return;
+      if (validated && useAsIntroduction) {
+        setSource("library");
+        setCandidateId(id);
+        setExpanded(true);
+      }
       setMessage(e instanceof Error ? e.message : "Validation failed");
+      setMessageError(true);
     } finally {
-      setBusy(false);
-      await refresh();
+      if (live(generation)) {
+        try {
+          await refresh(generation);
+        } catch {
+          if (live(generation)) setMessage("Could not refresh videos. Reload to check the latest status.");
+        }
+        if (live(generation)) setWorking(false);
+      }
     }
   }
-  async function begin(existing?: Video) {
+  async function begin(existing?: Video, useAsIntroduction = false) {
+    const generation = lifetime.current.generation;
+    if (!live(generation) || working.current || mutation.current || upload.current) return;
+    setMessageError(false);
     if (!file || (!title.trim() && !existing)) {
       setMessage("Choose a video and add a title.");
       return;
@@ -112,19 +236,25 @@ export function VideoLibrary({
       setMessage("Choose an MP4 up to 50 MB.");
       return;
     }
-    setBusy(true);
+    setWorking(true);
     setPaused(false);
     setMessage("");
     setProgress(0);
     try {
       const { data: session } = await db.auth.getSession();
+      if (!live(generation)) return;
       if (!session.session) throw new Error("Sign in again.");
+      if (ownerId && session.session.user.id !== ownerId) {
+        retirePrivateState();
+        return;
+      }
       const { data, error } = existing
         ? { data: existing, error: null }
         : await db.rpc("begin_coaching_video", {
             p_title: title.trim(),
             p_caption: caption,
           });
+      if (!live(generation)) return;
       if (error || !data)
         throw new Error(error?.message ?? "Could not start upload");
       const video = data as Video;
@@ -150,66 +280,102 @@ export function VideoLibrary({
         fingerprint: async (f) =>
           `coaching-video-${video.id}-${f.size}-${file.lastModified}`,
         onBeforeRequest: async (request) => {
+          if (!live(generation) || upload.current !== tus || mutation.current) throw new Error("Upload stopped.");
           const { data: latest } = await db.auth.getSession();
-          if (latest.session)
-            request.setHeader(
-              "authorization",
-              `Bearer ${latest.session.access_token}`,
-            );
+          if (!live(generation) || upload.current !== tus || mutation.current) throw new Error("Upload stopped.");
+          if (!live(generation) || !latest.session || (ownerId && latest.session.user.id !== ownerId)) {
+            retirePrivateState();
+            throw new Error("Sign in again.");
+          }
+          request.setHeader("authorization", `Bearer ${latest.session.access_token}`);
         },
-        onProgress: (sent, total) =>
-          setProgress(Math.round((sent / total) * 100)),
+        onProgress: (sent, total) => {
+          if (live(generation) && upload.current === tus && !mutation.current) setProgress(Math.round((sent / total) * 100));
+        },
         onError: () => {
+          if (!live(generation) || upload.current !== tus || mutation.current) return;
           setMessage("Upload interrupted. Resume to retry.");
-          setBusy(false);
+          setWorking(false);
           setPaused(true);
-          void refresh();
+          void refresh(generation).catch(() => {
+            if (live(generation)) setMessage("Upload interrupted. Reload to check its status.");
+          });
         },
         onSuccess: () => {
+          if (!live(generation) || upload.current !== tus || mutation.current) return;
+          // The validation phase owns its lock and inventory from this point.
+          inventoryRead.current++;
           upload.current = null;
+          setWorking(false);
           setHasUpload(false);
           setActiveUploadId(null);
           setFile(null);
           if (fileInput.current) fileInput.current.value = "";
           setTitle("");
+          titleEdited.current = false;
           setCaption("");
-          void finalize(video.id);
+          void finalize(video.id, useAsIntroduction);
         },
       });
       upload.current = tus;
       setHasUpload(true);
       setActiveUploadId(video.id);
       const previous = await tus.findPreviousUploads();
+      if (!live(generation)) return;
       if (previous[0]) tus.resumeFromPreviousUpload(previous[0]);
       tus.start();
-      await refresh();
+      try {
+        await refresh(generation);
+      } catch {
+        // An optional inventory read cannot release a newer validation lock.
+        if (live(generation) && upload.current === tus)
+          setMessage("Your upload is continuing. The video list could not be refreshed.");
+      }
     } catch (e) {
+      if (!live(generation)) return;
       setMessage(e instanceof Error ? e.message : "Could not start upload");
-      setBusy(false);
+      setWorking(false);
     }
   }
   async function cancelUpload() {
-    if (!activeUploadId) return;
-    await upload.current?.abort();
-    const { error } = await db.rpc("retire_coaching_video", {
-      p_video_id: activeUploadId,
-    });
-    if (error) {
-      setMessage(error.message);
-      setBusy(false);
+    const generation = lifetime.current.generation;
+    if (!live(generation) || !activeUploadId || mutation.current) return;
+    mutation.current = true;
+    setMutating(true);
+    setMessageError(false);
+    try {
+      await upload.current?.abort();
+      if (!live(generation)) return;
+      const { error } = await db.rpc("retire_coaching_video", {
+        p_video_id: activeUploadId,
+      });
+      if (!live(generation)) return;
+      if (error) throw new Error(error.message);
+      upload.current = null;
+      setHasUpload(false);
+      setActiveUploadId(null);
+      setPaused(false);
+      setProgress(0);
+      setMessage("Upload cancelled.");
+      await refresh(generation).catch(() => {
+        if (live(generation)) setMessage("Upload cancelled. Reload to check your library.");
+      });
+    } catch (e) {
+      if (!live(generation)) return;
+      setMessage(e instanceof Error ? e.message : "Could not cancel upload. Retry.");
+      setMessageError(true);
       setPaused(true);
-      return;
+    } finally {
+      if (live(generation)) {
+        setWorking(false);
+        mutation.current = false;
+        setMutating(false);
+      }
     }
-    upload.current = null;
-    setHasUpload(false);
-    setActiveUploadId(null);
-    setBusy(false);
-    setPaused(false);
-    setProgress(0);
-    setMessage("Upload cancelled.");
-    await refresh();
   }
   async function retire(id: string) {
+    const generation = lifetime.current.generation;
+    if (!live(generation) || working.current || mutation.current || upload.current) return;
     if (
       !confirm(
         "Remove this video from your library? Existing plan versions will keep it.",
@@ -220,84 +386,141 @@ export function VideoLibrary({
       await cancelUpload();
       return;
     }
-    const { error } = await db.rpc("retire_coaching_video", { p_video_id: id });
-    if (error) setMessage(error.message);
-    else {
+    mutation.current = true;
+    setMutating(true);
+    setMessageError(false);
+    try {
+      const { error } = await db.rpc("retire_coaching_video", { p_video_id: id });
+      if (!live(generation)) return;
+      if (error) throw new Error(error.message);
       if (introId === id) setIntroId(null);
-      await refresh();
+      await refresh(generation);
+    } catch (e) {
+      if (!live(generation)) return;
+      setMessage(e instanceof Error ? e.message : "Could not remove video. Retry.");
+      setMessageError(true);
+    } finally {
+      if (live(generation)) {
+        mutation.current = false;
+        setMutating(false);
+      }
     }
   }
-  return (
+  async function changeIntro(id: string | null) {
+    const generation = lifetime.current.generation;
+    if (!live(generation) || working.current || mutation.current || upload.current) return;
+    if (!ownerId) {
+      setMessage("Reload this page before changing your introduction video.");
+      setMessageError(true);
+      return;
+    }
+    mutation.current = true;
+    setMutating(true);
+    setMessageError(false);
+    setMessage("Saving introduction video…");
+    try {
+      const result = await setIntroductionVideo(ownerId, id);
+      if (!live(generation)) return;
+      if (!result.ok) throw new Error(result.error);
+      setIntroId(id);
+      setCandidateId("");
+      setExpanded(false);
+      if (introduction) {
+        setFile(null);
+        if (fileInput.current) fileInput.current.value = "";
+        setTitle("");
+        titleEdited.current = false;
+        setCaption("");
+        setSource("upload");
+      }
+      setMessage(id ? "Introduction video updated." : "Introduction video removed. The video is still in your library.");
+    } catch (e) {
+      if (!live(generation)) return;
+      setMessage(e instanceof Error ? e.message : "Could not change introduction video. Retry.");
+      setMessageError(true);
+    } finally {
+      if (live(generation)) {
+        mutation.current = false;
+        setMutating(false);
+      }
+    }
+  }
+  if (retired) return <p role="status" className="coach-panel text-sm text-muted">Sign in again to manage your videos.</p>;
+  const videoDetails = <div className="plan-stack">
+    <label className="plan-field">
+      Video title (required)
+      <input className="coach-input" value={title} maxLength={120} onChange={(e) => { titleEdited.current = true; setTitle(e.target.value); }} disabled={locked} />
+    </label>
+    <label className="plan-field">
+      Caption (optional)
+      <input className="coach-input" value={caption} maxLength={200} onChange={(e) => setCaption(e.target.value)} disabled={locked} />
+    </label>
+  </div>;
+  const uploadForm = (
     <div className="plan-stack">
-      <section className="coach-panel plan-stack">
-        <h2>Add video</h2>
-        {introId && (
-          <button
-            className="plan-secondary"
-            onClick={async () => {
-              const { error } = await db.rpc("set_coaching_intro_video", {
-                p_video_id: null,
-              });
-              if (error) setMessage(error.message);
-              else {
-                setIntroId(null);
-                setMessage("Profile intro removed.");
-              }
-            }}
-          >
-            Remove profile intro
-          </button>
-        )}
-        <p className="coach-panel-description">
+        <div className="plan-stack rounded-xl border border-white/10 bg-ink-950 p-4 sm:p-5">
+          {file ? <div className="min-w-0 space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Selected video</p>
+            <p className="text-sm font-medium text-mist [overflow-wrap:anywhere]">{file.name}</p>
+            <p className="text-xs text-muted">{(file.size / (1024 * 1024)).toFixed(1)} MB</p>
+          </div> : <p className="text-sm text-mist">Choose a video from your device to get started.</p>}
+          {file && !fileError && introduction && <LocalVideoPreview file={file} />}
+          <div>
+            <button type="button" className={`${file ? "plan-secondary" : "coach-primary"} ${controlClass}`} disabled={locked} onClick={() => fileInput.current?.click()}>
+              {file ? "Change video" : "Choose video"}
+            </button>
+          </div>
+          <p className="text-xs leading-relaxed text-muted">
           MP4 · H.264 · Up to 10 minutes and 50 MB
-        </p>
-        <label>
-          Title
-          <input
-            className="coach-input"
-            value={title}
-            maxLength={120}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={busy}
-          />
-        </label>
-        <label>
-          Caption
-          <input
-            className="coach-input"
-            value={caption}
-            maxLength={200}
-            onChange={(e) => setCaption(e.target.value)}
-            disabled={busy}
-          />
-        </label>
+          </p>
+          {fileError && <p role="alert" className="text-sm text-red-400">{fileError}</p>}
+        </div>
         <input
           ref={fileInput}
           aria-label="Choose MP4 video"
           type="file"
           accept="video/mp4"
-          disabled={busy}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="hidden"
+          disabled={locked}
+          onChange={(e) => {
+            const selected = e.target.files?.[0] ?? null;
+            setFile(selected);
+            if (selected && introduction && !titleEdited.current && selected.type === "video/mp4" && selected.size <= 50 * 1024 * 1024) {
+              setTitle(selected.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim().slice(0, 120) || "My introduction");
+            }
+            setMessage("");
+            setMessageError(false);
+          }}
         />
+        {introduction ? file && !fileError && <details>
+          <summary className={`${controlClass} cursor-pointer text-sm text-mist`}>Edit video details</summary>
+          <div className="pt-3">{videoDetails}</div>
+        </details> : videoDetails}
         <div className="plan-order">
           <button
-            className="plan-primary"
-            disabled={busy || paused}
-            onClick={() => begin()}
+            type="button"
+            className={`coach-primary ${controlClass}`}
+            disabled={locked || paused || !uploadReady}
+            onClick={() => begin(undefined, introduction)}
           >
-            Upload video
+            {introduction ? "Upload and use as introduction" : "Upload video"}
           </button>
           {hasUpload && (
             <button
-              className="plan-secondary"
+              type="button"
+              className={`plan-secondary ${controlClass}`}
+              disabled={mutating}
               onClick={async () => {
+                const generation = lifetime.current.generation;
+                if (!live(generation) || mutation.current) return;
                 if (paused) {
-                  setBusy(true);
+                  setWorking(true);
                   setPaused(false);
                   upload.current?.start();
                 } else {
                   await upload.current?.abort();
-                  setBusy(false);
+                  if (!live(generation)) return;
+                  setWorking(false);
                   setPaused(true);
                 }
               }}
@@ -306,23 +529,26 @@ export function VideoLibrary({
             </button>
           )}
           {hasUpload && (
-            <button className="plan-secondary" onClick={cancelUpload}>
+            <button type="button" className={`plan-secondary ${controlClass}`} disabled={mutating} onClick={cancelUpload}>
               Cancel upload
             </button>
           )}
         </div>
+        {!hasUpload && !busy && <p className="text-xs leading-relaxed text-muted">
+          {!file ? "Choose a video first." : fileError ? "Choose another video to continue." : !title.trim() ? "Add a video title to continue." : introduction ? introId ? "Your current intro stays until the new video is ready." : "This video will become your profile introduction when it is ready." : "Upload this video to your library."}
+        </p>}
         {(busy || paused) && (
           <progress aria-label="Upload progress" value={progress} max={100}>
             {progress}%
           </progress>
         )}
-        <p role="status">{message}</p>
-      </section>
-      {videos.map((v) => (
-        <article key={v.id} className="coach-panel plan-stack">
+    </div>
+  );
+  const assetCards = videos.filter(video => !video.retired_at && (!introduction || video.status !== "ready")).map((v) => (
+        <article key={v.id} className={introduction ? "plan-stack border-t border-white/10 pt-4" : "coach-panel plan-stack"}>
           <div className="plan-card">
             <div>
-              <h2>{v.title}</h2>
+              <h2 className="[overflow-wrap:anywhere]">{v.title}</h2>
               <p className="coach-panel-description">
                 {v.status}
                 {v.duration_seconds
@@ -331,8 +557,9 @@ export function VideoLibrary({
               </p>
             </div>
             <button
-              className="plan-secondary"
-              disabled={busy}
+              type="button"
+              className={`plan-secondary ${controlClass}`}
+              disabled={locked}
               onClick={() => retire(v.id)}
             >
               Remove
@@ -342,16 +569,12 @@ export function VideoLibrary({
           {v.failure_reason && <p role="alert">{v.failure_reason}</p>}
           {v.status === "ready" ? (
             <>
-              <VideoPlayer id={v.id} />
+              <VideoPlayer key={v.id} id={v.id} />
               <button
-                className="plan-secondary"
-                onClick={async () => {
-                  const { error } = await db.rpc("set_coaching_intro_video", {
-                    p_video_id: v.id,
-                  });
-                  if (!error) setIntroId(v.id);
-                  setMessage(error?.message ?? "Profile intro video updated.");
-                }}
+                type="button"
+                className={`plan-secondary ${controlClass}`}
+                disabled={locked || !ownerId || introId === v.id}
+                onClick={() => changeIntro(v.id)}
               >
                 {introId === v.id
                   ? "Current profile intro"
@@ -362,24 +585,98 @@ export function VideoLibrary({
             <div className="plan-order">
               {v.status === "uploading" && (
                 <button
-                  className="plan-secondary"
-                  disabled={busy || !file}
-                  onClick={() => begin(v)}
+                  type="button"
+                  className={`plan-secondary ${controlClass}`}
+                  disabled={locked || !file}
+                  onClick={() => begin(v, introduction)}
                 >
-                  Resume with selected file
+                  {introduction ? "Resume and use as introduction" : "Resume with selected file"}
                 </button>
               )}
               <button
-                className="plan-secondary"
-                disabled={busy || v.id === activeUploadId}
-                onClick={() => finalize(v.id)}
+                type="button"
+                className={`plan-secondary ${controlClass}`}
+                disabled={locked || v.id === activeUploadId}
+                onClick={() => finalize(v.id, introduction)}
               >
-                Retry validation
+                {introduction ? "Retry and use as intro" : "Retry validation"}
               </button>
             </div>
           )}
         </article>
-      ))}
+      ));
+  const feedback = <p role={messageError ? "alert" : "status"} className={messageError ? "text-sm text-red-400" : "text-sm text-mist"}>{message}</p>;
+  if (introduction) return (
+    <section ref={element => { surface.current = element; }} className="coach-panel plan-stack [&_button]:min-h-11 [&_button]:focus-visible:outline-2 [&_button]:focus-visible:outline-offset-4 [&_button]:focus-visible:outline-leaf-500" aria-label="Introduction video">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2>Introduction video</h2>
+        <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-muted">Optional</span>
+      </div>
+      <p className="coach-panel-description">Help members get to know you and your coaching approach. A short introduction works well.</p>
+      {introId ? (
+        <div role="group" aria-label="Current introduction video" className="plan-stack">
+          <p className="text-sm font-medium text-mist [overflow-wrap:anywhere]">{current?.title ?? "Your current introduction"}</p>
+          <VideoPlayer key={introId} id={introId} />
+          <div>
+            <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked || !ownerId} onClick={() => changeIntro(null)}>Remove introduction video</button>
+          </div>
+        </div>
+      ) : <p className="text-sm text-muted">No introduction video added yet.</p>}
+      {introId && <div>
+        <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} aria-expanded={expanded} aria-controls={choiceId} onClick={() => {
+          setExpanded(value => !value);
+          setSource("upload");
+          setFile(null);
+          setTitle("");
+          titleEdited.current = false;
+          setCaption("");
+          setCandidateId("");
+        }}>
+          {expanded ? "Cancel change" : "Change introduction video"}
+        </button>
+      </div>}
+      {(!introId || expanded) && (
+        <div id={choiceId} className="plan-stack border-t border-white/10 pt-5">
+          {source === "upload" ? <>
+            {uploadForm}
+            {ready.length > 0 && <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+              <span className="text-sm text-muted">Already uploaded one?</span>
+              <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} onClick={() => {
+                setSource("library");
+                setFile(null);
+                setTitle("");
+                titleEdited.current = false;
+                setCaption("");
+              }}>Choose from library</button>
+            </div>}
+          </> : <>
+          <label className="plan-stack text-sm text-mist">
+            Choose from your videos
+            <select className={`coach-input ${controlClass}`} aria-label="Choose an introduction video" disabled={locked} value={candidateId} onChange={event => setCandidateId(event.target.value)}>
+              <option value="">Choose a ready video</option>
+              {ready.map(video => <option key={video.id} value={video.id}>{video.title}{video.id === introId ? " (current)" : ""}</option>)}
+            </select>
+          </label>
+          {candidate && <div role="group" aria-label="Selected video preview" className="plan-stack"><VideoPlayer key={candidate.id} id={candidate.id} /></div>}
+          <div>
+            <button type="button" className={`coach-primary ${controlClass}`} disabled={locked || !ownerId || !candidate || candidate.id === introId} onClick={() => candidate && changeIntro(candidate.id)}>Use this video</button>
+          </div></>}
+          {source === "library" && <div><button type="button" className={`plan-secondary ${controlClass}`} disabled={locked} onClick={() => { setSource("upload"); setCandidateId(""); }}>Upload a new video</button></div>}
+          {assetCards}
+        </div>
+      )}
+      {feedback}
+    </section>
+  );
+  return (
+    <div ref={element => { surface.current = element; }} className="plan-stack">
+      <section className="coach-panel plan-stack">
+        <h2>Add video</h2>
+        {introId && <button type="button" className={`plan-secondary ${controlClass}`} disabled={locked || !ownerId} onClick={() => changeIntro(null)}>Remove profile intro</button>}
+        {uploadForm}
+        {feedback}
+      </section>
+      {assetCards}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { AcceptInvite } from "@/components/coaching/AcceptInvite";
 import { EmailCodeSignIn } from "@/components/auth/EmailCodeSignIn";
 import { signOutFromInvite } from "@/app/coaching/invite/actions";
 import { getInviteIdentity } from "@/lib/coaching/invite-identity";
+import { AuthBoundaryForm } from "@/components/auth/AuthBoundaryForm";
 
 /**
  * Both invite entry points render this: the emailed link
@@ -42,13 +43,13 @@ export async function InviteCard({ token }: { token?: string }) {
               {wrongAccount ? `This invitation is for ${identity!.email}. Sign out below, then sign in with the invited email.` : "Accept the invite to set up your coach profile."}
             </p>
             {!wrongAccount && <AcceptInvite token={token} />}
-            <form action={signOutFromInvite} className="mt-4 text-xs text-muted">
+            <AuthBoundaryForm action={signOutFromInvite} className="mt-4 text-xs text-muted">
               {token && <input type="hidden" name="token" value={token} />}
               Signed in as {s.user.email ?? "your Kamee account"}.{" "}
               <button type="submit" className="text-leaf-500 underline hover:text-leaf-400">
                 Not you? Sign out
               </button>
-            </form>
+            </AuthBoundaryForm>
           </>
         ) : (
           <div className="text-left">

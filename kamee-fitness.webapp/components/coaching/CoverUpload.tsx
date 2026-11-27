@@ -7,9 +7,8 @@ import {
   buildCoverPath,
   buildAvatarPath,
   buildPublicStorageUrl,
-  checkImageFile,
-  extensionForMimeType,
 } from "@/lib/coaching/storage";
+import { checkPhotoSource, preparePhotoForUpload } from "@/lib/coaching/prepare-photo";
 import type { SaveState } from "@/lib/coaching/autosave";
 import { SaveIndicator } from "./SaveIndicator";
 
@@ -98,20 +97,23 @@ export function CoverUpload({
     setState("saving");
     showObjectPreview(file);
 
-    const ext = extensionForMimeType(file.type);
-    if (!ext) {
-      // checkImageFile already gates this on selection; defensive only.
+    let prepared: Awaited<ReturnType<typeof preparePhotoForUpload>>;
+    try {
+      prepared = await preparePhotoForUpload(file, kind);
+    } catch (e) {
       setState("error");
-      setError("Please choose a JPEG, PNG, or WEBP image.");
+      setError(e instanceof Error ? e.message : "Could not prepare the photo. Please retry.");
+      setLastFile(file);
       revertPreview();
       return;
     }
+    const ext = prepared.extension;
     const path = kind === "avatar" ? buildAvatarPath(userId, ext) : buildCoverPath(userId, ext);
     try {
       const supabase = createBrowserSupabase();
       const { error: uploadError } = await supabase.storage
         .from("social-photos")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, prepared.file, { contentType: prepared.file.type, upsert: false });
       if (uploadError) {
         setState("error");
         setError("Could not upload the photo. Please retry.");
@@ -132,9 +134,9 @@ export function CoverUpload({
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (readOnly) return; // I2 (fix round 1): never upload while the profile is read-only.
+    if (readOnly || state === "saving") return;
 
-    const check = checkImageFile(file);
+    const check = checkPhotoSource(file);
     if (!check.ok) {
       setError(check.message);
       // M9 remainder (fix round 2): a rejected file must not leave a stale
@@ -181,7 +183,7 @@ export function CoverUpload({
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/></svg>
         <p>Add a {photoLabel.toLowerCase()}</p>
       </div>}
-      <p className="coach-panel-description">JPEG, PNG or WebP. Up to 5 MB.</p>
+      <p className="coach-panel-description">JPEG, PNG or WebP. Up to 25 MB; photos are resized before upload.</p>
       <input
         id={inputId}
         ref={inputRef}

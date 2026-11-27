@@ -10,6 +10,7 @@ export type CoachingProfileRow = {
   languages: string[];
   location_label: string | null;
   cover_image_path: string | null;
+  intro_video_id: string | null;
   socials: Record<string, string>;
   is_accepting_clients: boolean;
   response_days: number;

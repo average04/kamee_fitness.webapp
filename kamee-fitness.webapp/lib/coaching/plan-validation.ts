@@ -1,6 +1,6 @@
 import { customExerciseIssue } from "./custom-exercise";
 import { planGoals } from "./goals";
-import type { PlanDocument } from "./plans";
+import { mealDayLabel, type PlanDocument } from "./plans";
 
 export const commaValues = (text: string) =>
   text
@@ -71,7 +71,7 @@ export function draftPayload(p: PlanDocument) {
     summary: p.summary,
     goal: planGoals(p)[0] ?? null,
     goals: planGoals(p),
-    level: p.level,
+    level: p.level ?? "none",
     equipment_tier: p.equipment_tier,
     required_equipment: p.required_equipment.filter(Boolean),
     target_muscles: p.target_muscles.filter(Boolean),
@@ -121,7 +121,7 @@ export function draftPayload(p: PlanDocument) {
             lineage_key: d.lineage_key,
             day_key: d.day_key,
             shape: d.shape,
-            label: d.label,
+            label: mealDayLabel(d),
             note: d.note,
             kcal: d.kcal,
             protein_g: d.protein_g,

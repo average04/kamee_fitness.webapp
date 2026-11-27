@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState, useId } from "react";
-import { formatPurgeDate } from "@/lib/account-deletion";
+import { useActionState, useEffect, useId, useState } from "react";
+import { AuthBoundaryForm } from "@/components/auth/AuthBoundaryForm";
+import { broadcastAuthBoundary } from "@/lib/auth-boundary";
+import { discardConversationPartition } from "@/lib/coaching/conversation/journal";
+import { formatPurgeDate, isDeleteConfirmation } from "@/lib/account-deletion";
 import {
   cancelAccountDeletion,
   requestAccountDeletion,
@@ -18,6 +21,7 @@ export function DeletionPanel({
   pendingPurgeAfter: string | null;
 }) {
   const confirmId = useId();
+  const [cleanupError, setCleanupError] = useState(false);
   const [requestState, requestAction, requesting] = useActionState<DeletionActionState, FormData>(
     requestAccountDeletion,
     null,
@@ -26,6 +30,12 @@ export function DeletionPanel({
     cancelAccountDeletion,
     null,
   );
+  useEffect(() => {
+    if (!requestState?.ok) return;
+    broadcastAuthBoundary();
+    // The server captured this ID before sign-out. A switched-in account is never selected here.
+    void discardConversationPartition(requestState.cleanupAccountId).catch(() => setCleanupError(true));
+  }, [requestState]);
 
   if (requestState?.ok) {
     const date = formatPurgeDate(requestState.purgeAfter);
@@ -33,16 +43,17 @@ export function DeletionPanel({
       <div className="rounded-xl border border-leaf-700 bg-leaf-950/30 px-5 py-4 text-leaf-300 text-sm leading-relaxed">
         Your account is scheduled for deletion{date ? ` on ${date}` : " in 30 days"}. You&rsquo;ve been signed
         out. To cancel, sign in again (here or in the app) before then.
+        {cleanupError && <p role="alert">Browser storage prevented removing this tab&apos;s conversation recovery copies. Clear this site&apos;s browser data on this device.</p>}
       </div>
     );
   }
 
   const signOut = (
-    <form action={signOutFromDeletion}>
+    <AuthBoundaryForm action={signOutFromDeletion}>
       <button type="submit" className="text-sm text-ink-400 underline hover:text-leaf-400">
         Not you? Sign out
       </button>
-    </form>
+    </AuthBoundaryForm>
   );
 
   if (pendingPurgeAfter) {
@@ -75,7 +86,7 @@ export function DeletionPanel({
       <p className="text-sm text-ink-300">
         Signed in as <span className="text-ink-100 font-medium">{email}</span>.
       </p>
-      <form action={requestAction} className="space-y-4">
+      <AuthBoundaryForm action={requestAction} className="space-y-4" broadcastWhen={form => isDeleteConfirmation((form.elements.namedItem("confirm") as HTMLInputElement | null)?.value)}>
         {requestState && !requestState.ok && (
           <p className="rounded-lg bg-red-950/50 px-3 py-2 text-sm text-red-300">{requestState.error}</p>
         )}
@@ -103,7 +114,8 @@ export function DeletionPanel({
         <p className="text-xs text-ink-500">
           Your account and all data are permanently deleted 30 days after you confirm.
         </p>
-      </form>
+        <p className="text-xs text-ink-400">Scheduling deletion also removes this tab&apos;s conversation drafts and pending delivery recovery. Copies in another device or a closed browser cannot be cleared here.</p>
+      </AuthBoundaryForm>
       {signOut}
     </div>
   );

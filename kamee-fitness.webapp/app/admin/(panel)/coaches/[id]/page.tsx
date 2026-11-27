@@ -11,7 +11,7 @@ import { InviteBlock } from "@/components/admin/coaching/InviteBlock";
 import { REVIEW_DECISION_LABEL, StatusPill } from "@/components/admin/coaching/status";
 import { StatusActionButton } from "@/components/admin/coaching/StatusActionButton";
 import { VerifyCredentialButton } from "@/components/admin/coaching/VerifyCredentialButton";
-import { loadCoachDetail } from "../queries";
+import { loadCoachAccountEmail, loadCoachDetail } from "../queries";
 
 
 const DOCUMENT_SIGNED_URL_TTL_SECONDS = 300;
@@ -27,6 +27,7 @@ export default async function CoachDetailPage({
 
   const detail = await loadCoachDetail(id);
   if (!detail.profile) notFound();
+  const accountEmail = await loadCoachAccountEmail(id);
 
   const { profile, coaching, credentials, gallery, reviews, invite, missing } = detail;
   const status = profile.coach_status;
@@ -79,12 +80,29 @@ export default async function CoachDetailPage({
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold">{coachName}</h1>
           {profile.username && (
             <p className="text-sm text-zinc-500">@{profile.username}</p>
           )}
+          <dl className="mt-3 text-sm">
+            <div>
+              <dt className="text-zinc-400">Account email</dt>
+              <dd className="text-zinc-200">
+                {accountEmail.email ? (
+                  <a
+                    href={`mailto:${encodeURIComponent(accountEmail.email)}`}
+                    className="inline-block min-h-11 max-w-full break-all py-2 text-emerald-400 underline underline-offset-4 hover:text-emerald-300 focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                  >
+                    {accountEmail.email}
+                  </a>
+                ) : (
+                  "Unavailable"
+                )}
+              </dd>
+            </div>
+          </dl>
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">

@@ -16,13 +16,18 @@ import type { CoachingProfileRow } from "@/lib/coaching/queries";
 import { Field } from "./Field";
 import { SaveIndicator } from "./SaveIndicator";
 import { inputClass } from "./ui";
+import { SpecialtySelector } from "./SpecialtySelector";
 
 export function ProfileForm({
   profile,
   readOnly,
+  specialtyOptions,
+  specialtyOptionsError,
 }: {
   profile: CoachingProfileRow;
   readOnly: boolean;
+  specialtyOptions: string[];
+  specialtyOptionsError: string | null;
 }) {
   const [form, setForm] = useState<ProfileFormState>(() => profileFormStateFromRow(profile));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -129,15 +134,14 @@ export function ProfileForm({
         />
       </Field>
 
-      <Field label="Specialties" error={errors.specialties} hint="Comma-separated, up to 8">
-        <input
-          className={inputClass}
-          value={form.specialties}
-          disabled={readOnly}
-          onChange={(e) => update("specialties", e.target.value)}
-          onBlur={saveNow}
-        />
-      </Field>
+      <SpecialtySelector
+        value={form.specialties}
+        options={specialtyOptions}
+        optionsError={specialtyOptionsError}
+        readOnly={readOnly}
+        error={errors.specialties}
+        onChange={(value) => update("specialties", value)}
+      />
 
       <Field label="Years of experience" error={errors.yearsExperience}>
         <input
