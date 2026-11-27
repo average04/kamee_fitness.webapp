@@ -36,6 +36,8 @@ export default async function VideosPage() {
         description="Upload once. Use in your plans and profile."
       />
       <VideoLibrary
+        key={user.id}
+        ownerId={user.id}
         initialIntroId={profile.data?.intro_video_id ?? null}
         initial={(data ?? []) as Video[]}
       />

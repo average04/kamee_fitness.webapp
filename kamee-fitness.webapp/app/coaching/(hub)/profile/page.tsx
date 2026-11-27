@@ -11,14 +11,18 @@ import { SubmitBlock } from "@/components/coaching/SubmitBlock";
 import { CoachTermsAcceptance } from "@/components/coaching/CoachTermsAcceptance";
 import { coachTermsState } from "@/lib/coaching/terms";
 import { COACH_TERMS_DRAFT, COACH_TERMS_VERSION } from "@/lib/legal-version";
+import { IntroductionVideoSection } from "@/components/coaching/IntroductionVideoSection";
+import { createServerSupabase } from "@/lib/supabase/server";
+import type { Video } from "@/lib/coaching/plans";
 
 export const metadata = { title: "Your coach profile" };
 
 export default async function CoachProfilePage() {
   const { user, status } = await requireCoach();
-  const [hub, specialtyOptions] = await Promise.all([
+  const [hub, specialtyOptions, videoInventory] = await Promise.all([
     loadHub(user.id),
     loadCoachingSpecialtyOptions(),
+    status === "approved" ? loadVideos() : Promise.resolve({ videos: [], error: null }),
   ]);
   const onboarding = ["onboarding", "in_review", "changes_requested"].includes(status);
   const readOnly = status === "in_review";
@@ -57,6 +61,7 @@ export default async function CoachProfilePage() {
             specialtyOptions={specialtyOptions.options}
             specialtyOptionsError={specialtyOptions.error}
           />
+          <IntroductionVideoSection status={status} videos={videoInventory.videos} inventoryError={videoInventory.error} introId={hub.profile.intro_video_id} ownerId={user.id} />
           <CoachTermsAcceptance state={terms} />
           {onboarding && <nav className="flex justify-end" aria-label="Next onboarding step">
             <Link
@@ -76,4 +81,17 @@ export default async function CoachProfilePage() {
       </div>
     </div>
   );
+}
+
+async function loadVideos(): Promise<{ videos: Video[]; error: string | null }> {
+  try {
+    const db = await createServerSupabase();
+    const { data, error } = await db.from("coaching_videos").select("*").is("retired_at", null).order("created_at", { ascending: false });
+    if (error) throw error;
+    return { videos: (data ?? []) as Video[], error: null };
+  } catch {
+    // Optional inventory must not disable the main profile editor. Core session
+    // and profile failures still propagate through requireCoach and loadHub.
+    return { videos: [], error: "Introduction videos could not be loaded." };
+  }
 }

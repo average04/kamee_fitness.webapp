@@ -20,6 +20,7 @@ vi.mock("tus-js-client", () => ({
     async abort() {}
   },
 }));
+vi.mock("@/app/coaching/(hub)/profile/introduction-actions", () => ({ setIntroductionVideo: vi.fn() }));
 vi.mock("@/lib/supabase/browser", () => ({
   createBrowserSupabase: () => ({
     auth: { getSession: async () => ({ data: { session: { user: { id: "coach-account" }, access_token: "test-token" } }, error: null }) },
